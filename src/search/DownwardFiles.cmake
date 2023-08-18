@@ -810,6 +810,15 @@ fast_downward_plugin(
     DEPENDENCY_ONLY
 )
 
+fast_downward_plugin(
+    NAME TASK_DUMP
+    HELP "Plugin to dump a task into sas input format."
+    SOURCES
+        task_utils/task_dump
+    DEPENDS TASK_PROPERTIES
+    DEPENDENCY_ONLY
+)
+
 fast_downward_add_plugin_sources(PLANNER_SOURCES)
 
 # The order in PLANNER_SOURCES influences the order in which object
