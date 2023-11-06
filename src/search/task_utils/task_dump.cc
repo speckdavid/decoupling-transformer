@@ -203,7 +203,8 @@ void dump_as_SAS(const AbstractTask &task, ostream &os) {
     dump_version_as_SAS(task, os);
     dump_metric_as_SAS(task, os);
     dump_variables_as_SAS(task, os);
-    dump_mutexes_as_SAS(task, os);
+    // dump_mutexes_as_SAS(task, os);
+    os << "0" << endl;
     dump_initial_state_as_SAS(task, os);
     dump_goal_as_SAS(task, os);
     dump_operators_as_SAS(task, os);
