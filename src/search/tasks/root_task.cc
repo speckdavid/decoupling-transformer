@@ -496,8 +496,6 @@ void RootTask::convert_ancestor_state_values(
 void read_root_task(istream &in) {
     assert(!g_root_task);
     g_root_task = make_shared<RootTask>(in);
-    extra_tasks::DecoupledTask dec_task(g_root_task);
-    exit(0);
 }
 
 class RootTaskFeature : public plugins::TypedFeature<AbstractTask, AbstractTask> {
