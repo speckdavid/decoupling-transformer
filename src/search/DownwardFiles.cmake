@@ -579,7 +579,9 @@ fast_downward_plugin(
     HELP "Core task transformations"
     SOURCES
         tasks/cost_adapted_task
+        tasks/decoupled_task
         tasks/delegating_task
+        tasks/factoring
         tasks/root_task
     CORE_PLUGIN
 )

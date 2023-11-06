@@ -1,5 +1,7 @@
 #include "root_task.h"
 
+#include "decoupled_task.h"
+
 #include "../state_registry.h"
 
 #include "../plugins/plugin.h"
@@ -494,6 +496,8 @@ void RootTask::convert_ancestor_state_values(
 void read_root_task(istream &in) {
     assert(!g_root_task);
     g_root_task = make_shared<RootTask>(in);
+    extra_tasks::DecoupledTask dec_task(g_root_task);
+    exit(0);
 }
 
 class RootTaskFeature : public plugins::TypedFeature<AbstractTask, AbstractTask> {

@@ -117,7 +117,7 @@ void dump_goal_as_SAS(const AbstractTask &task, ostream &os) {
 void dump_operator_pre_post_as_SAS(ostream &os, int pre, FactPair eff, const vector<FactPair> &eff_cond) {
     os << eff_cond.size() << " ";
     for (FactPair cond : eff_cond) {
-    	os << cond.var << " " << cond.value << " " << endl;
+        os << cond.var << " " << cond.value << " " << endl;
     }
     os << eff.var << " " << pre << " " << eff.value << endl;
 }
