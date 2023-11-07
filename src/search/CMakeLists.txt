@@ -697,7 +697,16 @@ create_fast_downward_library(
         tasks/modified_goals_task
         tasks/modified_operator_costs_task
     DEPENDS
-        task_properties
+        decoupling task_properties
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME decoupling
+    HELP "Decoupled task transformation"
+    SOURCES
+        decoupling/factoring
+        decoupling/lp_factoring
     DEPENDENCY_ONLY
 )
 
