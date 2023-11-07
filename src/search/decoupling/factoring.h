@@ -66,6 +66,7 @@ public:
 
     bool is_center_variable(int var) const;
     bool is_leaf_variable(int var) const;
+    int get_leaf_of_variables(int var) const;
 
     int get_num_leaves() const;
     int get_num_leaf_states(size_t l) const;

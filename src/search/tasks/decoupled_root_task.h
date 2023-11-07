@@ -22,6 +22,7 @@ class DecoupledRootTask : public RootTask {
     std::shared_ptr<decoupling::Factoring> factoring;
 
     std::unordered_map<int, int> center_var_to_pvar;
+    std::unordered_map<int, int> leaf_to_goal_pvar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_pvar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_dvar;
 

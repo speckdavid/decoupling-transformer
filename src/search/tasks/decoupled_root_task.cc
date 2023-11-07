@@ -42,7 +42,7 @@ void DecoupledRootTask::create_variables() {
         center_var_to_pvar[var] = variables.size() - 1;
     }
 
-    // primary variable
+    // primary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
             string name = "v(" + to_string(leaf) + "," + to_string(lstate) + ")";
@@ -51,7 +51,7 @@ void DecoupledRootTask::create_variables() {
         }
     }
 
-    // secondary variable
+    // secondary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
             string name = "d(" + to_string(leaf) + "," + to_string(lstate) + ")";
@@ -60,7 +60,24 @@ void DecoupledRootTask::create_variables() {
         }
     }
 
-    // TODO: create derived variables for operators and goal!
+    // secondary variable for goal conditions
+    for (const auto &g_fact : original_root_task->goals) {
+        int var = g_fact.var;
+
+        if (factoring->is_center_variable(var))
+            continue;
+
+        int leaf = factoring->get_leaf_of_variables(var);
+        assert(leaf != -1);
+
+        if (leaf_to_goal_pvar.count(leaf) == 0) {
+            string name = "g-d(" + to_string(leaf) + ")";
+            variables.emplace_back(name, vector<string>{"False", "True"}, 0);
+            leaf_to_goal_pvar[leaf] = variables.size() - 1;
+        }
+    }
+
+    // TODO: create derived variables for operator preconditions!
 }
 
 // TODO: At the moment we simply ignore mutexes by leaving them empty.
@@ -92,10 +109,16 @@ void DecoupledRootTask::create_goal() {
     for (const auto &g_fact : original_root_task->goals) {
         int var = g_fact.var;
         int val = g_fact.value;
+
         if (factoring->is_center_variable(var)) {
             int pvar = center_var_to_pvar[var];
             goals.emplace_back(pvar, val);
         }
+    }
+
+    // Leaf secondary variables
+    for (const auto & [leaf, pvar] : leaf_to_goal_pvar) {
+        goals.emplace_back(pvar, 1);
     }
 
     // We sort the vector of goals in increasing variable order

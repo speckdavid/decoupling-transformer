@@ -24,14 +24,14 @@ void Factoring::apply_factoring() {
     // TODO implement
     var_to_factor.resize(task->get_num_variables(), FactorID::CENTER);
     FactorID factor(0);
-    for (const auto &leaf : leaves){
-        for (int var : leaf){
+    for (const auto &leaf : leaves) {
+        for (int var : leaf) {
             var_to_factor[var] = factor;
         }
         ++factor;
     }
-    for (VariableProxy var : task_proxy.get_variables()){
-        if (var_to_factor[var.get_id()] == FactorID::CENTER){
+    for (VariableProxy var : task_proxy.get_variables()) {
+        if (var_to_factor[var.get_id()] == FactorID::CENTER) {
             center.push_back(var.get_id());
         }
     }
@@ -62,17 +62,17 @@ void Factoring::compute_factoring() {
 }
 
 bool Factoring::check_timeout() const {
-    if (factoring_timer.is_expired()){
+    if (factoring_timer.is_expired()) {
         return false;
     }
     return true;
 }
 
 void Factoring::compute_action_schemas() {
-    if (action_schemas.empty()){
+    if (action_schemas.empty()) {
         OperatorsProxy operators = TaskProxy(*task).get_operators();
         assert(!operators.empty());
-        utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t> > scheme_loockup;
+        utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t>> scheme_loockup;
         for (OperatorProxy op : operators) {
             vector<int> pre_vars;
             for (FactProxy pre : op.get_preconditions()) {
@@ -86,10 +86,10 @@ void Factoring::compute_action_schemas() {
             }
             sort(eff_vars.begin(), eff_vars.end());
 
-            if (scheme_loockup.find(pre_vars) == scheme_loockup.end()){
+            if (scheme_loockup.find(pre_vars) == scheme_loockup.end()) {
                 scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
                 action_schemas.emplace_back(1, pre_vars, eff_vars);
-            } else if (scheme_loockup[pre_vars].find(eff_vars) == scheme_loockup[pre_vars].end()){
+            } else if (scheme_loockup[pre_vars].find(eff_vars) == scheme_loockup[pre_vars].end()) {
                 scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
                 action_schemas.emplace_back(1, pre_vars, eff_vars);
             } else {
@@ -103,7 +103,7 @@ void Factoring::compute_var_to_ops_map() {
     if (var_to_affecting_op.empty()) {
         TaskProxy task_proxy(*task);
         OperatorsProxy operators = task_proxy.get_operators();
-        var_to_affecting_op = vector<set<int> >(task_proxy.get_variables().size(), set<int>());
+        var_to_affecting_op = vector<set<int>>(task_proxy.get_variables().size(), set<int>());
         for (OperatorProxy op : operators) {
             for (EffectProxy eff : op.get_effects()) {
                 var_to_affecting_op[eff.get_fact().get_variable().get_id()].insert(op.get_id());
@@ -119,6 +119,17 @@ bool Factoring::is_center_variable(int var) const {
 
 bool Factoring::is_leaf_variable(int var) const {
     return !is_center_variable(var);
+}
+
+int Factoring::get_leaf_of_variables(int var) const {
+    for (size_t l = 0; l < leaves.size(); ++l) {
+        auto it = std::find(leaves.at(l).begin(), leaves.at(l).end(), var);
+        if (it != leaves.at(l).end())
+            return l;
+    }
+
+    assert(is_leaf_variable(var));
+    return -1;
 }
 
 int Factoring::get_num_leaves() const {
@@ -157,22 +168,22 @@ int Factoring::get_initial_leaf_state(size_t l) const {
 void Factoring::add_options_to_feature(plugins::Feature &feature) {
     utils::add_log_options_to_feature(feature);
     feature.add_option<int>("min_number_leaves",
-                             "maximum number of leaves",
-                             "2");
+                            "maximum number of leaves",
+                            "2");
     feature.add_option<int>("max_leaf_size",
-                             "maximum domain size product of variables in a leaf",
-                             "infinity");
+                            "maximum domain size product of variables in a leaf",
+                            "infinity");
     feature.add_option<int>("factoring_time_limit",
-                               "timeout for computing the factoring",
-                               "infinity"
-    );
+                            "timeout for computing the factoring",
+                            "infinity"
+                            );
 }
 
 static class EvaluatorCategoryPlugin : public plugins::TypedCategoryPlugin<Factoring> {
 public:
     EvaluatorCategoryPlugin() : TypedCategoryPlugin("Factoring") {
         document_synopsis(
-                "A factoring that can be used for decoupled search.");
+            "A factoring that can be used for decoupled search.");
     }
 }
 _category_plugin;
