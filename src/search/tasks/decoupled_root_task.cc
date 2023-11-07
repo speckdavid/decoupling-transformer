@@ -11,8 +11,10 @@
 using namespace std;
 
 namespace tasks {
-DecoupledRootTask::DecoupledRootTask(const shared_ptr<AbstractTask> &abstract_task)
-    : RootTask() {
+DecoupledRootTask::DecoupledRootTask(const plugins::Options &options,
+                                     const shared_ptr<AbstractTask> &abstract_task)
+    : RootTask(),
+      factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")) {
     shared_ptr<RootTask> root_task = dynamic_pointer_cast<RootTask>(abstract_task);
     if (!root_task) {
         cerr << "Expected a root task as input to decoupled root task." << endl;
@@ -34,10 +36,13 @@ public:
         document_title("Decoupled task");
         document_synopsis(
             "A decoupled transformation of the root task.");
+
+        add_option<shared_ptr<decoupling::Factoring>>("factoring",
+                "method that computes the factoring");
     }
 
-    virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options & /*options*/, const utils::Context &) const override {
-        return make_shared<DecoupledRootTask>(g_root_task);
+    virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
+        return make_shared<DecoupledRootTask>(options, g_root_task);
     }
 };
 
