@@ -31,11 +31,21 @@ public:
 
     virtual void set_mip_gap(double gap) = 0;
 
+    // only supported for CPLEX solver
+    virtual void set_time_limit(double /*seconds*/) {};
+
     virtual void solve() = 0;
     virtual void write_lp(const std::string &filename) const = 0;
     virtual void print_failure_analysis() const = 0;
     virtual bool is_infeasible() const = 0;
     virtual bool is_unbounded() const = 0;
+
+
+    /*
+      Return true if the solving the LP showed that it is feasible.
+      The LP has to be solved with a call to solve() before calling this method.
+    */
+    virtual bool has_solution() const {return has_optimal_solution();};
 
     /*
       Return true if the solving the LP showed that it is bounded feasible and

@@ -31,7 +31,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     create_operators();
     create_axioms();
 
-    task_properties::dump_task(TaskProxy(*this));
+    // task_properties::dump_task(TaskProxy(*this));
     exit(0);
 }
 

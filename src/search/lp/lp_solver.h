@@ -114,11 +114,20 @@ public:
 
     void set_mip_gap(double gap);
 
+    // only supported for CPLEX solver
+    void set_time_limit(double seconds);
+
     void solve();
     void write_lp(const std::string &filename) const;
     void print_failure_analysis() const;
     bool is_infeasible() const;
     bool is_unbounded() const;
+
+    /*
+      Return true if the solving the LP showed that it is feasible.
+      The LP has to be solved with a call to solve() before calling this method.
+    */
+    bool has_solution() const;
 
     /*
       Return true if the solving the LP showed that it is bounded feasible and
