@@ -112,6 +112,48 @@ void Factoring::compute_var_to_ops_map() {
     }
 }
 
+
+bool Factoring::is_center_variable(int var) const {
+    return std::find(center.begin(), center.end(), var) != center.end();
+}
+
+bool Factoring::is_leaf_variable(int var) const {
+    return !is_center_variable(var);
+}
+
+int Factoring::get_num_leaves() const {
+    return leaves.size();
+}
+
+int Factoring::get_num_leaf_states(size_t l) const {
+    assert(l < leaves.size());
+    // TODO: fix
+    int num_states = 1;
+    for (int var : leaves.at(l)) {
+        num_states *= task->get_variable_domain_size(var);
+    }
+    return num_states;
+}
+
+vector<int> Factoring::get_center() const {
+    return center;
+}
+
+std::vector<std::vector<int>> Factoring::get_leaves() const {
+    return leaves;
+}
+
+vector<int> Factoring::get_leaf(size_t l) const {
+    assert(l < leaves.size());
+    return leaves.at(l);
+}
+
+int Factoring::get_initial_leaf_state(size_t l) const {
+    assert(l < leaves.size());
+    // TODO: return the leaf state id which corresponds to the initial state
+    return 0;
+}
+
 void Factoring::add_options_to_feature(plugins::Feature &feature) {
     utils::add_log_options_to_feature(feature);
     feature.add_option<int>("min_number_leaves",

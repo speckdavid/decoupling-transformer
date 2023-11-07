@@ -22,10 +22,10 @@ struct ExplicitVariable {
     int axiom_default_value;
 
     explicit ExplicitVariable(std::istream &in);
-    ExplicitVariable(const std::string name,
+    ExplicitVariable(const std::string& name,
                      std::vector<std::string> &&fact_names,
                      int axiom_layer,
-                     int axiom_default_value);
+                     int axiom_default_value = 0);
 };
 
 

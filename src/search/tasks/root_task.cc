@@ -84,7 +84,7 @@ ExplicitVariable::ExplicitVariable(istream &in) {
     check_magic(in, "end_variable");
 }
 
-ExplicitVariable::ExplicitVariable(const std::string name,
+ExplicitVariable::ExplicitVariable(const std::string& name,
                                    std::vector<std::string> &&fact_names,
                                    int axiom_layer,
                                    int axiom_default_value) :
