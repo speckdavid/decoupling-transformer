@@ -31,6 +31,7 @@ protected:
     std::vector<std::vector<int>> leaves;
 
     std::vector<FactorID> var_to_factor;
+    std::vector<int> var_to_id_in_factor;
 
     struct ActionSchema {
         int num_actions; // number of actions with the action schema

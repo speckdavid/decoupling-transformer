@@ -23,15 +23,19 @@ Factoring::Factoring(const plugins::Options &opts) :
 void Factoring::apply_factoring() {
     // TODO implement
     var_to_factor.resize(task->get_num_variables(), FactorID::CENTER);
+    var_to_id_in_factor.resize(task->get_num_variables(), -1);
     FactorID factor(0);
-    for (const auto &leaf : leaves) {
-        for (int var : leaf) {
+    for (const auto &leaf : leaves){
+        int i = 0;
+        for (int var : leaf){
             var_to_factor[var] = factor;
+            var_to_id_in_factor[var] = i++;
         }
         ++factor;
     }
-    for (VariableProxy var : task_proxy.get_variables()) {
-        if (var_to_factor[var.get_id()] == FactorID::CENTER) {
+    for (VariableProxy var : task_proxy.get_variables()){
+        if (var_to_factor[var.get_id()] == FactorID::CENTER){
+            var_to_id_in_factor[var.get_id()] = static_cast<int>(center.size());
             center.push_back(var.get_id());
         }
     }
@@ -39,7 +43,6 @@ void Factoring::apply_factoring() {
 
 void Factoring::print_factoring() const {
     if (log.is_at_least_normal()) {
-        log << "factoring with " << leaves.size() << " leaves" << endl;
         log << "center factor:" << endl;
         for (int var: center) {
             log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
@@ -61,23 +64,23 @@ bool Factoring::is_factoring_possible() const {
     vector<int> op_count(task->get_num_variables(), 0);
     vector<bool> var_not_affected_by_some_op(task->get_num_variables(), false);
     int num_vars_not_affected_by_some_op = 0;
-    for (int i = 0; i < task->get_num_operators(); ++i) {
-        for (const EffectProxy &eff : task_proxy.get_operators()[i].get_effects()) {
+    for (int i = 0; i < task->get_num_operators(); ++i){
+        for (const EffectProxy &eff : task_proxy.get_operators()[i].get_effects()){
             int eff_var = eff.get_fact().get_variable().get_id();
-            if (op_count[eff_var] == i) {
+            if (op_count[eff_var] == i){
                 ++op_count[eff_var];
             } else if (!var_not_affected_by_some_op[eff_var]) {
                 var_not_affected_by_some_op[eff_var] = true;
                 ++num_vars_not_affected_by_some_op;
-                if (num_vars_not_affected_by_some_op == task->get_num_variables()) {
+                if (num_vars_not_affected_by_some_op == task->get_num_variables()){
                     // no variable is affected by all actions
                     return true;
                 }
             }
         }
     }
-    for (int op_c : op_count) {
-        if (op_c == task->get_num_operators()) {
+    for (int op_c : op_count){
+        if (op_c == task->get_num_operators()){
             log << "No mobile factoring possible." << endl;
             return false;
         }
@@ -91,11 +94,11 @@ inline bool is_intersection_empty(const vector<int> &x, const vector<int> &y, in
         return false;
     }
     size_t i = 0;
-    for (int a : x) {
-        for (; i < y.size(); ++i) {
-            if (a < y[i]) {
+    for (int a : x){
+        for (; i < y.size(); ++i){
+            if (a < y[i]){
                 break;
-            } else if (a == y[i]) {
+            } else if (a == y[i]){
                 return false;
             }
         }
@@ -105,7 +108,7 @@ inline bool is_intersection_empty(const vector<int> &x, const vector<int> &y, in
 
 bool Factoring::is_two_leaf_factoring_possible() const {
     int num_vars = task->get_num_variables();
-    for (size_t i = 0; i < action_schemas.size(); ++i) {
+    for (size_t i = 0; i < action_schemas.size(); ++i){
         const auto &a1 = action_schemas[i];
         for (size_t j = i + 1; j < action_schemas.size(); ++j) {
             const auto &a2 = action_schemas[j];
