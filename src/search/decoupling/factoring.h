@@ -15,6 +15,11 @@
 namespace decoupling {
 
 class Factoring {
+
+    bool is_factoring_possible() const;
+    bool is_two_leaf_factoring_possible() const;
+    void check_factoring() const;
+
 protected:
     mutable utils::LogProxy log;
     utils::CountdownTimer factoring_timer;
