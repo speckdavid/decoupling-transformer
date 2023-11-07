@@ -193,6 +193,8 @@ public:
     std::vector<double> constraint_lower_bounds;
     std::vector<double> constraint_upper_bounds;
 
+    bool has_time_limit;
+
     bool is_trivially_unsolvable() const;
     void change_constraint_bounds(int index, double lb, double ub);
 public:
@@ -210,11 +212,13 @@ public:
     virtual void set_variable_lower_bound(int index, double bound) override;
     virtual void set_variable_upper_bound(int index, double bound) override;
     virtual void set_mip_gap(double gap) override;
+    virtual void set_time_limit(double seconds) override;
     virtual void solve() override;
     virtual void write_lp(const std::string &filename) const override;
     virtual void print_failure_analysis() const override;
     virtual bool is_infeasible() const override;
     virtual bool is_unbounded() const override;
+    virtual bool has_solution() const override;
     virtual bool has_optimal_solution() const override;
     virtual double get_objective_value() const override;
     virtual std::vector<double> extract_solution() const override;

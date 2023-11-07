@@ -238,7 +238,8 @@ void CplexSolverInterface::CplexRowsInfo::assign(const named_vector::NamedVector
 CplexSolverInterface::CplexSolverInterface()
     : env(nullptr), problem(nullptr), is_mip(false),
       num_permanent_constraints(0), num_unsatisfiable_constraints(0),
-      num_unsatisfiable_temp_constraints(0) {
+      num_unsatisfiable_temp_constraints(0),
+      has_time_limit(false) {
     int status = 0;
     env = CPXopenCPLEX(&status);
     if (status) {
@@ -452,6 +453,11 @@ void CplexSolverInterface::set_mip_gap(double gap) {
     CPX_CALL(CPXsetdblparam, env, CPXPARAM_MIP_Tolerances_MIPGap, gap);
 }
 
+void CplexSolverInterface::set_time_limit(double seconds) {
+    has_time_limit = true;
+    CPX_CALL(CPXsetdblparam, env, CPX_PARAM_TILIM, seconds);
+}
+
 void CplexSolverInterface::solve() {
     if (is_trivially_unsolvable()) {
         return;
@@ -526,6 +532,42 @@ bool CplexSolverInterface::is_unbounded() const {
     return status == CPX_STAT_UNBOUNDED;
 }
 
+bool CplexSolverInterface::has_solution() const {
+    if (is_trivially_unsolvable()) {
+        return false;
+    }
+    int status = CPXgetstat(env, problem);
+    switch (status) {
+        case CPX_STAT_OPTIMAL:
+        case CPXMIP_OPTIMAL:
+            /*
+              The following status was returned in some cases, for example when
+              computing h^+ for childsnack-opt14-strips/child-snack_pfile03-2.pddl.
+              It means that the solution is optimal within the tolerances defined by
+              the relative or absolute MIP gap.
+              TODO: is it safe to treat this as an optimal solution (OSI did)?
+            */
+        case CPXMIP_OPTIMAL_TOL:
+            /*
+              The following status was returned in some cases, for example when
+              computing diverse potential heuristics for Airport/p29.
+              It means that there is an optimal solution of the LP but there are
+              "infeasibilities after unscaling".
+              TODO: is it safe to treat this as an optimal solution (OSI did)?
+            */
+        case CPX_STAT_OPTIMAL_INFEAS:
+        case CPX_STAT_FEASIBLE:
+            return true;
+        case CPX_STAT_UNBOUNDED:
+        case CPX_STAT_INFEASIBLE:
+        case CPXMIP_INFEASIBLE:
+            return false;
+        default:
+            cerr << "Unexpected status after solving LP/MIP: " << status << endl;
+            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+    }
+}
+
 bool CplexSolverInterface::has_optimal_solution() const {
     if (is_trivially_unsolvable()) {
         return false;
@@ -554,6 +596,7 @@ bool CplexSolverInterface::has_optimal_solution() const {
     case CPX_STAT_UNBOUNDED:
     case CPX_STAT_INFEASIBLE:
     case CPXMIP_INFEASIBLE:
+    case CPX_STAT_FEASIBLE:
         return false;
     default:
         cerr << "Unexpected status after solving LP/MIP: " << status << endl;
@@ -562,14 +605,14 @@ bool CplexSolverInterface::has_optimal_solution() const {
 }
 
 double CplexSolverInterface::get_objective_value() const {
-    assert(has_optimal_solution());
+    assert(has_optimal_solution() || (has_time_limit && has_solution()));
     double value;
     CPX_CALL(CPXgetobjval, env, problem, &value);
     return value;
 }
 
 vector<double> CplexSolverInterface::extract_solution() const {
-    assert(has_optimal_solution());
+    assert(has_optimal_solution() || (has_time_limit && has_solution()));
     int num_variables = get_num_variables();
     vector<double> solution(num_variables);
     CPX_CALL(CPXgetx, env, problem, solution.data(), 0, num_variables - 1);

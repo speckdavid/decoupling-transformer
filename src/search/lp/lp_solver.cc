@@ -187,6 +187,10 @@ void LPSolver::set_mip_gap(double gap) {
     pimpl->set_mip_gap(gap);
 }
 
+void LPSolver::set_time_limit(double seconds) {
+    pimpl->set_time_limit(seconds);
+}
+
 void LPSolver::solve() {
     pimpl->solve();
 }
@@ -197,6 +201,10 @@ void LPSolver::write_lp(const string &filename) const {
 
 void LPSolver::print_failure_analysis() const {
     pimpl->print_failure_analysis();
+}
+
+bool LPSolver::has_solution() const {
+    return pimpl->has_solution();
 }
 
 bool LPSolver::has_optimal_solution() const {

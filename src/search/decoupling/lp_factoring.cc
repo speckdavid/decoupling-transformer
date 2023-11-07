@@ -578,6 +578,8 @@ void LPFactoring::compute_factoring_() {
                                               std::move(constraints),
                                                  infty));
 
+        solver.set_time_limit(factoring_timer.get_remaining_time());
+
         solver.solve();
 
         solution = solver.extract_solution();
