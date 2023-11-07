@@ -57,6 +57,10 @@ void Factoring::print_factoring() const {
 
 void Factoring::compute_factoring() {
     compute_factoring_();
+    if (leaves.empty()){
+        log << "ERROR: no factoring with at least " << min_number_leaves << " leaves found." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+    }
     apply_factoring();
     print_factoring();
 }
