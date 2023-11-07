@@ -170,7 +170,7 @@ void LPFactoring::compute_factoring_() {
 
     if (action_schemas.empty()){
         // mostly for trivially unsolvable task from translator?
-        cerr << "ERROR: No action schemas." << endl;
+        log << "ERROR: No action schemas." << endl;
         return;
     }
 
@@ -189,7 +189,7 @@ void LPFactoring::compute_factoring_() {
     }
 
     if (potential_leaves.empty()){
-        cout << "No potential leaves." << endl;
+        log << "No potential leaves." << endl;
         return;
     }
 
@@ -199,7 +199,7 @@ void LPFactoring::compute_factoring_() {
     }
 
     if (static_cast<int>(potential_leaves.size()) < min_number_leaves){
-        cout << "Only " << potential_leaves.size() <<
+        log << "Only " << potential_leaves.size() <<
                 " potential leaves left, but minimum number of leaves is " <<
                 min_number_leaves << "." << endl;
         return;
@@ -280,7 +280,7 @@ void LPFactoring::compute_factoring_() {
                 variables.push_back(lp::LPVariable(0.0, 1.0, obj_v, true));}
                 break;
                 //        MF: variables.push_back(lp::LPVariable(0.0, 1.0, , true)); break; // TODO
-            default: cerr << "unknown strategy" << endl; exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+            default: log << "unknown strategy" << endl; exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
             }
         }
     }
@@ -571,7 +571,7 @@ void LPFactoring::compute_factoring_() {
     if (constraints.size() == 0){
         // this should only happen when all potential leaves can become leaves
         solution.resize(potential_leaves.size(), 1);
-        cout << "No constraints, all candidates become leaf factors." << endl;
+        log << "No constraints, all candidates become leaf factors." << endl;
     } else {
         solver.load_problem(lp::LinearProgram(lp::LPObjectiveSense::MAXIMIZE,
                                                std::move(variables),
@@ -585,7 +585,7 @@ void LPFactoring::compute_factoring_() {
         solution = solver.extract_solution();
 
         if (solution.empty()) {
-            cout << "WARNING: no solution found by LP solver." << endl;
+            log << "WARNING: no solution found by LP solver." << endl;
             return;
         }
     }
@@ -613,7 +613,7 @@ void LPFactoring::compute_factoring_() {
         // this tends to happen when CPLEX is running out of memory on the cluster,
         // when run with an external memory limit. could try to additionally set
         // the memory limit for CPLEX explicitly
-        cerr << "ERROR: solution returned by LP solver is not a valid factoring: leaves do overlap." << endl;
+        log << "ERROR: solution returned by LP solver is not a valid factoring: leaves do overlap." << endl;
         exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
     }
 }
@@ -661,7 +661,7 @@ void LPFactoring::filter_potential_leaves() {
             }
         }
     }
-    cout << "Removed " << erase_leaves.size() << " potential leaves because of minimal flexibility/mobility." << endl;
+    log << "Removed " << erase_leaves.size() << " potential leaves because of minimal flexibility/mobility." << endl;
 
     potential_leaves.erase(remove_if(potential_leaves.begin(),
             potential_leaves.end(),
@@ -723,8 +723,8 @@ vector<LPFactoring::PotentialLeaf> LPFactoring::compute_potential_leaves() {
         }
     }
 
-    cout << action_schemas.size() << " action schemes" << endl;
-    cout << potential_leaves.size() << " potential leaves" << endl;
+    log << action_schemas.size() << " action schemes" << endl;
+    log << potential_leaves.size() << " potential leaves" << endl;
 
     recompute_var_to_p_leaves();
 
@@ -847,7 +847,7 @@ void LPFactoring::add_cg_sccs() {
         }
     }
 
-    cout << "Added " << added << " causal-graph SCC potential leaves." << endl;
+    log << "Added " << added << " causal-graph SCC potential leaves." << endl;
 }
 
 void LPFactoring::merge_potential_leaves() {
@@ -981,7 +981,7 @@ void LPFactoring::merge_potential_leaves() {
         }
         merged_leaves.clear();
     }
-    cout << "Added " << added << " merged leaves." << endl;
+    log << "Added " << added << " merged leaves." << endl;
 }
 
 
