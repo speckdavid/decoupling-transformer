@@ -706,6 +706,7 @@ create_fast_downward_library(
     HELP "Decoupled task transformation"
     SOURCES
         decoupling/factoring
+        decoupling/leaf_state_id
         decoupling/lp_factoring
     DEPENDENCY_ONLY
 )

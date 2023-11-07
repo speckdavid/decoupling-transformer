@@ -1,6 +1,8 @@
 #ifndef DECOUPLING_FACTORING
 #define DECOUPLING_FACTORING
 
+#include "leaf_state_id.h"
+
 #include "../abstract_task.h"
 #include "../task_proxy.h"
 
@@ -13,15 +15,17 @@
 namespace decoupling {
 
 class Factoring {
-    utils::CountdownTimer factoring_timer;
-
 protected:
+    mutable utils::LogProxy log;
+    utils::CountdownTimer factoring_timer;
 
     std::shared_ptr<AbstractTask> task;
     TaskProxy task_proxy;
 
     std::vector<int> center;
     std::vector<std::vector<int>> leaves;
+
+    std::vector<FactorID> var_to_factor;
 
     struct ActionSchema {
         int num_actions; // number of actions with the action schema

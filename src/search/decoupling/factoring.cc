@@ -12,6 +12,7 @@ vector<Factoring::ActionSchema> Factoring::action_schemas;
 vector<set<int>> Factoring::var_to_affecting_op;
 
 Factoring::Factoring(const plugins::Options &opts) :
+    log(utils::get_log_from_options(opts)),
     factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
     task(tasks::g_root_task),
     task_proxy(TaskProxy(*task)),
@@ -21,10 +22,37 @@ Factoring::Factoring(const plugins::Options &opts) :
 
 void Factoring::apply_factoring() {
     // TODO implement
+    var_to_factor.resize(task->get_num_variables(), FactorID::CENTER);
+    FactorID factor(0);
+    for (const auto &leaf : leaves){
+        for (int var : leaf){
+            var_to_factor[var] = factor;
+        }
+        ++factor;
+    }
+    for (VariableProxy var : task_proxy.get_variables()){
+        if (var_to_factor[var.get_id()] == FactorID::CENTER){
+            center.push_back(var.get_id());
+        }
+    }
 }
 
 void Factoring::print_factoring() const {
-    cout << endl;
+    if (log.is_at_least_normal()) {
+        log << "factoring with " << leaves.size() << " leaves" << endl;
+        log << "center factor:" << endl;
+        for (int var: center) {
+            log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
+        }
+        log << "leaf factors:" << endl;
+        int i = 0;
+        for (const auto &leaf: leaves) {
+            log << "leaf " << i++ << ":" << endl;
+            for (int var: leaf) {
+                log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
+            }
+        }
+    }
 }
 
 void Factoring::compute_factoring() {
@@ -85,12 +113,13 @@ void Factoring::compute_var_to_ops_map() {
 }
 
 void Factoring::add_options_to_feature(plugins::Feature &feature) {
+    utils::add_log_options_to_feature(feature);
     feature.add_option<int>("min_number_leaves",
                              "maximum number of leaves",
                              "2");
     feature.add_option<int>("max_leaf_size",
                              "maximum domain size product of variables in a leaf",
-                             to_string(numeric_limits<int>::max() - 1));
+                             "infinity");
     feature.add_option<int>("factoring_time_limit",
                                "timeout for computing the factoring",
                                "infinity"

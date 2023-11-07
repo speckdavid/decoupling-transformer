@@ -53,13 +53,32 @@ LPFactoring::LPFactoring(const plugins::Options &opts) : Factoring(opts),
         merge_dependent(opts.get<bool>("merge_dependent")),
         ignore_center_preconditions(opts.get<bool>("ignore_center_preconditions")) {
 
-    cout << "using LP factoring strategy" << endl;
+    if (log.is_at_least_normal()) {
+        log << "Using LP factoring with strategy: ";
+        switch (strategy) {
+            case STRATEGY::MML:
+                log << "maximize number of mobile leaves." << endl; break;
+            case STRATEGY::MMAS:
+                log << "maximize number of mobile action schemas." << endl; break;
+            case STRATEGY::MM_OPT:
+                log << "maximize leaf mobility (exact)." << endl; break;
+            case STRATEGY::MM_APPROX:
+                log << "maximize leaf mobility (approximate)." << endl; break;
+            case STRATEGY::MFA:
+                log << "maximize number of mobile facts." << endl; break;
+            case STRATEGY::MM:
+                log << "maximize leaf mobility (sum)." << endl; break;
+            default:
+                log << "ERROR: unknown LP factoring strategy." << endl;
+                exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+        }
+    }
 
     if (max_merge_steps > 0 && !merge_dependent && !merge_overlapping){
-        cerr << "At least one of \"merge_dependent\" or \"merge_overlapping\" needs to be set when merging leaves." << endl;
+        log << "At least one of \"merge_dependent\" or \"merge_overlapping\" needs to be set when merging leaves." << endl;
         exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     } else if (max_merge_steps == 0 && (merge_dependent || merge_overlapping)){
-        cerr << "WARNING: Option max_merge_steps needs to be set > 0 for \"merge_dependent\" or \"merge_overlapping\" to have an effect." << endl;
+        log << "WARNING: Option max_merge_steps needs to be set > 0 for \"merge_dependent\" or \"merge_overlapping\" to have an effect." << endl;
     }
 }
 
