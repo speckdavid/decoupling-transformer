@@ -1,6 +1,6 @@
 #include "decoupled_root_task.h"
 
-#include "factoring.h"
+#include "../decoupling/factoring.h"
 
 #include "../plugins/plugin.h"
 #include "../task_utils/task_dump.h"
