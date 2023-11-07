@@ -50,9 +50,15 @@ protected:
 
     explicit Factoring(const plugins::Options &opts);
     void apply_factoring();
+    void print_factoring() const;
+
+    // TODO find a better name for this
+    virtual void compute_factoring_() = 0;
 
 public:
     virtual ~Factoring() = default;
+
+    void compute_factoring();
 
     static void add_options_to_feature(plugins::Feature &feature);
 };

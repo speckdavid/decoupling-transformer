@@ -73,7 +73,7 @@ class LPFactoring : public decoupling::Factoring {
 
     void recompute_var_to_p_leaves();
 
-    void compute_factoring();
+    void compute_factoring_();
 
 public:
 

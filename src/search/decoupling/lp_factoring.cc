@@ -61,9 +61,6 @@ LPFactoring::LPFactoring(const plugins::Options &opts) : Factoring(opts),
     } else if (max_merge_steps == 0 && (merge_dependent || merge_overlapping)){
         cerr << "WARNING: Option max_merge_steps needs to be set > 0 for \"merge_dependent\" or \"merge_overlapping\" to have an effect." << endl;
     }
-
-    compute_factoring();
-    apply_factoring();
 }
 
 inline void get_combinations(const vector<size_t> &act_schemas,
@@ -89,7 +86,7 @@ inline double get_log(size_t num_actions) {
     return log(max(1.0001, (double) num_actions));
 }
 
-void LPFactoring::compute_factoring() {
+void LPFactoring::compute_factoring_() {
     lp::LPSolver solver(lp::LPSolverType::CPLEX);
     infty = solver.get_infinity();
 

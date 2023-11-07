@@ -28,6 +28,8 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options,
     axioms = root_task->axioms;
     initial_state_values = root_task->initial_state_values;
     goals = root_task->goals;
+
+    factoring->compute_factoring();
 }
 
 class DecoupledRootTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledRootTask> {

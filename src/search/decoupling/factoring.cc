@@ -23,6 +23,16 @@ void Factoring::apply_factoring() {
     // TODO implement
 }
 
+void Factoring::print_factoring() const {
+    cout << endl;
+}
+
+void Factoring::compute_factoring() {
+    compute_factoring_();
+    apply_factoring();
+    print_factoring();
+}
+
 bool Factoring::check_timeout() const {
     if (factoring_timer.is_expired()){
         return false;
