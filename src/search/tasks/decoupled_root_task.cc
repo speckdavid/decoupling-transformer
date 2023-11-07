@@ -11,23 +11,17 @@
 using namespace std;
 
 namespace tasks {
-DecoupledRootTask::DecoupledRootTask(const plugins::Options &options,
-                                     const shared_ptr<AbstractTask> &abstract_task)
+DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : RootTask(),
+      original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")) {
-    shared_ptr<RootTask> root_task = dynamic_pointer_cast<RootTask>(abstract_task);
-    if (!root_task) {
-        cerr << "Expected a root task as input to decoupled root task." << endl;
-        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-    }
-    
     // Is this a deep copy?
-    variables = root_task->variables;
+    variables = original_root_task->variables;
     // mutexes = root_task->mutexes;
-    operators = root_task->operators;
-    axioms = root_task->axioms;
-    initial_state_values = root_task->initial_state_values;
-    goals = root_task->goals;
+    operators = original_root_task->operators;
+    axioms = original_root_task->axioms;
+    initial_state_values = original_root_task->initial_state_values;
+    goals = original_root_task->goals;
 
     factoring->compute_factoring();
 }
@@ -40,11 +34,11 @@ public:
             "A decoupled transformation of the root task.");
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
-                "method that computes the factoring");
+                                                      "method that computes the factoring");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
-        return make_shared<DecoupledRootTask>(options, g_root_task);
+        return make_shared<DecoupledRootTask>(options);
     }
 };
 

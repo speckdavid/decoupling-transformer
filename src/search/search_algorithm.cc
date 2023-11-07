@@ -7,7 +7,6 @@
 #include "plugins/plugin.h"
 #include "task_utils/successor_generator.h"
 #include "task_utils/task_properties.h"
-#include "tasks/delegating_task.h"
 #include "tasks/root_task.h"
 #include "utils/countdown_timer.h"
 #include "utils/rng_options.h"
@@ -45,9 +44,7 @@ SearchAlgorithm::SearchAlgorithm(const plugins::Options &opts)
     : description(opts.get_unparsed_config()),
       status(IN_PROGRESS),
       solution_found(false),
-      original_task(tasks::g_root_task),
-      original_task_proxy(*original_task),
-      task(opts.get<shared_ptr<AbstractTask>>("transform")),
+      task(tasks::g_root_task),
       task_proxy(*task),
       log(utils::get_log_from_options(opts)),
       state_registry(task_proxy),
@@ -62,14 +59,6 @@ SearchAlgorithm::SearchAlgorithm(const plugins::Options &opts)
         utils::exit_with(ExitCode::SEARCH_INPUT_ERROR);
     }
     bound = opts.get<int>("bound");
-
-    if (dynamic_pointer_cast<tasks::DelegatingTask>(task)) {
-        cerr << "error: task transformation is not supported (it is not allowed to be a delegated/shallow task)." << endl;
-        utils::exit_with(ExitCode::SEARCH_INPUT_ERROR);
-    }
-
-    tasks::g_root_task = task;
-
     task_properties::print_variable_statistics(task_proxy);
 }
 
@@ -159,12 +148,6 @@ void SearchAlgorithm::add_options_to_feature(plugins::Feature &feature) {
         "experiments. Timed-out searches are treated as failed searches, "
         "just like incomplete search algorithms that exhaust their search space.",
         "infinity");
-    feature.add_option<shared_ptr<AbstractTask>>(
-        "transform",
-        "Optional task transformation for the search."
-        "Note that all heuristics will also use this transformation as a starting point."
-        " Currently, adapt_costs() and decoupled() are available.",
-        "no_transform()");
     utils::add_log_options_to_feature(feature);
 }
 

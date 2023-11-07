@@ -36,10 +36,6 @@ class SearchAlgorithm {
     bool solution_found;
     Plan plan;
 protected:
-    // Original task without a trask formation
-    const std::shared_ptr<AbstractTask> original_task;
-    TaskProxy original_task_proxy;
-
     // Hold a reference to the task implementation and pass it to objects that need it.
     const std::shared_ptr<AbstractTask> task;
     // Use task_proxy to access task information.

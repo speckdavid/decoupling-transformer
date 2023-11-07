@@ -8,6 +8,7 @@
 #include "plugins/any.h"
 #include "plugins/doc_printer.h"
 #include "plugins/plugin.h"
+#include "tasks/root_task.h"
 #include "utils/logging.h"
 #include "utils/strings.h"
 
@@ -91,7 +92,21 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
     for (size_t i = 0; i < args.size(); ++i) {
         string arg = args[i];
         bool is_last = (i == args.size() - 1);
-        if (arg == "--search") {
+        if (arg == "--root-task-transform") {
+            if (is_last)
+                input_error("missing argument after --search");
+            ++i;
+            string transform_arg = args[i];
+            try {
+                parser::TokenStream tokens = parser::split_tokens(transform_arg);
+                parser::ASTNodePtr parsed = parser::parse(tokens);
+                parser::DecoratedASTNodePtr decorated = parsed->decorate();
+                plugins::Any constructed = decorated->construct();
+                tasks::g_root_task = plugins::any_cast<shared_ptr<AbstractTask>>(constructed);
+            } catch (const utils::ContextError &e) {
+                input_error(e.get_message());
+            }
+        } else if (arg == "--search") {
             if (search_algorithm)
                 input_error("multiple --search arguments defined");
             if (is_last)
@@ -163,6 +178,31 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
     return search_algorithm;
 }
 
+static void move_arg(vector<string> &args, const string &arg, size_t position) {
+    assert(position < args.size());
+
+    auto it = std::find(args.begin(), args.end(), arg);
+
+    // Arg not in args
+    if (it == args.end())
+        return;
+
+    // Calculate the index of the found element
+    size_t index = distance(args.begin(), it);
+
+    if (index >= args.size() - 2)
+        input_error("missing argument after " + arg);
+
+    // Move arg and the next element to the new positions
+    for (int i = 0; i < 2; ++i) {
+        if (index + i < position + i) {
+            rotate(it + i, it + 1 + i, args.begin() + position + 1 + i);
+        } else if (index + i > position + i) {
+            rotate(args.begin() + position + i, it + i, it + 1 + i);
+        }
+    }
+}
+
 shared_ptr<SearchAlgorithm> parse_cmd_line(
     int argc, const char **argv, bool is_unit_cost) {
     vector<string> args;
@@ -181,6 +221,9 @@ shared_ptr<SearchAlgorithm> parse_cmd_line(
         }
     }
     args = replace_old_style_predefinitions(args);
+
+    move_arg(args, "--root-task-transform", 0);
+
     return parse_cmd_line_aux(args);
 }
 
