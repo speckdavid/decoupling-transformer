@@ -25,16 +25,16 @@ void Factoring::apply_factoring() {
     var_to_factor.resize(task->get_num_variables(), FactorID::CENTER);
     var_to_id_in_factor.resize(task->get_num_variables(), -1);
     FactorID factor(0);
-    for (const auto &leaf : leaves){
+    for (const auto &leaf : leaves) {
         int i = 0;
-        for (int var : leaf){
+        for (int var : leaf) {
             var_to_factor[var] = factor;
             var_to_id_in_factor[var] = i++;
         }
         ++factor;
     }
-    for (VariableProxy var : task_proxy.get_variables()){
-        if (var_to_factor[var.get_id()] == FactorID::CENTER){
+    for (VariableProxy var : task_proxy.get_variables()) {
+        if (var_to_factor[var.get_id()] == FactorID::CENTER) {
             var_to_id_in_factor[var.get_id()] = static_cast<int>(center.size());
             center.push_back(var.get_id());
         }
@@ -64,23 +64,23 @@ bool Factoring::is_factoring_possible() const {
     vector<int> op_count(task->get_num_variables(), 0);
     vector<bool> var_not_affected_by_some_op(task->get_num_variables(), false);
     int num_vars_not_affected_by_some_op = 0;
-    for (int i = 0; i < task->get_num_operators(); ++i){
-        for (const EffectProxy &eff : task_proxy.get_operators()[i].get_effects()){
+    for (int i = 0; i < task->get_num_operators(); ++i) {
+        for (const EffectProxy &eff : task_proxy.get_operators()[i].get_effects()) {
             int eff_var = eff.get_fact().get_variable().get_id();
-            if (op_count[eff_var] == i){
+            if (op_count[eff_var] == i) {
                 ++op_count[eff_var];
             } else if (!var_not_affected_by_some_op[eff_var]) {
                 var_not_affected_by_some_op[eff_var] = true;
                 ++num_vars_not_affected_by_some_op;
-                if (num_vars_not_affected_by_some_op == task->get_num_variables()){
+                if (num_vars_not_affected_by_some_op == task->get_num_variables()) {
                     // no variable is affected by all actions
                     return true;
                 }
             }
         }
     }
-    for (int op_c : op_count){
-        if (op_c == task->get_num_operators()){
+    for (int op_c : op_count) {
+        if (op_c == task->get_num_operators()) {
             log << "No mobile factoring possible." << endl;
             return false;
         }
@@ -94,11 +94,11 @@ inline bool is_intersection_empty(const vector<int> &x, const vector<int> &y, in
         return false;
     }
     size_t i = 0;
-    for (int a : x){
-        for (; i < y.size(); ++i){
-            if (a < y[i]){
+    for (int a : x) {
+        for (; i < y.size(); ++i) {
+            if (a < y[i]) {
                 break;
-            } else if (a == y[i]){
+            } else if (a == y[i]) {
                 return false;
             }
         }
@@ -108,7 +108,7 @@ inline bool is_intersection_empty(const vector<int> &x, const vector<int> &y, in
 
 bool Factoring::is_two_leaf_factoring_possible() const {
     int num_vars = task->get_num_variables();
-    for (size_t i = 0; i < action_schemas.size(); ++i){
+    for (size_t i = 0; i < action_schemas.size(); ++i) {
         const auto &a1 = action_schemas[i];
         for (size_t j = i + 1; j < action_schemas.size(); ++j) {
             const auto &a2 = action_schemas[j];
@@ -228,7 +228,7 @@ bool Factoring::is_leaf_variable(int var) const {
     return !is_center_variable(var);
 }
 
-int Factoring::get_leaf_of_variables(int var) const {
+int Factoring::get_leaf_of_variable(int var) const {
     for (size_t l = 0; l < leaves.size(); ++l) {
         auto it = std::find(leaves.at(l).begin(), leaves.at(l).end(), var);
         if (it != leaves.at(l).end())
@@ -239,15 +239,25 @@ int Factoring::get_leaf_of_variables(int var) const {
     return -1;
 }
 
+bool Factoring::is_leaf_only_operator(int operator_id) const {
+    for (int eff_id = 0; eff_id < task->get_num_operator_effects(operator_id, false); ++eff_id) {
+        const auto &eff = task->get_operator_effect(operator_id, eff_id, false);
+        if (is_center_variable(eff.var))
+            return false;
+    }
+    return true;
+}
+
 int Factoring::get_num_leaves() const {
     return leaves.size();
 }
 
-int Factoring::get_num_leaf_states(size_t l) const {
-    assert(l < leaves.size());
-    // TODO: fix
+int Factoring::get_num_leaf_states(size_t leaf) const {
+    assert(leaf < leaves.size());
+
+    // TODO: return the actual number of reachable leaf states
     int num_states = 1;
-    for (int var : leaves.at(l)) {
+    for (int var : leaves.at(leaf)) {
         num_states *= task->get_variable_domain_size(var);
     }
     return num_states;
@@ -261,15 +271,27 @@ std::vector<std::vector<int>> Factoring::get_leaves() const {
     return leaves;
 }
 
-vector<int> Factoring::get_leaf(size_t l) const {
-    assert(l < leaves.size());
-    return leaves.at(l);
+vector<int> Factoring::get_leaf(size_t leaf) const {
+    assert(leaf < leaves.size());
+    return leaves.at(leaf);
 }
 
-int Factoring::get_initial_leaf_state(size_t l) const {
-    assert(l < leaves.size());
+int Factoring::get_initial_leaf_state(size_t leaf) const {
+    assert(leaf < leaves.size());
+
     // TODO: return the leaf state id which corresponds to the initial state
     return 0;
+}
+
+set<int> Factoring::get_predecessors(size_t leaf, size_t leaf_state, int /*operator_id*/) const {
+    assert(leaf < leaves.size());
+    assert((int)leaf_state < get_num_leaf_states(leaf));
+
+    // TODO: return the set of predecessor leaf state
+    // In other words, we want a set of leaf states including states s such that s[o] = s', where
+    // s' = leaf state and o = operator_id
+    set<int> result {0, 1};
+    return result;
 }
 
 void Factoring::add_options_to_feature(plugins::Feature &feature) {

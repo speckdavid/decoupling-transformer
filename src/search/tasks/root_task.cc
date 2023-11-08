@@ -84,7 +84,7 @@ ExplicitVariable::ExplicitVariable(istream &in) {
     check_magic(in, "end_variable");
 }
 
-ExplicitVariable::ExplicitVariable(const std::string& name,
+ExplicitVariable::ExplicitVariable(const std::string &name,
                                    std::vector<std::string> &&fact_names,
                                    int axiom_layer,
                                    int axiom_default_value) :
@@ -139,6 +139,13 @@ ExplicitOperator::ExplicitOperator(istream &in, bool is_an_axiom, bool use_metri
     }
     assert(cost >= 0);
 }
+
+ExplicitOperator::ExplicitOperator(int cost,
+                                   const std::string &name,
+                                   bool is_an_axiom) :
+    cost(cost),
+    name(name),
+    is_an_axiom(is_an_axiom) {}
 
 static void read_and_verify_version(istream &in) {
     int version;

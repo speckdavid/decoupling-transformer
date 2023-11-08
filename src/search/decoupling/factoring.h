@@ -72,16 +72,19 @@ public:
 
     bool is_center_variable(int var) const;
     bool is_leaf_variable(int var) const;
-    int get_leaf_of_variables(int var) const;
+    int get_leaf_of_variable(int var) const;
+
+    bool is_leaf_only_operator(int operator_id) const;
 
     int get_num_leaves() const;
-    int get_num_leaf_states(size_t l) const;
+    int get_num_leaf_states(size_t leaf) const;
 
     std::vector<int> get_center() const;
     std::vector<std::vector<int>> get_leaves() const;
-    std::vector<int> get_leaf(size_t l) const;
+    std::vector<int> get_leaf(size_t leaf) const;
 
     int get_initial_leaf_state(size_t leaf) const;
+    std::set<int> get_predecessors(size_t leaf, size_t leaf_state, int operator_id) const;
 
     static void add_options_to_feature(plugins::Feature &feature);
 };

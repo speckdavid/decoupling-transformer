@@ -22,20 +22,36 @@ class DecoupledRootTask : public RootTask {
     std::shared_ptr<decoupling::Factoring> factoring;
 
     std::unordered_map<int, int> center_var_to_pvar;
-    std::unordered_map<int, int> leaf_to_goal_pvar;
+    std::unordered_map<int, int> leaf_to_goal_svar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_pvar;
-    std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_dvar;
+    std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_svar;
+
+    std::unordered_map<int, std::unordered_map<int, int>> leaf_op_to_svar;
+    std::unordered_map<int, std::unordered_map<int, std::vector<FactPair>>> leaf_op_to_pre;
 
 public:
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
 
 protected:
+    bool are_initial_states_consistent(bool exact_match) const;
+
     void create_variables();
     void create_mutexes();
     void create_initial_state();
     void create_goal();
+
+    // operators
+    void set_precondition_of_operator(int op_id, ExplicitOperator& op);
+    void set_effect_of_operator(int op_id, ExplicitOperator& op);
+    void create_operator(int op_id);
     void create_operators();
+
+    // axioms
+    void create_frame_axioms();
+    void create_precondition_axioms();
+    void create_goal_axioms();
+    void create_leaf_only_operator_axioms();
     void create_axioms();
 };
 }

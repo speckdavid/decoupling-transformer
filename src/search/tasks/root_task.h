@@ -7,7 +7,6 @@
 #include <set>
 
 namespace tasks {
-
 class DecoupledRootTask;
 
 static const int PRE_FILE_VERSION = 3;
@@ -22,7 +21,7 @@ struct ExplicitVariable {
     int axiom_default_value;
 
     explicit ExplicitVariable(std::istream &in);
-    ExplicitVariable(const std::string& name,
+    ExplicitVariable(const std::string &name,
                      std::vector<std::string> &&fact_names,
                      int axiom_layer,
                      int axiom_default_value = 0);
@@ -46,6 +45,7 @@ struct ExplicitOperator {
 
     void read_pre_post(std::istream &in);
     ExplicitOperator(std::istream &in, bool is_an_axiom, bool use_metric);
+    ExplicitOperator(int cost, const std::string &name, bool is_an_axiom);
 };
 
 class RootTask : public AbstractTask {
