@@ -13,9 +13,7 @@
 #include <set>
 
 namespace decoupling {
-
 class Factoring {
-
     bool is_factoring_possible() const;
     bool is_two_leaf_factoring_possible() const;
     void check_factoring() const;
@@ -39,7 +37,7 @@ protected:
         std::vector<int> eff_vars; // sorted
 
         ActionSchema(int num_actions, const std::vector<int> &pre_vars, const std::vector<int> &eff_vars)
-                : num_actions(num_actions), pre_vars(pre_vars), eff_vars(eff_vars) {
+            : num_actions(num_actions), pre_vars(pre_vars), eff_vars(eff_vars) {
         }
 
         void incr_num_action() {
@@ -49,7 +47,7 @@ protected:
 
     static std::vector<ActionSchema> action_schemas;
 
-    static std::vector<std::set<int> > var_to_affecting_op;
+    static std::vector<std::set<int>> var_to_affecting_op;
 
     int min_number_leaves;
     int max_leaf_size;
@@ -75,11 +73,13 @@ public:
     int get_leaf_of_variable(int var) const;
 
     bool is_leaf_only_operator(int operator_id) const;
+    bool is_global_operator(int operator_id) const;
 
     int get_num_leaves() const;
     int get_num_leaf_states(size_t leaf) const;
     int get_num_all_leaf_states() const;
     int get_num_all_goal_leaf_states() const;
+    int get_num_global_operators() const;
 
     std::vector<int> get_center() const;
     std::vector<std::vector<int>> get_leaves() const;

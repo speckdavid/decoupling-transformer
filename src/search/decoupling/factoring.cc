@@ -248,6 +248,11 @@ bool Factoring::is_leaf_only_operator(int operator_id) const {
     return true;
 }
 
+bool Factoring::is_global_operator(int /*operator_id*/) const {
+    // TODO: fix me
+    return true;
+}
+
 int Factoring::get_num_leaves() const {
     return leaves.size();
 }
@@ -277,6 +282,11 @@ int Factoring::get_num_all_goal_leaf_states() const {
         res += get_goal_leaf_states(l).size();
     }
     return res;
+}
+
+int Factoring::get_num_global_operators() const {
+    // TODO: fix me
+    return task->get_num_operators();
 }
 
 vector<int> Factoring::get_center() const {

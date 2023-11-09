@@ -109,8 +109,12 @@ void DecoupledRootTask::create_variables() {
     // secondary variable for operator preconditions
     int op_id = 0;
     for (const auto &op : original_root_task->operators) {
+        if (!factoring->is_global_operator(op_id))
+            continue;
+
         for (const auto &pre : op.preconditions) {
             int var = pre.var;
+
 
             if (factoring->is_center_variable(var))
                 continue;
@@ -271,7 +275,8 @@ void DecoupledRootTask::create_operator(int op_id) {
 
 void DecoupledRootTask::create_operators() {
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
-        create_operator(op_id);
+        if (factoring->is_global_operator(op_id))
+            create_operator(op_id);
     }
 
     // for (size_t i = 0; i < operators.size(); ++i) {
@@ -284,7 +289,7 @@ void DecoupledRootTask::create_operators() {
     //     cout << endl;
     // }
 
-    assert(operators.size() == original_root_task->operators.size());
+    assert((int)operators.size() == factoring->get_num_global_operators());
 }
 
 void DecoupledRootTask::create_frame_axioms() {
