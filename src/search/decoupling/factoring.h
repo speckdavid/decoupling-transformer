@@ -78,13 +78,20 @@ public:
 
     int get_num_leaves() const;
     int get_num_leaf_states(size_t leaf) const;
+    int get_num_all_leaf_states() const;
+    int get_num_all_goal_leaf_states() const;
 
     std::vector<int> get_center() const;
     std::vector<std::vector<int>> get_leaves() const;
     std::vector<int> get_leaf(size_t leaf) const;
 
     int get_initial_leaf_state(size_t leaf) const;
+    std::set<int> get_goal_leaf_states(size_t leaf) const;
+    std::set<int> get_valid_precondition_leaf_states(size_t leaf, int op_id) const;
     std::set<int> get_predecessors(size_t leaf, size_t leaf_state, int operator_id) const;
+
+    std::string get_leaf_name(size_t leaf) const;
+    std::string get_leaf_state_name(size_t leaf, size_t leaf_state) const;
 
     static void add_options_to_feature(plugins::Feature &feature);
 };

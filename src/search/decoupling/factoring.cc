@@ -183,7 +183,7 @@ void Factoring::compute_action_schemas() {
     if (action_schemas.empty()) {
         OperatorsProxy operators = TaskProxy(*task).get_operators();
         assert(!operators.empty());
-        utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t>> scheme_loockup;
+        utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t>> scheme_loockup;
         for (OperatorProxy op : operators) {
             vector<int> pre_vars;
             for (FactProxy pre : op.get_preconditions()) {
@@ -221,7 +221,7 @@ void Factoring::compute_var_to_ops_map() {
 
 
 bool Factoring::is_center_variable(int var) const {
-    return std::find(center.begin(), center.end(), var) != center.end();
+    return find(center.begin(), center.end(), var) != center.end();
 }
 
 bool Factoring::is_leaf_variable(int var) const {
@@ -230,7 +230,7 @@ bool Factoring::is_leaf_variable(int var) const {
 
 int Factoring::get_leaf_of_variable(int var) const {
     for (size_t l = 0; l < leaves.size(); ++l) {
-        auto it = std::find(leaves.at(l).begin(), leaves.at(l).end(), var);
+        auto it = find(leaves.at(l).begin(), leaves.at(l).end(), var);
         if (it != leaves.at(l).end())
             return l;
     }
@@ -263,11 +263,27 @@ int Factoring::get_num_leaf_states(size_t leaf) const {
     return num_states;
 }
 
+int Factoring::get_num_all_leaf_states() const {
+    int res = 0;
+    for (int l = 0; l < get_num_leaves(); ++l) {
+        res += get_num_leaf_states(l);
+    }
+    return res;
+}
+
+int Factoring::get_num_all_goal_leaf_states() const {
+    int res = 0;
+    for (int l = 0; l < get_num_leaves(); ++l) {
+        res += get_goal_leaf_states(l).size();
+    }
+    return res;
+}
+
 vector<int> Factoring::get_center() const {
     return center;
 }
 
-std::vector<std::vector<int>> Factoring::get_leaves() const {
+vector<vector<int>> Factoring::get_leaves() const {
     return leaves;
 }
 
@@ -283,6 +299,21 @@ int Factoring::get_initial_leaf_state(size_t leaf) const {
     return 0;
 }
 
+set<int> Factoring::get_valid_precondition_leaf_states(size_t leaf, int /*op_id*/) const {
+    assert(leaf < leaves.size());
+
+    // TODO: return the leaf states which satisfy the precondition of op_id
+    // If easier, I can also provide the set of FactPairs that have to hold?
+    return set<int> {1};
+}
+
+set<int> Factoring::get_goal_leaf_states(size_t leaf) const {
+    assert(leaf < leaves.size());
+
+    // TODO: return the leaf states which corresponds to goal states
+    return set<int> {1};
+}
+
 set<int> Factoring::get_predecessors(size_t leaf, size_t leaf_state, int /*operator_id*/) const {
     assert(leaf < leaves.size());
     assert((int)leaf_state < get_num_leaf_states(leaf));
@@ -292,6 +323,19 @@ set<int> Factoring::get_predecessors(size_t leaf, size_t leaf_state, int /*opera
     // s' = leaf state and o = operator_id
     set<int> result {0, 1};
     return result;
+}
+
+// TODO: better name?
+string Factoring::get_leaf_name(size_t leaf) const {
+    assert(leaf < leaves.size());
+    return to_string(leaf);
+}
+
+// TODO: better name?
+string Factoring::get_leaf_state_name(size_t leaf, size_t leaf_state) const {
+    assert(leaf < leaves.size());
+    assert((int)leaf_state < get_num_leaf_states(leaf));
+    return to_string(leaf) + "-" + to_string(leaf_state);
 }
 
 void Factoring::add_options_to_feature(plugins::Feature &feature) {

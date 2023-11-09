@@ -49,8 +49,8 @@ protected:
 
     // axioms
     void create_frame_axioms();
-    void create_precondition_axioms();
     void create_goal_axioms();
+    void create_precondition_axioms();
     void create_leaf_only_operator_axioms();
     void create_axioms();
 };

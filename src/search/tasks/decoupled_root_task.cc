@@ -19,6 +19,9 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")) {
     factoring->compute_factoring();
 
+    // TODO: statistics: time, number axioms, number variables, etc.
+    // TODO: options to only dump to sas
+
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
@@ -71,7 +74,7 @@ void DecoupledRootTask::create_variables() {
     // primary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
-            string name = "v(" + to_string(leaf) + "," + to_string(lstate) + ")";
+            string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
             variables.emplace_back(name, vector<string>{"False", "True"}, -1);
             leaf_lstate_to_pvar[leaf][lstate] = variables.size() - 1;
         }
@@ -80,7 +83,7 @@ void DecoupledRootTask::create_variables() {
     // secondary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
-            string name = "s(" + to_string(leaf) + "," + to_string(lstate) + ")";
+            string name = "s(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
             variables.emplace_back(name, vector<string>{"False", "True"}, 0);
             leaf_lstate_to_svar[leaf][lstate] = variables.size() - 1;
         }
@@ -97,7 +100,7 @@ void DecoupledRootTask::create_variables() {
         assert(leaf != -1);
 
         if (leaf_to_goal_svar.count(leaf) == 0) {
-            string name = "g-s(" + to_string(leaf) + ")";
+            string name = "g-s(" + factoring->get_leaf_name(leaf) + ")";
             variables.emplace_back(name, vector<string>{"False", "True"}, 0);
             leaf_to_goal_svar[leaf] = variables.size() - 1;
         }
@@ -116,7 +119,7 @@ void DecoupledRootTask::create_variables() {
             assert(leaf != -1);
 
             if (leaf_op_to_svar[leaf].count(op_id) == 0) {
-                string name = "op-s(" + to_string(leaf) + "," + to_string(op_id) + ")";
+                string name = "op-s(" + factoring->get_leaf_name(leaf) + "-" + op.name + ")";
                 variables.emplace_back(name, vector<string>{"False", "True"}, 0);
                 leaf_op_to_svar[leaf][op_id] = variables.size() - 1;
             }
@@ -291,7 +294,7 @@ void DecoupledRootTask::create_frame_axioms() {
             assert(leaf_lstate_to_svar[leaf].count(lstate));
 
             int svar = leaf_lstate_to_svar[leaf][lstate];
-            string name = "frame-" + to_string(leaf) + "-" + to_string(lstate);
+            string name = "frame-" + factoring->get_leaf_state_name(leaf, lstate);
 
             ExplicitOperator new_op(0, name, true);
             FactPair cond(pvar, 1);
@@ -302,13 +305,40 @@ void DecoupledRootTask::create_frame_axioms() {
     }
 }
 
-void DecoupledRootTask::create_precondition_axioms() {
-    // TODO: implement
+void DecoupledRootTask::create_goal_axioms() {
+    for (const auto & [leaf, goal_svar] : leaf_to_goal_svar) {
+        for (int goal_leaf_state : factoring->get_goal_leaf_states(leaf)) {
+            string name = "goal-" + factoring->get_leaf_state_name(leaf, goal_leaf_state);
+            int state_svar = leaf_lstate_to_svar[leaf][goal_leaf_state];
+
+            ExplicitOperator new_op(0, name, true);
+            FactPair cond(state_svar, 1);
+            new_op.effects.emplace_back(ExplicitEffect(goal_svar, 1, std::vector<FactPair> {cond}));
+
+            axioms.push_back(new_op);
+        }
+    }
 }
 
+void DecoupledRootTask::create_precondition_axioms() {
+    for (const auto & [leaf, inner_map] : leaf_op_to_svar) {
+        for (const auto & [op_id, pre_svar] : inner_map) {
+            assert(leaf_lstate_to_svar.count(leaf));
+            assert(leaf_lstate_to_svar[leaf].count(op_id));
 
-void DecoupledRootTask::create_goal_axioms() {
-    // TODO: implement
+            for (int pre_leaf_state : factoring->get_valid_precondition_leaf_states(leaf, op_id)) {
+                string name = "prec-" + operators[op_id].name + "-" +
+                    factoring->get_leaf_state_name(leaf, pre_leaf_state);
+                int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
+
+                ExplicitOperator new_op(0, name, true);
+                FactPair cond(state_svar, 1);
+                new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, std::vector<FactPair> {cond}));
+
+                axioms.push_back(new_op);
+            }
+        }
+    }
 }
 
 void DecoupledRootTask::create_leaf_only_operator_axioms() {
@@ -331,7 +361,8 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
             set<int> predecessor_ls = factoring->get_predecessors(leaf, lstate, op_id);
             for (int pred : predecessor_ls) {
                 int svar_pred = leaf_lstate_to_svar[lstate][pred];
-                string name = "lop-" + op.name + "-" + to_string(leaf) + "-" + to_string(lstate) + "-" + to_string(pred);
+                string name = "lop-" + op.name + "-" + factoring->get_leaf_state_name(leaf, lstate)
+                    + "-" + factoring->get_leaf_state_name(leaf, pred);
 
                 vector<FactPair> eff_conditions = center_conditions;
                 eff_conditions.emplace_back(svar_pred, 1);
@@ -348,6 +379,11 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
 
 void DecoupledRootTask::create_axioms() {
     create_frame_axioms();
+    assert((int)axioms.size() == factoring->get_num_all_leaf_states());
+
+    create_goal_axioms();
+    assert((int)axioms.size() == factoring->get_num_all_leaf_states() +
+           factoring->get_num_all_goal_leaf_states());
 
     // The exact match is important to be done before the leaf only operator axioms are created
     assert(are_initial_states_consistent(true));
