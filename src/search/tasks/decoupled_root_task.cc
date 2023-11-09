@@ -19,6 +19,8 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")) {
     factoring->compute_factoring();
 
+    utils::Timer transformation_timer;
+
     // TODO: statistics: time, number axioms, number variables, etc.
     // TODO: options to only dump to sas
 
@@ -40,6 +42,16 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     axiom_evaluator.evaluate(initial_state_values);
 
     // task_properties::dump_task(task_proxy);
+
+    utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
+
+    if (options.get<bool>("write_sas_file")) {
+        std::ofstream output_file;
+        output_file.open("dec_output.sas");
+        task_dump::dump_as_SAS(*this, output_file);
+        utils::exit_with(utils::ExitCode::SUCCESS);
+    }
+
     exit(0);
 }
 
@@ -188,10 +200,15 @@ void DecoupledRootTask::create_goal() {
 void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator &new_op) {
     const auto &op = original_root_task->operators[op_id];
 
-    // Copy center preconditions
+    // Create center preconditions (map center variable ids)
     for (const auto &pre : op.preconditions) {
-        if (factoring->is_center_variable(pre.var))
-            new_op.preconditions.push_back(pre);
+        int pre_var = pre.var;
+        int pre_val = pre.value;
+
+        if (factoring->is_center_variable(pre.var)) {
+            int pvar = center_var_to_pvar[pre_var];
+            new_op.preconditions.emplace_back(pvar, pre_val);
+        }
     }
 
     // Add leaf preconditions (secondary variables)
@@ -217,12 +234,18 @@ void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator
 void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_op) {
     const auto &op = original_root_task->operators[op_id];
 
-    // Copy center effects
+    // Create center effects (map center variable ids)
     for (const auto &eff : op.effects) {
         assert(eff.conditions.empty());
 
-        if (factoring->is_center_variable(eff.fact.var))
-            new_op.effects.push_back(eff);
+        int eff_var = eff.fact.var;
+        int eff_val = eff.fact.value;
+
+        if (factoring->is_center_variable(eff_var)) {
+            int pvar = center_var_to_pvar[eff_var];
+            ExplicitEffect new_eff(pvar, eff_val, vector<FactPair>());
+            new_op.effects.push_back(new_eff);
+        }
     }
 
     // Effects on leaf states
@@ -407,6 +430,7 @@ public:
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
+        add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
