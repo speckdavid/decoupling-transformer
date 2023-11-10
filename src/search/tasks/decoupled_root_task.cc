@@ -84,22 +84,6 @@ void DecoupledRootTask::write_sas_file(const std::string file_name) const {
     utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
 }
 
-void DecoupledRootTask::check_valid_axiom_structure() const {
-    for (const auto &axiom : axioms) {
-        assert(axiom.effects.size() == 1);
-        assert(axiom.preconditions.size() == 1);
-        assert(axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var);
-        assert(axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value);
-
-        int default_value_of_var = variables.at(axiom.effects.at(0).fact.var).axiom_default_value;
-        assert(axiom.effects.at(0).fact.value != default_value_of_var);
-
-        for (const auto &cpre : axiom.effects.at(0).conditions) {
-            assert(cpre.var != axiom.effects.at(0).fact.var);
-        }
-    }
-}
-
 bool DecoupledRootTask::are_initial_states_consistent() const {
     for (const auto & [leaf, inner_map] : leaf_lstate_to_pvar) {
         for (const auto & [lstate, pvar] : inner_map) {
@@ -467,8 +451,14 @@ void DecoupledRootTask::create_axioms() {
 
     create_leaf_only_operator_axioms();
 
-    // Assertions which are run only in debug mode
-    check_valid_axiom_structure();
+    assert(ranges::all_of(axioms, [](const auto &axiom)
+                          {return axiom.effects.size() == 1;}));
+    assert(ranges::all_of(axioms, [](const auto &axiom)
+                          {return axiom.preconditions.size() == 1;}));
+    assert(ranges::all_of(axioms, [](const auto &axiom)
+                          {return axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var;}));
+    assert(ranges::all_of(axioms, [](const auto &axiom)
+                          {return axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value;}));
 
     // for (const ExplicitOperator &axiom : axioms) {
     //     vector<FactPair> conds = axiom.effects.at(0).conditions;
