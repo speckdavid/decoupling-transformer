@@ -6,6 +6,8 @@
 
 #include "../tasks/root_task.h"
 
+#include <numeric>
+
 using namespace std;
 
 namespace decoupling {
@@ -459,7 +461,21 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
     assert((int)leaf_state < get_num_leaf_states(leaf));
-    return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
+
+    // HACK: Check of operators has an effect on the leaf
+    // Make this more efficeint and less hacky!
+    for (int eff_id = 0; eff_id < task->get_num_operator_effects(operator_id, false); ++eff_id) {
+        int eff_var = task->get_operator_effect(operator_id, eff_id, false).var;
+        if (get_factor(eff_var) == leaf_) {
+            return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
+        }
+    }
+    
+    // IMPORTANT: What about preconditions?
+    // If it has no effect on the current leaf, we just return all states
+    vector<int> all_leaf_states(get_num_leaf_states(leaf));
+    iota(all_leaf_states.begin(), all_leaf_states.end(), 0);
+    return  all_leaf_states;
 }
 
 string Factoring::get_leaf_name(int leaf_) const {

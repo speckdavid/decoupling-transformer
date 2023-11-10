@@ -41,6 +41,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     // This is also done in the root task which is honestly quite hacky!
     AxiomEvaluator &axiom_evaluator = g_axiom_evaluators[task_proxy];
     axiom_evaluator.evaluate(initial_state_values);
+    assert(are_initial_states_consistent());
 
     // task_properties::dump_task(task_proxy);
 
@@ -84,39 +85,28 @@ void DecoupledRootTask::write_sas_file(const std::string file_name) const {
 }
 
 void DecoupledRootTask::check_valid_axiom_structure() const {
-    for (const auto& axiom : axioms) {
+    for (const auto &axiom : axioms) {
         assert(axiom.effects.size() == 1);
         assert(axiom.preconditions.size() == 1);
         assert(axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var);
         assert(axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value);
 
         int default_value_of_var = variables.at(axiom.effects.at(0).fact.var).axiom_default_value;
-        assert(axiom.effects.at(0).fact.value !=  default_value_of_var);
+        assert(axiom.effects.at(0).fact.value != default_value_of_var);
 
-        for (const auto& cpre : axiom.effects.at(0).conditions) {
+        for (const auto &cpre : axiom.effects.at(0).conditions) {
             assert(cpre.var != axiom.effects.at(0).fact.var);
         }
     }
-
-    assert(are_initial_states_consistent(false));
 }
 
-bool DecoupledRootTask::are_initial_states_consistent(bool exact_match) const {
-    vector<int> initial_state_values_copy = initial_state_values;
-    AxiomEvaluator &axiom_evaluator = g_axiom_evaluators[TaskProxy(*this)];
-    axiom_evaluator.evaluate(initial_state_values_copy);
-
+bool DecoupledRootTask::are_initial_states_consistent() const {
     for (const auto & [leaf, inner_map] : leaf_lstate_to_pvar) {
         for (const auto & [lstate, pvar] : inner_map) {
             int svar = leaf_lstate_to_svar.at(leaf).at(lstate);
 
-            if (exact_match) {
-                if (initial_state_values_copy.at(pvar) != initial_state_values_copy.at(svar))
-                    return false;
-            } else {
-                if (initial_state_values_copy.at(pvar) < initial_state_values_copy.at(svar))
-                    return false;
-            }
+            if (initial_state_values.at(svar) < initial_state_values.at(pvar))
+                return false;
         }
     }
     return true;
@@ -444,7 +434,6 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
         for (const auto & [lstate, svar] : leaf_lstate_to_svar[leaf]) {
             auto predecessor_ls = factoring->get_predecessors(leaf, lstate, op_id);
             for (int pred : predecessor_ls) {
-
                 // Trivial axiom which we can skip
                 if (pred == lstate)
                     continue;
@@ -452,7 +441,7 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
                 assert(leaf_lstate_to_svar[leaf].count(pred) != 0);
 
                 int svar_pred = leaf_lstate_to_svar[leaf][pred];
-                string name = "ax-lop-" + op.name + "-" + factoring->get_leaf_state_name(leaf, lstate)
+                string name = "ax-lop-(" + op.name + ")-" + factoring->get_leaf_state_name(leaf, lstate)
                     + "-" + factoring->get_leaf_state_name(leaf, pred);
 
                 vector<FactPair> eff_conditions = center_conditions;
@@ -475,9 +464,6 @@ void DecoupledRootTask::create_axioms() {
     create_goal_axioms();
     assert((int)axioms.size() == factoring->get_num_all_leaf_states() +
            factoring->get_num_all_goal_leaf_states());
-
-    // The exact match is important to be done before the leaf only operator axioms are created
-    assert(are_initial_states_consistent(true));
 
     create_leaf_only_operator_axioms();
 

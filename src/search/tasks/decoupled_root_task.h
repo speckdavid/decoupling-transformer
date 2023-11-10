@@ -38,7 +38,7 @@ protected:
     void write_sas_file(const std::string file_name) const;
 
     void check_valid_axiom_structure() const;
-    bool are_initial_states_consistent(bool exact_match) const;
+    bool are_initial_states_consistent() const;
 
     void create_variables();
     void create_mutexes();
