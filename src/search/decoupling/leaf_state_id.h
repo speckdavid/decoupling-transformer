@@ -72,8 +72,6 @@ public:
         : value(id), factor(factor) {
     }
 
-    ~LeafStateID() = default;
-
     bool operator==(const LeafStateID &other) const {
         return value == other.value;
     }

@@ -2,6 +2,8 @@
 #define DECOUPLING_FACTORING
 
 #include "leaf_state_id.h"
+#include "leaf_state_space.h"
+#include "interaction_graph.h"
 
 #include "../abstract_task.h"
 #include "../task_proxy.h"
@@ -13,10 +15,18 @@
 #include <set>
 
 namespace decoupling {
-class Factoring {
+
+class InteractionGraph;
+
+class Factoring : public std::enable_shared_from_this<Factoring> {
+    friend class LeafStateSpace;
+
     bool is_factoring_possible() const;
     bool is_two_leaf_factoring_possible() const;
     void check_factoring() const;
+
+    bool ignore_invertible_root_leaves;
+    bool prune_fork_leaf_state_spaces;
 
 protected:
     mutable utils::LogProxy log;
@@ -25,11 +35,21 @@ protected:
     std::shared_ptr<AbstractTask> task;
     TaskProxy task_proxy;
 
+    std::unique_ptr<LeafStateSpace> leaf_state_space;
+
     std::vector<int> center;
     std::vector<std::vector<int>> leaves;
 
+    std::unique_ptr<InteractionGraph> interaction_graph;
+
+    std::vector<std::vector<FactPair>> goals_by_leaf;
+
     std::vector<FactorID> var_to_factor;
     std::vector<int> var_to_id_in_factor;
+
+    int num_global_operators;
+    std::vector<bool> is_global_operator_;
+    std::vector<std::vector<OperatorID>> leaf_operators;
 
     struct ActionSchema {
         int num_actions; // number of actions with the action schema
@@ -60,7 +80,14 @@ protected:
     void apply_factoring();
     void print_factoring() const;
 
-    // TODO find a better name for this
+    void remove_never_applicable_global_ops(FactorID leaf);
+
+    const std::vector<OperatorID> &get_leaf_operators(FactorID leaf) const;
+
+    bool has_leaf_goal(FactorID leaf) const;
+
+    const std::vector<FactPair> &get_leaf_goals(FactorID factor) const;
+
     virtual void compute_factoring_() = 0;
 
 public:
@@ -70,28 +97,32 @@ public:
 
     bool is_center_variable(int var) const;
     bool is_leaf_variable(int var) const;
-    int get_leaf_of_variable(int var) const;
+    int get_factor(int var) const;
+    int get_id_in_factor(int var) const;
 
     bool is_leaf_only_operator(int operator_id) const;
     bool is_global_operator(int operator_id) const;
 
     int get_num_leaves() const;
-    int get_num_leaf_states(size_t leaf) const;
+    int get_num_leaf_states(int leaf) const;
     int get_num_all_leaf_states() const;
     int get_num_all_goal_leaf_states() const;
     int get_num_global_operators() const;
 
-    std::vector<int> get_center() const;
-    std::vector<std::vector<int>> get_leaves() const;
-    std::vector<int> get_leaf(size_t leaf) const;
+    bool is_fork_leaf(FactorID leaf) const;
+    bool is_ifork_leaf(FactorID leaf) const;
 
-    int get_initial_leaf_state(size_t leaf) const;
-    std::set<int> get_goal_leaf_states(size_t leaf) const;
-    std::set<int> get_valid_precondition_leaf_states(size_t leaf, int op_id) const;
-    std::set<int> get_predecessors(size_t leaf, size_t leaf_state, int operator_id) const;
+    const std::vector<int> &get_center() const;
+    const std::vector<std::vector<int>> &get_leaves() const;
+    const std::vector<int> &get_leaf(int leaf) const;
 
-    std::string get_leaf_name(size_t leaf) const;
-    std::string get_leaf_state_name(size_t leaf, size_t leaf_state) const;
+    int get_initial_leaf_state(int leaf) const;
+    const std::vector<LeafStateHash> &get_goal_leaf_states(int leaf) const;
+    std::vector<int> get_valid_precondition_leaf_states(int leaf, int op_id) const;
+    std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;
+
+    std::string get_leaf_name(int leaf) const;
+    std::string get_leaf_state_name(int leaf, int leaf_state) const;
 
     static void add_options_to_feature(plugins::Feature &feature);
 };
