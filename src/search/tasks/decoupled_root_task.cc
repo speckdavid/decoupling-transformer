@@ -46,13 +46,24 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
 
     if (options.get<bool>("write_sas_file")) {
-        std::ofstream output_file;
-        output_file.open("dec_output.sas");
-        task_dump::dump_as_SAS(*this, output_file);
-        utils::exit_with(utils::ExitCode::SUCCESS);
+        write_sas_file("dec_output.sas");
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     }
 
     exit(0);
+}
+
+void DecoupledRootTask::print_statistics() const {
+}
+
+void DecoupledRootTask::write_sas_file(const std::string file_name) const {
+    utils::Timer write_sas_file_timer;
+    utils::g_log << "Writing to dec_output.sas..." << flush;
+    std::ofstream output_file;
+    output_file.open(file_name);
+    task_dump::dump_as_SAS(*this, output_file);
+    utils::g_log << "done!" << endl;
+    utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
 }
 
 bool DecoupledRootTask::are_initial_states_consistent(bool exact_match) const {
@@ -322,7 +333,7 @@ void DecoupledRootTask::create_frame_axioms() {
             assert(leaf_lstate_to_svar[leaf].count(lstate));
 
             int svar = leaf_lstate_to_svar[leaf][lstate];
-            string name = "frame-" + factoring->get_leaf_state_name(leaf, lstate);
+            string name = "ax-frame-" + factoring->get_leaf_state_name(leaf, lstate);
 
             ExplicitOperator new_op(0, name, true);
             FactPair cond(pvar, 1);
@@ -336,7 +347,7 @@ void DecoupledRootTask::create_frame_axioms() {
 void DecoupledRootTask::create_goal_axioms() {
     for (const auto & [leaf, goal_svar] : leaf_to_goal_svar) {
         for (int goal_leaf_state : factoring->get_goal_leaf_states(leaf)) {
-            string name = "goal-" + factoring->get_leaf_state_name(leaf, goal_leaf_state);
+            string name = "ax-goal-" + factoring->get_leaf_state_name(leaf, goal_leaf_state);
             int state_svar = leaf_lstate_to_svar[leaf][goal_leaf_state];
 
             ExplicitOperator new_op(0, name, true);
@@ -355,7 +366,7 @@ void DecoupledRootTask::create_precondition_axioms() {
             assert(leaf_lstate_to_svar[leaf].count(op_id));
 
             for (int pre_leaf_state : factoring->get_valid_precondition_leaf_states(leaf, op_id)) {
-                string name = "prec-" + operators[op_id].name + "-" +
+                string name = "ax-prec-" + operators[op_id].name + "-" +
                     factoring->get_leaf_state_name(leaf, pre_leaf_state);
                 int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
 
@@ -389,7 +400,7 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
             set<int> predecessor_ls = factoring->get_predecessors(leaf, lstate, op_id);
             for (int pred : predecessor_ls) {
                 int svar_pred = leaf_lstate_to_svar[lstate][pred];
-                string name = "lop-" + op.name + "-" + factoring->get_leaf_state_name(leaf, lstate)
+                string name = "ax-lop-" + op.name + "-" + factoring->get_leaf_state_name(leaf, lstate)
                     + "-" + factoring->get_leaf_state_name(leaf, pred);
 
                 vector<FactPair> eff_conditions = center_conditions;
@@ -419,6 +430,18 @@ void DecoupledRootTask::create_axioms() {
     create_leaf_only_operator_axioms();
 
     assert(are_initial_states_consistent(false));
+
+    assert(all_of(axioms.begin(), axioms.end(), [](const auto &axiom)
+                  {return axiom.preconditions.empty();}));
+
+    assert(all_of(axioms.begin(), axioms.end(), [](const auto &axiom)
+                  {return axiom.effects.size() == 1;}));
+
+    // for (const ExplicitOperator &axiom : axioms) {
+    //     utils::g_log << axiom.name << ": ("
+    //                  << axiom.effects.at(0).fact << ") <= "
+    //                  << axiom.effects.at(0).conditions << endl;
+    // }
 }
 
 class DecoupledRootTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledRootTask> {

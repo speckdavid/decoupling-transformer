@@ -34,6 +34,8 @@ public:
     virtual ~DecoupledRootTask() override = default;
 
 protected:
+    void print_statistics() const;
+    void write_sas_file(const std::string file_name) const;
     bool are_initial_states_consistent(bool exact_match) const;
 
     void create_variables();
