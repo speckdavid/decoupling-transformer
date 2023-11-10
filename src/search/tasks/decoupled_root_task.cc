@@ -156,7 +156,7 @@ void DecoupledRootTask::create_variables() {
         if (factoring->is_center_variable(var))
             continue;
 
-        int leaf = factoring->get_leaf_of_variable(var);
+        int leaf = factoring->get_factor(var);
         assert(leaf != -1);
 
         if (leaf_to_goal_svar.count(leaf) == 0) {
@@ -183,7 +183,7 @@ void DecoupledRootTask::create_variables() {
             if (factoring->is_center_variable(var))
                 continue;
 
-            int leaf = factoring->get_leaf_of_variable(var);
+            int leaf = factoring->get_factor(var);
             assert(leaf != -1);
 
             if (leaf_op_to_svar[leaf].count(op_id) == 0) {
@@ -304,7 +304,7 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
     for (int l = 0; l < factoring->get_num_leaves(); ++l) {
         for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
             int pvar = leaf_lstate_to_pvar[l][ls];
-            set<int> predecessor_ls = factoring->get_predecessors(l, ls, op_id);
+            auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
 
             // Positive conditional effect
             for (int pred : predecessor_ls) {
@@ -431,8 +431,7 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
 
         const auto &op = original_root_task->operators[op_id];
         assert(!op.effects.empty());
-
-        int leaf = factoring->get_leaf_of_variable(op.effects[0].fact.var);
+        int leaf = factoring->get_factor(op.effects[0].fact.var);
         assert(leaf_lstate_to_svar.count(leaf) != 0);
 
         // Creating center precondition
@@ -445,7 +444,7 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
         }
 
         for (const auto & [lstate, svar] : leaf_lstate_to_svar[leaf]) {
-            set<int> predecessor_ls = factoring->get_predecessors(leaf, lstate, op_id);
+            auto predecessor_ls = factoring->get_predecessors(leaf, lstate, op_id);
             for (int pred : predecessor_ls) {
 
                 // Trivial axiom which we can skip
