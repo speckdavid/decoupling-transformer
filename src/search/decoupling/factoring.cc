@@ -20,6 +20,7 @@ Factoring::Factoring(const plugins::Options &opts) :
     factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
     task(tasks::g_root_task),
     task_proxy(TaskProxy(*task)),
+    num_global_operators(0),
     min_number_leaves(opts.get<int>("min_number_leaves")),
     max_leaf_size(opts.get<int>("max_leaf_size")) {
 }
@@ -94,7 +95,9 @@ void Factoring::apply_factoring() {
             }
         }
         assert(is_global_operator_[op.get_id()] || eff_factors.size() == 1);
-        if (!is_global_operator_[op.get_id()]){
+        if (is_global_operator_[op.get_id()]) {
+            num_global_operators++;
+        } else {
             FactorID leaf = *eff_factors.begin();
             assert(leaf != FactorID::CENTER);
             leaf_operators[leaf].emplace_back(op.get_id());
@@ -355,9 +358,10 @@ int Factoring::get_num_leaves() const {
     return leaves.size();
 }
 
-int Factoring::get_num_leaf_states(int leaf) const {
+int Factoring::get_num_leaf_states(int leaf_) const {
+    FactorID leaf(leaf_);
     assert(leaf < leaves.size());
-    return leaf_state_space->get_num_states(FactorID(leaf));
+    return leaf_state_space->get_num_states(leaf);
 }
 
 int Factoring::get_num_all_leaf_states() const {
@@ -396,7 +400,8 @@ const vector<vector<int>> &Factoring::get_leaves() const {
     return leaves;
 }
 
-const vector<int> &Factoring::get_leaf(int leaf) const {
+const vector<int> &Factoring::get_leaf(int leaf_) const {
+    FactorID leaf(leaf_);
     assert(leaf < leaves.size());
     return leaves.at(leaf);
 }
@@ -434,7 +439,8 @@ vector<int> Factoring::get_valid_precondition_leaf_states(int leaf_, int op_id) 
     return satisfying_lstates;
 }
 
-const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf) const {
+const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf_) const {
+    FactorID leaf(leaf_);
     assert(leaf < leaves.size());
     return leaf_state_space->get_leaf_goal_states(FactorID(leaf));
 }
@@ -446,7 +452,8 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
     return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
 }
 
-string Factoring::get_leaf_name(int leaf) const {
+string Factoring::get_leaf_name(int leaf_) const {
+    FactorID leaf(leaf_);
     assert(leaf < leaves.size());
     return to_string(leaf);
 }

@@ -51,8 +51,6 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
         write_sas_file("dec_output.sas");
         utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     }
-
-    exit(0);
 }
 
 void DecoupledRootTask::print_statistics() const {

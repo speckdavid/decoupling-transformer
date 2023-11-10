@@ -53,7 +53,7 @@ class LeafStateSpace {
     void check_leaf_invertibility(FactorID leaf,
                                   const std::vector<std::vector<int>> &leaf_only_state_space_graph);
 
-    void build_leaf_state_space(FactorID factor,
+    void build_leaf_state_space(FactorID leaf,
                                 bool compute_leaf_invertibility);
 
     /*

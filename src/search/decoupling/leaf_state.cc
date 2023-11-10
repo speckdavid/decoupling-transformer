@@ -15,7 +15,7 @@ LeafState::LeafState(const AbstractTask &task,
     : task(&task),
       factoring(&factoring),
       id(id),
-      values(values){
+      values(values) {
     assert(id != LeafStateID::no_state);
     assert(id.hash() != LeafStateHash::MAX);
     assert(id.get_factor() != FactorID::CENTER);
