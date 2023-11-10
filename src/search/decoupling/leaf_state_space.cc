@@ -84,6 +84,9 @@ void LeafStateSpace::get_applicable_ops(const LeafState &lstate,
 }
 
 bool LeafStateSpace::check_is_goal_state(const LeafState &lstate) {
+    if (!factoring->has_leaf_goal(lstate.get_id().get_factor())){
+        return false;
+    }
     FactorID leaf = lstate.get_id().get_factor();
     assert(leaf != FactorID::CENTER);
     for (FactPair leaf_goal : factoring->get_leaf_goals(leaf)){

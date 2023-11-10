@@ -97,10 +97,11 @@ void Factoring::apply_factoring() {
         assert(is_global_operator_[op.get_id()] || eff_factors.size() == 1);
         if (is_global_operator_[op.get_id()]) {
             num_global_operators++;
-        } else {
-            FactorID leaf = *eff_factors.begin();
-            assert(leaf != FactorID::CENTER);
-            leaf_operators[leaf].emplace_back(op.get_id());
+        }
+        for (FactorID leaf : eff_factors){
+            if (leaf != FactorID::CENTER) {
+                leaf_operators[leaf].emplace_back(op.get_id());
+            }
         }
     }
 
@@ -127,6 +128,15 @@ void Factoring::print_factoring() const {
             for (int var: leaf) {
                 log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
             }
+        }
+        if (interaction_graph->is_fork()){
+            log << "is fork factoring" << endl;
+        } else if (interaction_graph->is_ifork()) {
+            log << "is inverted-fork factoring" << endl;
+        } else if (interaction_graph->is_strict_star()) {
+            log << "is strict-star factoring" << endl;
+        } else {
+            log << "is general factoring" << endl;
         }
     }
 }
@@ -260,12 +270,12 @@ void Factoring::compute_factoring() {
     check_factoring();
     log << "Number leaf factors: " << leaves.size() << endl;
     apply_factoring();
+    print_factoring();
     leaf_state_space = make_unique<LeafStateSpace>(shared_from_this(),
                                                    task,
                                                    log,
                                                    ignore_invertible_root_leaves,
                                                    prune_fork_leaf_state_spaces);
-    print_factoring();
 }
 
 bool Factoring::check_timeout() const {
