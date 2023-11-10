@@ -25,6 +25,8 @@ struct ExplicitVariable {
                      std::vector<std::string> &&fact_names,
                      int axiom_layer,
                      int axiom_default_value = 0);
+
+    int get_encoding_size() const;
 };
 
 
@@ -33,6 +35,8 @@ struct ExplicitEffect {
     std::vector<FactPair> conditions;
 
     ExplicitEffect(int var, int value, std::vector<FactPair> &&conditions);
+
+    int get_encoding_size() const;
 };
 
 
@@ -46,6 +50,8 @@ struct ExplicitOperator {
     void read_pre_post(std::istream &in);
     ExplicitOperator(std::istream &in, bool is_an_axiom, bool use_metric);
     ExplicitOperator(int cost, const std::string &name, bool is_an_axiom);
+
+    int get_encoding_size() const;
 };
 
 class RootTask : public AbstractTask {
@@ -104,6 +110,8 @@ public:
     virtual void convert_ancestor_state_values(
         std::vector<int> &values,
         const AbstractTask *ancestor_task) const override;
+
+    virtual int get_encoding_size(bool with_mutexes) const;
 };
 }
 #endif

@@ -6,6 +6,7 @@
 #include "../task_utils/task_dump.h"
 #include "../task_utils/task_properties.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -44,6 +45,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     // task_properties::dump_task(task_proxy);
 
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
+    print_statistics();
 
     if (options.get<bool>("write_sas_file")) {
         write_sas_file("dec_output.sas");
@@ -54,6 +56,23 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 }
 
 void DecoupledRootTask::print_statistics() const {
+    int num_primary_vars = count_if(variables.begin(), variables.end(), [](const auto &var)
+                                    {return var.axiom_layer == -1;});
+    int num_secondary_vars = variables.size() - num_primary_vars;
+
+    utils::g_log << "Original task size: " << original_root_task->get_encoding_size(false) << endl;
+    utils::g_log << "Original number of variables: " << original_root_task->variables.size() << endl;
+    utils::g_log << "Original number of primary variables: " << original_root_task->variables.size() << endl;
+    utils::g_log << "Original number of secondary variables: " << 0 << endl;
+    utils::g_log << "Original number of operators: " << original_root_task->operators.size() << endl;
+    utils::g_log << "Original number of axioms: " << original_root_task->axioms.size() << endl;
+
+    utils::g_log << "Task size: " << get_encoding_size(false) << endl;
+    utils::g_log << "Number of variables: " << variables.size() << endl;
+    utils::g_log << "Number of primary variables: " << num_primary_vars << endl;
+    utils::g_log << "Number of secondary variables: " << num_secondary_vars << endl;
+    utils::g_log << "Number of operators: " << operators.size() << endl;
+    utils::g_log << "Number of axioms: " << axioms.size() << endl;
 }
 
 void DecoupledRootTask::write_sas_file(const std::string file_name) const {
@@ -64,6 +83,24 @@ void DecoupledRootTask::write_sas_file(const std::string file_name) const {
     task_dump::dump_as_SAS(*this, output_file);
     utils::g_log << "done!" << endl;
     utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
+}
+
+void DecoupledRootTask::check_valid_axiom_structure() const {
+    for (const auto& axiom : axioms) {
+        assert(axiom.effects.size() == 1);
+        assert(axiom.preconditions.size() == 1);
+        assert(axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var);
+        assert(axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value);
+
+        int default_value_of_var = variables.at(axiom.effects.at(0).fact.var).axiom_default_value;
+        assert(axiom.effects.at(0).fact.value !=  default_value_of_var);
+
+        for (const auto& cpre : axiom.effects.at(0).conditions) {
+            assert(cpre.var != axiom.effects.at(0).fact.var);
+        }
+    }
+
+    assert(are_initial_states_consistent(false));
 }
 
 bool DecoupledRootTask::are_initial_states_consistent(bool exact_match) const {
@@ -135,6 +172,10 @@ void DecoupledRootTask::create_variables() {
         if (!factoring->is_global_operator(op_id))
             continue;
 
+        // If we want to use the op name in the variable name, we need to have no white spaces!
+        string no_space_op_name = op.name;
+        replace(no_space_op_name.begin(), no_space_op_name.end(), ' ', '-');
+
         for (const auto &pre : op.preconditions) {
             int var = pre.var;
 
@@ -146,7 +187,7 @@ void DecoupledRootTask::create_variables() {
             assert(leaf != -1);
 
             if (leaf_op_to_svar[leaf].count(op_id) == 0) {
-                string name = "op-s(" + factoring->get_leaf_name(leaf) + "-" + op.name + ")";
+                string name = "op-s(" + factoring->get_leaf_name(leaf) + "-" + no_space_op_name + ")";
                 variables.emplace_back(name, vector<string>{"False", "True"}, 0);
                 leaf_op_to_svar[leaf][op_id] = variables.size() - 1;
             }
@@ -336,6 +377,7 @@ void DecoupledRootTask::create_frame_axioms() {
             string name = "ax-frame-" + factoring->get_leaf_state_name(leaf, lstate);
 
             ExplicitOperator new_op(0, name, true);
+            new_op.preconditions.emplace_back(svar, 0);
             FactPair cond(pvar, 1);
             new_op.effects.emplace_back(ExplicitEffect(svar, 1, std::vector<FactPair> {cond}));
 
@@ -351,6 +393,7 @@ void DecoupledRootTask::create_goal_axioms() {
             int state_svar = leaf_lstate_to_svar[leaf][goal_leaf_state];
 
             ExplicitOperator new_op(0, name, true);
+            new_op.preconditions.emplace_back(goal_svar, 0);
             FactPair cond(state_svar, 1);
             new_op.effects.emplace_back(ExplicitEffect(goal_svar, 1, std::vector<FactPair> {cond}));
 
@@ -371,6 +414,7 @@ void DecoupledRootTask::create_precondition_axioms() {
                 int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
 
                 ExplicitOperator new_op(0, name, true);
+                new_op.preconditions.emplace_back(pre_svar, 0);
                 FactPair cond(state_svar, 1);
                 new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, std::vector<FactPair> {cond}));
 
@@ -387,27 +431,38 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
 
         const auto &op = original_root_task->operators[op_id];
         assert(!op.effects.empty());
+
         int leaf = factoring->get_leaf_of_variable(op.effects[0].fact.var);
+        assert(leaf_lstate_to_svar.count(leaf) != 0);
 
         // Creating center precondition
         vector<FactPair> center_conditions;
         for (const auto &pre : op.preconditions) {
-            if (factoring->is_center_variable(pre.var))
-                center_conditions.push_back(pre);
+            if (factoring->is_center_variable(pre.var)) {
+                int center_pvar = center_var_to_pvar[pre.var];
+                center_conditions.emplace_back(center_pvar, pre.value);
+            }
         }
 
         for (const auto & [lstate, svar] : leaf_lstate_to_svar[leaf]) {
             set<int> predecessor_ls = factoring->get_predecessors(leaf, lstate, op_id);
             for (int pred : predecessor_ls) {
-                int svar_pred = leaf_lstate_to_svar[lstate][pred];
+
+                // Trivial axiom which we can skip
+                if (pred == lstate)
+                    continue;
+
+                assert(leaf_lstate_to_svar[leaf].count(pred) != 0);
+
+                int svar_pred = leaf_lstate_to_svar[leaf][pred];
                 string name = "ax-lop-" + op.name + "-" + factoring->get_leaf_state_name(leaf, lstate)
                     + "-" + factoring->get_leaf_state_name(leaf, pred);
 
                 vector<FactPair> eff_conditions = center_conditions;
                 eff_conditions.emplace_back(svar_pred, 1);
-                assert(eff_conditions.size() == center_conditions.size() + 1);
 
                 ExplicitOperator new_op(0, name, true);
+                new_op.preconditions.emplace_back(svar, 0);
                 new_op.effects.emplace_back(svar, 1, move(eff_conditions));
 
                 axioms.push_back(new_op);
@@ -429,18 +484,15 @@ void DecoupledRootTask::create_axioms() {
 
     create_leaf_only_operator_axioms();
 
-    assert(are_initial_states_consistent(false));
-
-    assert(all_of(axioms.begin(), axioms.end(), [](const auto &axiom)
-                  {return axiom.preconditions.empty();}));
-
-    assert(all_of(axioms.begin(), axioms.end(), [](const auto &axiom)
-                  {return axiom.effects.size() == 1;}));
+    // Assertions which are run only in debug mode
+    check_valid_axiom_structure();
 
     // for (const ExplicitOperator &axiom : axioms) {
+    //     vector<FactPair> conds = axiom.effects.at(0).conditions;
+    //     conds.insert(conds.begin(), axiom.preconditions.at(0));
     //     utils::g_log << axiom.name << ": ("
     //                  << axiom.effects.at(0).fact << ") <= "
-    //                  << axiom.effects.at(0).conditions << endl;
+    //                  << conds << endl;
     // }
 }
 

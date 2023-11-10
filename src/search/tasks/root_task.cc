@@ -95,10 +95,17 @@ ExplicitVariable::ExplicitVariable(const std::string &name,
     axiom_default_value(axiom_default_value) {
 }
 
+int ExplicitVariable::get_encoding_size() const {
+    return domain_size;
+}
 
 ExplicitEffect::ExplicitEffect(
     int var, int value, vector<FactPair> &&conditions)
     : fact(var, value), conditions(move(conditions)) {
+}
+
+int ExplicitEffect::get_encoding_size() const {
+    return 1 + conditions.size();
 }
 
 
@@ -158,6 +165,13 @@ static void read_and_verify_version(istream &in) {
              << "Exiting." << endl;
         utils::exit_with(ExitCode::SEARCH_INPUT_ERROR);
     }
+}
+
+int ExplicitOperator::get_encoding_size() const {
+    int size = 1 + preconditions.size();
+    for (const auto& eff : effects)
+        size += eff.get_encoding_size();
+    return size;
 }
 
 static bool read_metric(istream &in) {
@@ -419,6 +433,25 @@ void RootTask::convert_ancestor_state_values(
     if (this != ancestor_task) {
         ABORT("Invalid state conversion");
     }
+}
+
+int RootTask::get_encoding_size(bool with_mutexes) const {
+    int task_size = 0;
+    for (const auto& var : variables)
+        task_size += var.get_encoding_size();
+    task_size += initial_state_values.size();
+    task_size += goals.size();
+    for (const auto &op : operators)
+        task_size += op.get_encoding_size();
+    for (const auto &ax : axioms)
+        task_size += ax.get_encoding_size();
+    if (with_mutexes) {
+        for (size_t var = 0; var < mutexes.size(); ++var) {
+            for (size_t val = 0; val < mutexes.at(var).size(); ++val)
+                task_size += mutexes.at(var).at(val).size();
+        }
+    }
+    return task_size;
 }
 
 void read_root_task(istream &in) {

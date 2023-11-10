@@ -99,8 +99,12 @@ void dump_mutexes_as_SAS(const AbstractTask &task, ostream &os) {
 
 void dump_initial_state_as_SAS(const AbstractTask &task, ostream &os) {
     os << "begin_state" << endl;
-    for (int val : task.get_initial_state_values())
-        os << val << endl;
+    for (int var = 0; var < task.get_num_variables(); ++var) {
+        if (task.get_variable_axiom_layer(var) == -1)
+            os << task.get_initial_state_values().at(var) << endl;
+        else
+            os << task.get_variable_default_axiom_value(var) << endl;
+    }
     os << "end_state" << endl;
 }
 
@@ -117,7 +121,7 @@ void dump_goal_as_SAS(const AbstractTask &task, ostream &os) {
 void dump_operator_pre_post_as_SAS(ostream &os, int pre, FactPair eff, const vector<FactPair> &eff_cond) {
     os << eff_cond.size() << " ";
     for (FactPair cond : eff_cond) {
-        os << cond.var << " " << cond.value << " " << endl;
+        os << cond.var << " " << cond.value << " ";
     }
     os << eff.var << " " << pre << " " << eff.value << endl;
 }
@@ -170,25 +174,24 @@ void dump_operators_as_SAS(const AbstractTask &task, ostream &os) {
 }
 
 void dump_axiom_as_SAS(const AbstractTask &task, ostream &os, int op_no) {
-    vector<FactPair> cond;
-    for (int cond_ind = 0; cond_ind < task.get_num_operator_effect_conditions(op_no, 0, true); ++cond_ind) {
-        FactPair fact = task.get_operator_effect_condition(op_no, 0, cond_ind, true);
-        cond.push_back(fact);
-    }
-
-    FactPair eff = task.get_operator_effect(op_no, 0, true);
-    int eff_pre_val = -1;
-
-    for (int pre_ind = 0; pre_ind < task.get_num_operator_preconditions(op_no, true); ++pre_ind) {
-        FactPair fact = task.get_operator_precondition(op_no, pre_ind, true);
-        if (eff.var == fact.var) {
-            eff_pre_val = fact.value;
-            break;
-        }
-    }
+    assert(task.get_num_operator_effects(op_no, true) == 1);
+    assert(task.get_num_operator_preconditions(op_no, true) == 1);
+    assert(task.get_operator_precondition(op_no, 0, true).var ==
+           task.get_operator_effect(op_no, 0, true).var);
+    assert(task.get_operator_precondition(op_no, 0, true).value !=
+           task.get_operator_effect(op_no, 0, true).value);
 
     os << "begin_rule" << endl;
-    dump_operator_pre_post_as_SAS(os, eff_pre_val, eff, cond);
+    os << task.get_num_operator_effect_conditions(op_no, 0, true) << endl;
+    for (int cond_ind = 0; cond_ind < task.get_num_operator_effect_conditions(op_no, 0, true); ++cond_ind) {
+        FactPair fact = task.get_operator_effect_condition(op_no, 0, cond_ind, true);
+        os << fact.var << " " << fact.value << endl;
+    }
+
+    int var = task.get_operator_effect(op_no, 0, true).var;
+    int eff_val = task.get_operator_effect(op_no, 0, true).value;
+    int pre_val = task.get_operator_precondition(op_no, 0, true).value;
+    os << var << " " << pre_val << " " << eff_val << endl;
     os << "end_rule" << endl;
 }
 
