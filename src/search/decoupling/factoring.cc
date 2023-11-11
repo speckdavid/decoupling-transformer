@@ -436,7 +436,7 @@ vector<int> Factoring::get_valid_precondition_leaf_states(int leaf_, int op_id) 
         LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
         bool applicable = true;
         for (FactProxy pre : leaf_pre){
-            if (lstate[pre.get_variable()] == pre.get_value()){
+            if (lstate[pre.get_variable()] != pre.get_value()){
                 applicable = false;
                 break;
             }

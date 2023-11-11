@@ -27,7 +27,6 @@ class DecoupledRootTask : public RootTask {
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_svar;
 
     std::unordered_map<int, std::unordered_map<int, int>> leaf_op_to_svar;
-    std::unordered_map<int, std::unordered_map<int, std::vector<FactPair>>> leaf_op_to_pre;
 
 public:
     DecoupledRootTask(const plugins::Options &options);

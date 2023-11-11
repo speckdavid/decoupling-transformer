@@ -29,11 +29,18 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
 
+    utils::g_log << "Starting decoupling transformaton!" << endl;
+    utils::g_log << "Creating new variables..." << endl;
     create_variables();
+    utils::g_log << "Creating new mutexes..." << endl;
     create_mutexes();
+    utils::g_log << "Creating new operators..." << endl;
     create_operators();
+    utils::g_log << "Creating new initial state..." << endl;
     create_initial_state();
+    utils::g_log << "Creating new goals..." << endl;
     create_goal();
+    utils::g_log << "Creating new axioms..." << endl;
     create_axioms();
 
     TaskProxy task_proxy(*this);
@@ -142,7 +149,7 @@ void DecoupledRootTask::create_variables() {
     int op_id = 0;
     for (const auto &op : original_root_task->operators) {
         if (!factoring->is_global_operator(op_id))
-            continue;
+           continue;
 
         // If we want to use the op name in the variable name, we need to have no white spaces!
         string no_space_op_name = op.name;
@@ -163,9 +170,6 @@ void DecoupledRootTask::create_variables() {
                 variables.emplace_back(name, vector<string>{"False", "True"}, 0);
                 leaf_op_to_svar[leaf][op_id] = variables.size() - 1;
             }
-
-            // Collect the preconditions for each leaf and op
-            leaf_op_to_pre[leaf][op_id].push_back(pre);
         }
         ++op_id;
     }
@@ -322,8 +326,9 @@ void DecoupledRootTask::create_operator(int op_id) {
 
 void DecoupledRootTask::create_operators() {
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
-        if (factoring->is_global_operator(op_id))
+        if (factoring->is_global_operator(op_id)) {
             create_operator(op_id);
+        }
     }
 
     // for (size_t i = 0; i < operators.size(); ++i) {
@@ -379,9 +384,10 @@ void DecoupledRootTask::create_precondition_axioms() {
         for (const auto & [op_id, pre_svar] : inner_map) {
             assert(leaf_op_to_svar.count(leaf));
             assert(leaf_op_to_svar[leaf].count(op_id));
+            assert(op_id < (int)original_root_task->operators.size());
 
             for (int pre_leaf_state : factoring->get_valid_precondition_leaf_states(leaf, op_id)) {
-                string name = "ax-prec-" + operators[op_id].name + "-" +
+                string name = "ax-prec-" + original_root_task->operators[op_id].name + "-" +
                     factoring->get_leaf_state_name(leaf, pre_leaf_state);
                 int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
 
