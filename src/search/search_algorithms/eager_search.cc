@@ -16,6 +16,8 @@
 #include <optional>
 #include <set>
 
+#include "../task_utils/task_properties.h"
+
 using namespace std;
 
 namespace eager_search {
@@ -168,6 +170,15 @@ SearchStatus EagerSearch::step() {
     }
 
     const State &s = node->get_state();
+
+    // Plan plan;
+    // search_space.trace_path(s, plan);
+    // for (auto op_id : plan) {
+    //     cout << task->get_operator_name(op_id.get_index(), false) << ", ";
+    // }
+    // cout << endl;
+    // task_properties::dump_fdr(s);
+
     if (check_goal_and_set_plan(s))
         return SOLVED;
 

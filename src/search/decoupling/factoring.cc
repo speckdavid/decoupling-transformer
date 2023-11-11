@@ -6,8 +6,6 @@
 
 #include "../tasks/root_task.h"
 
-#include <numeric>
-
 using namespace std;
 
 namespace decoupling {
@@ -472,10 +470,8 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
     }
     
     // IMPORTANT: What about preconditions?
-    // If it has no effect on the current leaf, we just return all states
-    vector<int> all_leaf_states(get_num_leaf_states(leaf));
-    iota(all_leaf_states.begin(), all_leaf_states.end(), 0);
-    return  all_leaf_states;
+    // If it has no effect on the current leaf, we just return the same state
+    return  move(vector<int>{leaf_state});
 }
 
 string Factoring::get_leaf_name(int leaf_) const {
