@@ -473,7 +473,7 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
     }
 
     // no precondition or effect => the only predecessor is the state itself
-    return vector<int>{1, leaf_state};
+    return vector<int>{leaf_state};
 }
 
 string Factoring::get_leaf_name(int leaf_) const {
