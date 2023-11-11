@@ -44,8 +44,6 @@ class LeafStateSpace {
 
     bool has_center_precondition(OperatorProxy op) const;
 
-    bool is_applicable(LeafStateHash id, FactorID leaf, OperatorProxy op) const;
-
     void get_applicable_ops(const LeafState &lstate, std::vector<OperatorID> &applicable_ops) const;
 
     bool check_is_goal_state(const LeafState &lstate);
@@ -80,6 +78,8 @@ public:
         assert(leaf_goal_states.size() > factor);
         return leaf_goal_states[factor];
     }
+
+    bool is_applicable(LeafStateHash id, FactorID leaf, OperatorProxy op) const;
 
     std::vector<int> get_predecessors(FactorID leaf, LeafStateHash lstate, OperatorID op_id) const {
         std::vector<int> predecessors;
