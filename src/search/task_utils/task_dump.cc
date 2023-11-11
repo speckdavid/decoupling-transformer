@@ -45,8 +45,11 @@ void dump_metric_as_SAS(const AbstractTask &task, ostream &os) {
 void dump_variables_as_SAS(const AbstractTask &task, ostream &os) {
     os << task.get_num_variables() << endl;
     for (int var = 0; var < task.get_num_variables(); ++var) {
+        string no_space_var_name = task.get_variable_name(var);
+        replace(no_space_var_name.begin(), no_space_var_name.end(), ' ', '-');
+        
         os << "begin_variable" << endl;
-        os << task.get_variable_name(var) << endl;
+        os << no_space_var_name << endl;
         os << task.get_variable_axiom_layer(var) << endl;
         os << task.get_variable_domain_size(var) << endl;
         for (int val = 0; val < task.get_variable_domain_size(var); ++val) {
