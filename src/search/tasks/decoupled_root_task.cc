@@ -377,8 +377,8 @@ void DecoupledRootTask::create_goal_axioms() {
 void DecoupledRootTask::create_precondition_axioms() {
     for (const auto & [leaf, inner_map] : leaf_op_to_svar) {
         for (const auto & [op_id, pre_svar] : inner_map) {
-            assert(leaf_lstate_to_svar.count(leaf));
-            assert(leaf_lstate_to_svar[leaf].count(op_id));
+            assert(leaf_op_to_svar.count(leaf));
+            assert(leaf_op_to_svar[leaf].count(op_id));
 
             for (int pre_leaf_state : factoring->get_valid_precondition_leaf_states(leaf, op_id)) {
                 string name = "ax-prec-" + operators[op_id].name + "-" +
@@ -448,6 +448,8 @@ void DecoupledRootTask::create_axioms() {
     create_goal_axioms();
     assert((int)axioms.size() == factoring->get_num_all_leaf_states() +
            factoring->get_num_all_goal_leaf_states());
+
+    create_precondition_axioms();
 
     create_leaf_only_operator_axioms();
 
