@@ -50,12 +50,13 @@ bool LeafStateSpace::has_center_precondition(OperatorProxy op) const {
 
 bool LeafStateSpace::is_applicable(LeafStateHash id, FactorID leaf, OperatorProxy op) const {
     assert(leaf != FactorID::CENTER);
+    if (!factoring->has_pre_on_factor(OperatorID(op.get_id()), leaf)){
+        return true;
+    }
     LeafState lstate = state_registry->get_leaf_state(id, leaf);
     for (FactProxy pre : op.get_preconditions()){
-        if (factoring->get_factor(pre.get_variable().get_id()) != leaf){
-            continue;
-        }
-        if (lstate[pre.get_variable().get_id()] != pre.get_value()){
+        if (factoring->get_factor(pre.get_variable().get_id()) == leaf &&
+            lstate[pre.get_variable().get_id()] != pre.get_value()){
             return false;
         }
     }
@@ -188,8 +189,8 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
                 }
 
                 if (compute_leaf_invertibility &&
-                    !has_center_precondition(op) &&
-                    !is_global_op){
+                    !is_global_op &&
+                    !has_center_precondition(op)){
                     // is leaf action without center precondition
                     leaf_only_state_space_graph[id].push_back(succ_id);
                 }
