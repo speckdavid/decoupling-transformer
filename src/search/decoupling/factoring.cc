@@ -459,20 +459,21 @@ const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf_) const {
 vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_id) const {
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
-    assert((int)leaf_state < get_num_leaf_states(leaf));
+    assert(leaf_state < get_num_leaf_states(leaf));
 
-    // HACK: Check of operators has an effect on the leaf
-    // Make this more efficeint and less hacky!
-    for (int eff_id = 0; eff_id < task->get_num_operator_effects(operator_id, false); ++eff_id) {
-        int eff_var = task->get_operator_effect(operator_id, eff_id, false).var;
-        if (get_factor(eff_var) == leaf_) {
-            return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
-        }
+    if (has_eff_on_factor(OperatorID(operator_id), leaf)) {
+        return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
     }
     
-    // IMPORTANT: What about preconditions?
-    // If it has no effect on the current leaf, we just return the same state
-    return  move(vector<int>{leaf_state});
+    if (has_pre_on_factor(OperatorID(operator_id), leaf)){
+        // precondition, but no effect, check if op is applicable in leaf_state, if not => no predecessor
+        if (!leaf_state_space->is_applicable(LeafStateHash(leaf_state), leaf, task_proxy.get_operators()[operator_id])){
+            return vector<int>{};
+        }
+    }
+
+    // no precondition or effect => the only predecessor is the state itself
+    return vector<int>{1, leaf_state};
 }
 
 string Factoring::get_leaf_name(int leaf_) const {
