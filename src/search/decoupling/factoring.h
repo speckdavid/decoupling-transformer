@@ -49,6 +49,8 @@ protected:
 
     int num_global_operators;
     std::vector<bool> is_global_operator_;
+    std::vector<std::vector<bool>> has_op_leaf_pre;
+    std::vector<std::vector<bool>> has_op_leaf_eff;
     std::vector<std::vector<OperatorID>> leaf_operators;
 
     struct ActionSchema {
@@ -112,12 +114,17 @@ public:
     bool is_fork_leaf(FactorID leaf) const;
     bool is_ifork_leaf(FactorID leaf) const;
 
+    bool has_pre_on_factor(OperatorID op_id, FactorID leaf) const;
+    bool has_eff_on_factor(OperatorID op_id, FactorID leaf) const;
+
     const std::vector<int> &get_center() const;
     const std::vector<std::vector<int>> &get_leaves() const;
     const std::vector<int> &get_leaf(int leaf) const;
 
     int get_initial_leaf_state(int leaf) const;
     const std::vector<LeafStateHash> &get_goal_leaf_states(int leaf) const;
+
+    // NOTE: this is not very efficiently implemented and should be called only once per operator
     std::vector<int> get_valid_precondition_leaf_states(int leaf, int op_id) const;
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;
 

@@ -46,9 +46,11 @@ void Factoring::apply_factoring() {
     }
 
     // initialize global/leaf-only operators + interaction graph
+    interaction_graph = make_unique<InteractionGraph>(get_num_leaves());
     is_global_operator_.resize(task->get_num_operators(), false);
-    interaction_graph = make_unique<InteractionGraph>(leaves.size());
     leaf_operators.resize(get_num_leaves());
+    has_op_leaf_pre.resize(get_num_leaves(), vector<bool>(task->get_num_operators(), false));
+    has_op_leaf_eff.resize(get_num_leaves(), vector<bool>(task->get_num_operators(), false));
     for (OperatorProxy op : task_proxy.get_operators()){
 
         set<FactorID> pre_factors;
@@ -98,9 +100,15 @@ void Factoring::apply_factoring() {
         if (is_global_operator_[op.get_id()]) {
             num_global_operators++;
         }
+        for (FactorID leaf : pre_factors){
+            if (leaf != FactorID::CENTER) {
+                has_op_leaf_pre[leaf][op.get_id()] = true;
+            }
+        }
         for (FactorID leaf : eff_factors){
             if (leaf != FactorID::CENTER) {
                 leaf_operators[leaf].emplace_back(op.get_id());
+                has_op_leaf_eff[leaf][op.get_id()] = true;
             }
         }
     }
@@ -342,22 +350,7 @@ bool Factoring::is_leaf_variable(int var) const {
 }
 
 bool Factoring::is_leaf_only_operator(int operator_id) const {
-    if (is_global_operator_[operator_id]){
-        return false;
-    }
-    set<FactorID> affected_leaves;
-    for (EffectProxy eff : task_proxy.get_operators()[operator_id].get_effects()) {
-        FactorID var_factor = var_to_factor[eff.get_fact().get_variable().get_id()];
-        if (var_factor == FactorID::CENTER) {
-            return false;
-        } else {
-            affected_leaves.insert(var_factor);
-            if (affected_leaves.size() > 1){
-                return false;
-            }
-        }
-    }
-    return true;
+    return !is_global_operator_[operator_id];
 }
 
 bool Factoring::is_global_operator(int operator_id) const {
@@ -400,6 +393,14 @@ bool Factoring::is_fork_leaf(FactorID leaf) const {
 
 bool Factoring::is_ifork_leaf(FactorID leaf) const {
     return interaction_graph->is_ifork_leaf(leaf);
+}
+
+bool Factoring::has_pre_on_factor(OperatorID op_id, FactorID leaf) const {
+    return has_op_leaf_pre[leaf][op_id.get_index()];
+}
+
+bool Factoring::has_eff_on_factor(OperatorID op_id, FactorID leaf) const {
+    return has_op_leaf_eff[leaf][op_id.get_index()];
 }
 
 const vector<int> &Factoring::get_center() const {
@@ -483,7 +484,7 @@ string Factoring::get_leaf_name(int leaf_) const {
 string Factoring::get_leaf_state_name(int leaf_, int leaf_state) const {
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
-    assert((int)leaf_state < get_num_leaf_states(leaf));
+    assert(leaf_state < get_num_leaf_states(leaf));
     return leaf_state_space->get_name(LeafStateHash(leaf_state), leaf);
 }
 
