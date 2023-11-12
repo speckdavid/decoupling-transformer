@@ -32,6 +32,9 @@ public:
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
 
+    void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
+                                       std::vector<State> &states) const override;
+
 protected:
     void print_statistics() const;
     void write_sas_file(const std::string file_name) const;

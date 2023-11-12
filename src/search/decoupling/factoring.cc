@@ -1,6 +1,7 @@
 #include "factoring.h"
 
 #include "leaf_state.h"
+#include "plan_reconstruction.h"
 
 #include "../plugins/plugin.h"
 
@@ -520,6 +521,10 @@ string Factoring::get_leaf_state_name(int leaf_, int leaf_state) const {
     assert(leaf < leaves.size());
     assert(leaf_state < get_num_leaf_states(leaf));
     return leaf_state_space->get_name(LeafStateHash(leaf_state), leaf);
+}
+
+void Factoring::insert_leaf_paths(std::vector<OperatorID> &path, std::vector<State> &states) const {
+    PathPrices::insert_leaf_actions(*task, *this, *leaf_state_space, path, states);
 }
 
 void Factoring::add_options_to_feature(plugins::Feature &feature) {

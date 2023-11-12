@@ -126,11 +126,14 @@ SearchNode SearchSpace::get_node(const State &state) {
 }
 
 void SearchSpace::trace_path(const State &goal_state,
-                             vector<OperatorID> &path) const {
+                             vector<OperatorID> &path,
+                             const shared_ptr<AbstractTask> &task) const {
+    vector<State> states;
     State current_state = goal_state;
     assert(current_state.get_registry() == &state_registry);
     assert(path.empty());
     for (;;) {
+        states.push_back(current_state);
         const SearchNodeInfo &info = search_node_infos[current_state];
         if (info.creating_operator == OperatorID::no_operator) {
             assert(info.parent_state_id == StateID::no_state);
@@ -139,6 +142,7 @@ void SearchSpace::trace_path(const State &goal_state,
         path.push_back(info.creating_operator);
         current_state = state_registry.lookup_state(info.parent_state_id);
     }
+    task->reconstruct_plan_if_necessary(path, states);
     reverse(path.begin(), path.end());
 }
 

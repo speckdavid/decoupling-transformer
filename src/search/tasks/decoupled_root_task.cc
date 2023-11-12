@@ -61,6 +61,11 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     }
 }
 
+void DecoupledRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
+                                                      vector<State> &states) const {
+    factoring->insert_leaf_paths(path, states);
+}
+
 void DecoupledRootTask::print_statistics() const {
     int num_primary_vars = count_if(variables.begin(), variables.end(), [](const auto &var)
                                     {return var.axiom_layer == -1;});

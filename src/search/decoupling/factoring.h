@@ -136,6 +136,8 @@ public:
     std::string get_leaf_name(int leaf) const;
     std::string get_leaf_state_name(int leaf, int leaf_state) const;
 
+    void insert_leaf_paths(std::vector<OperatorID> &path, std::vector<State> &states) const;
+
     static void add_options_to_feature(plugins::Feature &feature);
 };
 }

@@ -48,6 +48,8 @@ inline void feed(HashState &hash_state, const FactPair &fact) {
 }
 }
 
+class State;
+
 class AbstractTask : public subscriber::SubscriberService<AbstractTask> {
 public:
     AbstractTask() = default;
@@ -101,6 +103,12 @@ public:
     virtual void convert_ancestor_state_values(
         std::vector<int> &values,
         const AbstractTask *ancestor_task) const = 0;
+
+    virtual void reconstruct_plan_if_necessary(std::vector<OperatorID> &/*path*/,
+                                               std::vector<State> &/*states*/) const {
+        // If we run decoupled search, the decoupled root task needs to reconstruct the
+        // solution to get a proper plan. By default, we do nothin.
+    }
 };
 
 #endif
