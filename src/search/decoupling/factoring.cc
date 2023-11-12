@@ -16,11 +16,11 @@ vector<set<int>> Factoring::var_to_affecting_op;
 Factoring::Factoring(const plugins::Options &opts) :
     ignore_invertible_root_leaves(opts.get<bool>("ignore_invertible_root_leaves")),
     prune_fork_leaf_state_spaces(opts.get<bool>("prune_fork_leaf_state_spaces")),
+    num_global_operators(0),
     log(utils::get_log_from_options(opts)),
     factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
     task(tasks::g_root_task),
     task_proxy(TaskProxy(*task)),
-    num_global_operators(0),
     min_number_leaves(opts.get<int>("min_number_leaves")),
     max_leaf_size(opts.get<int>("max_leaf_size")) {
 }
@@ -160,6 +160,28 @@ const vector<OperatorID> &Factoring::get_leaf_operators(FactorID leaf) const {
 bool Factoring::has_leaf_goal(FactorID leaf) const {
     assert(leaf != FactorID::CENTER);
     return !goals_by_leaf[leaf].empty();
+}
+
+bool Factoring::is_center_applicable(const State &state, OperatorProxy op) const {
+    for (FactProxy pre : op.get_preconditions()){
+        int var = pre.get_variable().get_id();
+        if (get_factor(var) == FactorID::CENTER &&
+            state[var].get_value() != pre.get_value()){
+            return false;
+        }
+    }
+    return true;
+}
+
+int Factoring::get_num_effects_on_leaf(OperatorProxy op, FactorID leaf) const {
+    int num_effs = 0;
+    for (auto eff : op.get_effects()){
+        int var = eff.get_fact().get_variable().get_id();
+        if (get_factor(var) == leaf){
+            num_effs++;
+        }
+    }
+    return num_effs;
 }
 
 const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
@@ -395,11 +417,22 @@ bool Factoring::is_ifork_leaf(FactorID leaf) const {
     return interaction_graph->is_ifork_leaf(leaf);
 }
 
-bool Factoring::has_pre_on_factor(OperatorID op_id, FactorID leaf) const {
+bool Factoring::is_fork_factoring() const {
+    for (FactorID leaf(0); leaf < get_num_leaves(); ++leaf){
+        if (!is_fork_leaf(leaf)){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Factoring::has_pre_on_leaf(OperatorID op_id, FactorID leaf) const {
+    assert(leaf != FactorID::CENTER);
     return has_op_leaf_pre[leaf][op_id.get_index()];
 }
 
-bool Factoring::has_eff_on_factor(OperatorID op_id, FactorID leaf) const {
+bool Factoring::has_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
+    assert(leaf != FactorID::CENTER);
     return has_op_leaf_eff[leaf][op_id.get_index()];
 }
 
@@ -461,11 +494,11 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
     assert(leaf < leaves.size());
     assert(leaf_state < get_num_leaf_states(leaf));
 
-    if (has_eff_on_factor(OperatorID(operator_id), leaf)) {
+    if (has_eff_on_leaf(OperatorID(operator_id), leaf)) {
         return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
     }
     
-    if (has_pre_on_factor(OperatorID(operator_id), leaf)){
+    if (has_pre_on_leaf(OperatorID(operator_id), leaf)){
         // precondition, but no effect, check if op is applicable in leaf_state, if not => no predecessor
         if (!leaf_state_space->is_applicable(LeafStateHash(leaf_state), leaf, task_proxy.get_operators()[operator_id])){
             return vector<int>{};

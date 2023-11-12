@@ -20,6 +20,7 @@ class InteractionGraph;
 
 class Factoring : public std::enable_shared_from_this<Factoring> {
     friend class LeafStateSpace;
+    friend class PathPrices;
 
     bool is_factoring_possible() const;
     bool is_two_leaf_factoring_possible() const;
@@ -28,17 +29,7 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     bool ignore_invertible_root_leaves;
     bool prune_fork_leaf_state_spaces;
 
-protected:
-    mutable utils::LogProxy log;
-    utils::CountdownTimer factoring_timer;
-
-    std::shared_ptr<AbstractTask> task;
-    TaskProxy task_proxy;
-
     std::unique_ptr<LeafStateSpace> leaf_state_space;
-
-    std::vector<int> center;
-    std::vector<std::vector<int>> leaves;
 
     std::unique_ptr<InteractionGraph> interaction_graph;
 
@@ -52,6 +43,27 @@ protected:
     std::vector<std::vector<bool>> has_op_leaf_pre;
     std::vector<std::vector<bool>> has_op_leaf_eff;
     std::vector<std::vector<OperatorID>> leaf_operators;
+
+    void remove_never_applicable_global_ops(FactorID leaf);
+
+    const std::vector<OperatorID> &get_leaf_operators(FactorID leaf) const;
+
+    bool has_leaf_goal(FactorID leaf) const;
+
+    bool is_center_applicable(const State &state, OperatorProxy op) const;
+    int get_num_effects_on_leaf(OperatorProxy op, FactorID leaf) const;
+
+    const std::vector<FactPair> &get_leaf_goals(FactorID factor) const;
+
+protected:
+    mutable utils::LogProxy log;
+    utils::CountdownTimer factoring_timer;
+
+    std::shared_ptr<AbstractTask> task;
+    TaskProxy task_proxy;
+
+    std::vector<int> center;
+    std::vector<std::vector<int>> leaves;
 
     struct ActionSchema {
         int num_actions; // number of actions with the action schema
@@ -82,14 +94,6 @@ protected:
     void apply_factoring();
     void print_factoring() const;
 
-    void remove_never_applicable_global_ops(FactorID leaf);
-
-    const std::vector<OperatorID> &get_leaf_operators(FactorID leaf) const;
-
-    bool has_leaf_goal(FactorID leaf) const;
-
-    const std::vector<FactPair> &get_leaf_goals(FactorID factor) const;
-
     virtual void compute_factoring_() = 0;
 
 public:
@@ -113,9 +117,10 @@ public:
 
     bool is_fork_leaf(FactorID leaf) const;
     bool is_ifork_leaf(FactorID leaf) const;
+    bool is_fork_factoring() const;
 
-    bool has_pre_on_factor(OperatorID op_id, FactorID leaf) const;
-    bool has_eff_on_factor(OperatorID op_id, FactorID leaf) const;
+    bool has_pre_on_leaf(OperatorID op_id, FactorID leaf) const;
+    bool has_eff_on_leaf(OperatorID op_id, FactorID leaf) const;
 
     const std::vector<int> &get_center() const;
     const std::vector<std::vector<int>> &get_leaves() const;

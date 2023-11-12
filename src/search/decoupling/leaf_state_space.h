@@ -19,6 +19,7 @@ class LeafState;
 class LeafStateRegistry;
 
 class LeafStateSpace {
+    friend class PathPrices;
     friend class SimulationRelation;
 
     utils::LogProxy &log;
@@ -80,6 +81,8 @@ public:
     }
 
     bool is_applicable(LeafStateHash id, FactorID leaf, OperatorProxy op) const;
+
+    bool is_applicable(LeafStateHash id, FactorID leaf, OperatorID op_id) const;
 
     std::vector<int> get_predecessors(FactorID leaf, LeafStateHash lstate, OperatorID op_id) const {
         std::vector<int> predecessors;

@@ -50,7 +50,7 @@ bool LeafStateSpace::has_center_precondition(OperatorProxy op) const {
 
 bool LeafStateSpace::is_applicable(LeafStateHash id, FactorID leaf, OperatorProxy op) const {
     assert(leaf != FactorID::CENTER);
-    if (!factoring->has_pre_on_factor(OperatorID(op.get_id()), leaf)){
+    if (!factoring->has_pre_on_leaf(OperatorID(op.get_id()), leaf)){
         return true;
     }
     LeafState lstate = state_registry->get_leaf_state(id, leaf);
@@ -61,6 +61,10 @@ bool LeafStateSpace::is_applicable(LeafStateHash id, FactorID leaf, OperatorProx
         }
     }
     return true;
+}
+
+bool LeafStateSpace::is_applicable(LeafStateHash id, FactorID leaf, OperatorID op_id) const {
+    return is_applicable(id, leaf, task_proxy.get_operators()[op_id]);
 }
 
 void LeafStateSpace::get_applicable_ops(const LeafState &lstate,
