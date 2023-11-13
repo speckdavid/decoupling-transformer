@@ -52,47 +52,46 @@ void Factoring::apply_factoring() {
     leaf_operators.resize(get_num_leaves());
     has_op_leaf_pre.resize(get_num_leaves(), vector<bool>(task->get_num_operators(), false));
     has_op_leaf_eff.resize(get_num_leaves(), vector<bool>(task->get_num_operators(), false));
-    for (OperatorProxy op : task_proxy.get_operators()){
-
+    for (OperatorProxy op : task_proxy.get_operators()) {
         set<FactorID> pre_factors;
         set<FactorID> eff_factors;
 
-        for (auto pre : op.get_preconditions()){
+        for (auto pre : op.get_preconditions()) {
             pre_factors.insert(var_to_factor[pre.get_variable().get_id()]);
         }
 
-        for (EffectProxy eff : op.get_effects()){
+        for (EffectProxy eff : op.get_effects()) {
             eff_factors.insert(var_to_factor[eff.get_fact().get_variable().get_id()]);
         }
         assert(!eff_factors.empty());
 
-        for (FactorID pre_factor : pre_factors){
-            for (FactorID eff_factor : eff_factors){
-                if (pre_factor != eff_factor){
+        for (FactorID pre_factor : pre_factors) {
+            for (FactorID eff_factor : eff_factors) {
+                if (pre_factor != eff_factor) {
                     interaction_graph->add_dependency(pre_factor, eff_factor);
                 }
             }
         }
-        for (FactorID eff1_factor : eff_factors){
-            for (FactorID eff2_factor : eff_factors){
-                if (eff1_factor != eff2_factor){
+        for (FactorID eff1_factor : eff_factors) {
+            for (FactorID eff2_factor : eff_factors) {
+                if (eff1_factor != eff2_factor) {
                     interaction_graph->add_dependency(eff1_factor, eff2_factor);
                 }
             }
         }
 
-        if (eff_factors.find(FactorID::CENTER) != eff_factors.end()){
+        if (eff_factors.find(FactorID::CENTER) != eff_factors.end()) {
             // effect on center variable
             is_global_operator_[op.get_id()] = true;
-        } else if (eff_factors.size() > 1){
+        } else if (eff_factors.size() > 1) {
             // effect on more than one factor
             is_global_operator_[op.get_id()] = true;
         } else {
             pre_factors.erase(FactorID::CENTER);
-            if (pre_factors.size() > 1){
+            if (pre_factors.size() > 1) {
                 // precondition on more than one leaf
                 is_global_operator_[op.get_id()] = true;
-            } else if (!pre_factors.empty() && *pre_factors.begin() != *eff_factors.begin()){
+            } else if (!pre_factors.empty() && *pre_factors.begin() != *eff_factors.begin()) {
                 // precondition on leaf A, but effect on leaf B
                 is_global_operator_[op.get_id()] = true;
             }
@@ -101,12 +100,12 @@ void Factoring::apply_factoring() {
         if (is_global_operator_[op.get_id()]) {
             num_global_operators++;
         }
-        for (FactorID leaf : pre_factors){
+        for (FactorID leaf : pre_factors) {
             if (leaf != FactorID::CENTER) {
                 has_op_leaf_pre[leaf][op.get_id()] = true;
             }
         }
-        for (FactorID leaf : eff_factors){
+        for (FactorID leaf : eff_factors) {
             if (leaf != FactorID::CENTER) {
                 leaf_operators[leaf].emplace_back(op.get_id());
                 has_op_leaf_eff[leaf][op.get_id()] = true;
@@ -138,7 +137,7 @@ void Factoring::print_factoring() const {
                 log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
             }
         }
-        if (interaction_graph->is_fork()){
+        if (interaction_graph->is_fork()) {
             log << "is fork factoring" << endl;
         } else if (interaction_graph->is_ifork()) {
             log << "is inverted-fork factoring" << endl;
@@ -164,10 +163,10 @@ bool Factoring::has_leaf_goal(FactorID leaf) const {
 }
 
 bool Factoring::is_center_applicable(const State &state, OperatorProxy op) const {
-    for (FactProxy pre : op.get_preconditions()){
+    for (FactProxy pre : op.get_preconditions()) {
         int var = pre.get_variable().get_id();
         if (get_factor(var) == FactorID::CENTER &&
-            state[var].get_value() != pre.get_value()){
+            state[var].get_value() != pre.get_value()) {
             return false;
         }
     }
@@ -176,9 +175,9 @@ bool Factoring::is_center_applicable(const State &state, OperatorProxy op) const
 
 int Factoring::get_num_effects_on_leaf(OperatorProxy op, FactorID leaf) const {
     int num_effs = 0;
-    for (auto eff : op.get_effects()){
+    for (auto eff : op.get_effects()) {
         int var = eff.get_fact().get_variable().get_id();
-        if (get_factor(var) == leaf){
+        if (get_factor(var) == leaf) {
             num_effs++;
         }
     }
@@ -419,8 +418,8 @@ bool Factoring::is_ifork_leaf(FactorID leaf) const {
 }
 
 bool Factoring::is_fork_factoring() const {
-    for (FactorID leaf(0); leaf < get_num_leaves(); ++leaf){
-        if (!is_fork_leaf(leaf)){
+    for (FactorID leaf(0); leaf < get_num_leaves(); ++leaf) {
+        if (!is_fork_leaf(leaf)) {
             return false;
         }
     }
@@ -432,9 +431,25 @@ bool Factoring::has_pre_on_leaf(OperatorID op_id, FactorID leaf) const {
     return has_op_leaf_pre[leaf][op_id.get_index()];
 }
 
+bool Factoring::has_pre_on_leaf(int op_id, int leaf) const {
+    return has_eff_on_leaf(OperatorID(op_id), FactorID(leaf));
+}
+
 bool Factoring::has_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
     assert(leaf != FactorID::CENTER);
     return has_op_leaf_eff[leaf][op_id.get_index()];
+}
+
+bool Factoring::has_eff_on_leaf(int op_id, int leaf) const {
+    return has_eff_on_leaf(OperatorID(op_id), FactorID(leaf));
+}
+
+bool Factoring::has_pre_or_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
+    return has_pre_on_leaf(op_id, leaf) || has_eff_on_leaf(op_id, leaf);
+}
+
+bool Factoring::has_pre_or_eff_on_leaf(int op_id, int leaf) const {
+    return has_pre_on_leaf(op_id, leaf) || has_eff_on_leaf(op_id, leaf);
 }
 
 const vector<int> &Factoring::get_center() const {
@@ -459,24 +474,24 @@ vector<int> Factoring::get_valid_precondition_leaf_states(int leaf_, int op_id) 
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
     vector<FactProxy> leaf_pre;
-    for (FactProxy pre : task_proxy.get_operators()[op_id].get_preconditions()){
-        if (var_to_factor[pre.get_variable().get_id()] == leaf){
+    for (FactProxy pre : task_proxy.get_operators()[op_id].get_preconditions()) {
+        if (var_to_factor[pre.get_variable().get_id()] == leaf) {
             leaf_pre.push_back(pre);
         }
     }
     assert(!leaf_pre.empty()); // this should only be called if op_id has a precondition on leaf
 
     vector<int> satisfying_lstates;
-    for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id){
+    for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
         LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
         bool applicable = true;
-        for (FactProxy pre : leaf_pre){
-            if (lstate[pre.get_variable()] != pre.get_value()){
+        for (FactProxy pre : leaf_pre) {
+            if (lstate[pre.get_variable()] != pre.get_value()) {
                 applicable = false;
                 break;
             }
         }
-        if (applicable){
+        if (applicable) {
             satisfying_lstates.push_back(static_cast<int>(id));
         }
     }
@@ -498,10 +513,10 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
     if (has_eff_on_leaf(OperatorID(operator_id), leaf)) {
         return leaf_state_space->get_predecessors(leaf, LeafStateHash(leaf_state), OperatorID(operator_id));
     }
-    
-    if (has_pre_on_leaf(OperatorID(operator_id), leaf)){
+
+    if (has_pre_on_leaf(OperatorID(operator_id), leaf)) {
         // precondition, but no effect, check if op is applicable in leaf_state, if not => no predecessor
-        if (!leaf_state_space->is_applicable(LeafStateHash(leaf_state), leaf, task_proxy.get_operators()[operator_id])){
+        if (!leaf_state_space->is_applicable(LeafStateHash(leaf_state), leaf, task_proxy.get_operators()[operator_id])) {
             return vector<int>{};
         }
     }
@@ -540,13 +555,13 @@ void Factoring::add_options_to_feature(plugins::Feature &feature) {
                             "infinity"
                             );
     feature.add_option<bool>("ignore_invertible_root_leaves",
-                            "root leaves with invertible state space will be removed",
-                            "false"
-                            );
+                             "root leaves with invertible state space will be removed",
+                             "false"
+                             );
     feature.add_option<bool>("prune_fork_leaf_state_spaces",
                              "run simulation-based pruning in fork leaves to reduce their state space",
                              "false"
-                            );
+                             );
 }
 
 static class EvaluatorCategoryPlugin : public plugins::TypedCategoryPlugin<Factoring> {

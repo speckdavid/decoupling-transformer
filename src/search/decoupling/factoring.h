@@ -120,7 +120,11 @@ public:
     bool is_fork_factoring() const;
 
     bool has_pre_on_leaf(OperatorID op_id, FactorID leaf) const;
+    bool has_pre_on_leaf(int, int leaf) const;
+    bool has_pre_or_eff_on_leaf(OperatorID op_id, FactorID leaf) const;
+    bool has_pre_or_eff_on_leaf(int op_id, int leaf) const;
     bool has_eff_on_leaf(OperatorID op_id, FactorID leaf) const;
+    bool has_eff_on_leaf(int op_id, int leaf) const;
 
     const std::vector<int> &get_center() const;
     const std::vector<std::vector<int>> &get_leaves() const;

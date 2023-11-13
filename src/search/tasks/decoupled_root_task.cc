@@ -17,7 +17,8 @@ namespace tasks {
 DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
-      factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")) {
+      factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
+      share_effects(options.get<bool>("share_effects")) {
     factoring->compute_factoring();
 
     utils::Timer transformation_timer;
@@ -154,7 +155,7 @@ void DecoupledRootTask::create_variables() {
     int op_id = 0;
     for (const auto &op : original_root_task->operators) {
         if (!factoring->is_global_operator(op_id))
-           continue;
+            continue;
 
         // If we want to use the op name in the variable name, we need to have no white spaces!
         string no_space_op_name = op.name;
@@ -230,6 +231,78 @@ void DecoupledRootTask::create_goal() {
            && "Multiple goals for the same variable!");
 }
 
+void DecoupledRootTask::precompute_shareable_effects() {
+    leaf_to_shareable_effects.resize(factoring->get_num_leaves());
+
+    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+        if (!factoring->is_global_operator(op_id))
+            continue;
+
+        for (int l = 0; l < factoring->get_num_leaves(); ++l) {
+            if (factoring->has_pre_or_eff_on_leaf(op_id, l))
+                continue;
+
+            if (!leaf_to_shareable_effects[l].empty())
+                continue;
+
+            assert(leaf_to_shareable_effects[l].empty());
+
+            for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
+                int pvar = leaf_lstate_to_pvar[l][ls];
+                auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
+
+                // Positive conditional effect
+                for (int pred : predecessor_ls) {
+                    int svar_pred = leaf_lstate_to_svar[l][pred];
+                    leaf_to_shareable_effects[l].emplace_back(pvar, 1, vector<FactPair> {FactPair(svar_pred, 1)});
+                }
+
+                // Negative conditional effect
+                ExplicitEffect eff(pvar, 0, vector<FactPair>());
+                for (int pred : predecessor_ls) {
+                    int svar_pred = leaf_lstate_to_svar[l][pred];
+                    eff.conditions.emplace_back(svar_pred, 0);
+                }
+                sort(eff.conditions.begin(), eff.conditions.end());
+
+                assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
+                                     [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
+                       && "Multiple effect conditions for the same variable!");
+
+                leaf_to_shareable_effects[l].push_back(eff);
+            }
+        }
+    }
+
+    // for (auto const& x : leaf_to_shareable_effects) {
+    //     for (auto const& eff : x ) {
+    //         utils::g_log << eff.fact << " if " << eff.conditions << endl;
+    //     }
+    //     cout << "" << endl;
+    // }
+
+
+    operator_shared_effects.resize(factoring->get_num_global_operators());
+
+    int g_op_id = 0;
+    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+        if (!factoring->is_global_operator(op_id))
+            continue;
+
+        for (int l = 0; l < factoring->get_num_leaves(); ++l) {
+            if (factoring->has_pre_or_eff_on_leaf(op_id, l))
+                continue;
+
+            for (auto &eff : leaf_to_shareable_effects[l]) {
+                operator_shared_effects[g_op_id].push_back(&eff);
+            }
+
+            assert(factoring->has_pre_or_eff_on_leaf(g_op_id, l) || !operator_shared_effects[g_op_id].empty());
+        }
+        ++g_op_id;
+    }
+}
+
 void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator &new_op) {
     const auto &op = original_root_task->operators[op_id];
 
@@ -283,6 +356,9 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
 
     // Effects on leaf states
     for (int l = 0; l < factoring->get_num_leaves(); ++l) {
+        if (share_effects && !factoring->has_pre_or_eff_on_leaf(op_id, l))
+            continue;
+
         for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
             int pvar = leaf_lstate_to_pvar[l][ls];
             auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
@@ -330,18 +406,26 @@ void DecoupledRootTask::create_operator(int op_id) {
 }
 
 void DecoupledRootTask::create_operators() {
+    if (share_effects) {
+        precompute_shareable_effects();
+    }
+
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
         if (factoring->is_global_operator(op_id)) {
             create_operator(op_id);
         }
     }
 
-    // for (size_t i = 0; i < operators.size(); ++i) {
-    //     utils::g_log << operators[i].name << ":" << endl;
-    //     utils::g_log << "\tpre: " << operators[i].preconditions << endl;
+    // for (int i = 0; i < get_num_operators(); ++i) {
+    //     utils::g_log << get_operator_name(i, false) << ":" << endl;
+    //     // utils::g_log << "\tpre: " << get_operator_precondition(i, false) << endl;
     //     utils::g_log << "\teff: " << endl;
-    //     for (auto const &eff : operators[i].effects) {
-    //         utils::g_log << "\t   " << eff.fact << " if " << eff.conditions << endl;
+    //     for (int eff_id = 0; eff_id < get_num_operator_effects(i, false); ++eff_id) {
+    //         vector<FactPair> conds;
+    //         for (int ceff_id = 0; ceff_id < get_num_operator_effect_conditions(i, eff_id, false); ++ceff_id) {
+    //             conds.push_back(get_operator_effect_condition(i, eff_id, ceff_id, false));
+    //         }
+    //         utils::g_log << "\t   " << get_operator_effect(i, eff_id, false) << " if " << conds << endl;
     //     }
     //     cout << endl;
     // }
@@ -482,6 +566,67 @@ void DecoupledRootTask::create_axioms() {
     // }
 }
 
+const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
+    if (!share_effects || is_axiom)
+        return RootTask::get_effect(op_id, effect_id, is_axiom);
+
+    if (effect_id < RootTask::get_num_operator_effects(op_id, is_axiom))
+        return RootTask::get_effect(op_id, effect_id, is_axiom);
+    
+
+    assert((size_t)effect_id < operators.at(op_id).effects.size() + operator_shared_effects.at(op_id).size());
+    
+    int shared_effect_index = effect_id - operators.at(op_id).effects.size();
+    return *operator_shared_effects.at(op_id).at(shared_effect_index);
+}
+
+int DecoupledRootTask::get_num_operator_effects(int op_index, bool is_axiom) const {
+    if (!share_effects || is_axiom)
+        return RootTask::get_num_operator_effects(op_index, is_axiom);
+
+    return RootTask::get_num_operator_effects(op_index, is_axiom)
+           + operator_shared_effects.at(op_index).size();
+}
+
+int DecoupledRootTask::get_num_operator_effect_conditions(int op_index, int eff_index, bool is_axiom) const {
+    if (!share_effects || is_axiom)
+        return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
+
+    if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
+        return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
+
+    assert((size_t)eff_index < operators.at(op_index).effects.size() + operator_shared_effects.at(op_index).size());
+
+    int shared_effect_index = eff_index - operators.at(op_index).effects.size();
+    return operator_shared_effects.at(op_index).at(shared_effect_index)->conditions.size();
+}
+
+FactPair DecoupledRootTask::get_operator_effect_condition(int op_index, int eff_index, int cond_index, bool is_axiom) const {
+    if (!share_effects || is_axiom)
+        return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
+
+    if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
+        return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
+
+    assert((size_t)eff_index < operators.at(op_index).effects.size() + operator_shared_effects.at(op_index).size());
+
+    int shared_effect_index = eff_index - operators.at(op_index).effects.size();
+    return operator_shared_effects.at(op_index).at(shared_effect_index)->conditions.at(cond_index);
+}
+
+FactPair DecoupledRootTask::get_operator_effect(int op_index, int eff_index, bool is_axiom) const {
+    if (!share_effects || is_axiom)
+        return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
+
+    if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
+        return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
+
+    assert((size_t)eff_index < operators.at(op_index).effects.size() + operator_shared_effects.at(op_index).size());
+
+    int shared_effect_index = eff_index - operators.at(op_index).effects.size();
+    return operator_shared_effects.at(op_index).at(shared_effect_index)->fact;
+}
+
 class DecoupledRootTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledRootTask> {
 public:
     DecoupledRootTaskFeature() : TypedFeature("decoupled") {
@@ -491,6 +636,7 @@ public:
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
+        add_option<bool>("share_effects", "Shares the effects of leaf states to reduce memory.", "true");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
     }
 

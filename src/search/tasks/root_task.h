@@ -66,7 +66,7 @@ protected:
     std::vector<FactPair> goals;
 
     const ExplicitVariable &get_variable(int var) const;
-    const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const;
+    virtual const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const;
     const ExplicitOperator &get_operator_or_axiom(int index, bool is_axiom) const;
 
 public:
