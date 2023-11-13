@@ -72,19 +72,19 @@ void DecoupledRootTask::print_statistics() const {
                                     {return var.axiom_layer == -1;});
     int num_secondary_vars = variables.size() - num_primary_vars;
 
-    utils::g_log << "Original task size: " << original_root_task->get_encoding_size(false) << endl;
+    // utils::g_log << "Original task size: " << original_root_task->get_encoding_size(false) << endl;
     utils::g_log << "Original number of variables: " << original_root_task->variables.size() << endl;
     utils::g_log << "Original number of primary variables: " << original_root_task->variables.size() << endl;
     utils::g_log << "Original number of secondary variables: " << 0 << endl;
-    utils::g_log << "Original number of operators: " << original_root_task->operators.size() << endl;
-    utils::g_log << "Original number of axioms: " << original_root_task->axioms.size() << endl;
+    utils::g_log << "Original number of operators: " << get_num_operators() << endl;
+    utils::g_log << "Original number of axioms: " << get_num_axioms() << endl;
 
-    utils::g_log << "Task size: " << get_encoding_size(false) << endl;
+    // utils::g_log << "Task size: " << get_encoding_size(false) << endl;
     utils::g_log << "Number of variables: " << variables.size() << endl;
     utils::g_log << "Number of primary variables: " << num_primary_vars << endl;
     utils::g_log << "Number of secondary variables: " << num_secondary_vars << endl;
-    utils::g_log << "Number of operators: " << operators.size() << endl;
-    utils::g_log << "Number of axioms: " << axioms.size() << endl;
+    utils::g_log << "Number of operators: " << get_num_operators() << endl;
+    utils::g_log << "Number of axioms: " << get_num_axioms() << endl;
 }
 
 void DecoupledRootTask::write_sas_file(const std::string file_name) const {
