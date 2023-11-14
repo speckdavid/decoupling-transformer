@@ -582,7 +582,9 @@ void LPFactoring::compute_factoring_() {
 
         solver.solve();
 
-        solution = solver.extract_solution();
+        if (solver.has_solution()) {
+            solution = solver.extract_solution();
+        }
 
         if (solution.empty()) {
             log << "WARNING: no solution found by LP solver." << endl;

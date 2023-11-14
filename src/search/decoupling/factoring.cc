@@ -268,8 +268,8 @@ void Factoring::check_factoring() const {
     // TODO add more sanity checks?
     // check if there are any leaves
     if (leaves.empty()) {
-        log << "ERROR: no factoring with at least " << min_number_leaves << " leaves found." << endl;
-        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+        log << "No factoring with at least " << min_number_leaves << " leaves found." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     }
     // check that leaves are pairwise disjoint
     vector<bool> is_leaf_var(task->get_num_variables(), false);
