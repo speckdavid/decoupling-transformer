@@ -63,7 +63,7 @@ class PathPrices {
     }
 
     bool has_leaf_state(LeafStateHash id, FactorID leaf) const {
-        return id <= paths[leaf].size() && paths[leaf][id].price != -1;
+        return id < paths[leaf].size() && paths[leaf][id].price != -1;
     }
 
     int get_cost_of_state(LeafStateHash id, FactorID leaf) const {
