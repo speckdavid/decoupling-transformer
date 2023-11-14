@@ -42,11 +42,13 @@ LeafStateHash LeafStateRegistry::get_successor_leaf_state_hash(const LeafState &
     FactorID leaf = predecessor.get_id().get_factor();
     assert(leaf != FactorID::CENTER);
     leaf_states[leaf].push_back(predecessor.values);
-    for (EffectProxy eff : op.get_effects()){
-        assert(eff.get_conditions().empty());
-        if (factoring->get_factor(eff.get_fact().get_variable().get_id()) == leaf) {
-            int id_in_leaf = factoring->get_id_in_factor(eff.get_fact().get_variable().get_id());
-            leaf_states[leaf].back()[id_in_leaf] = eff.get_fact().get_value();
+    if (factoring->has_eff_on_leaf(op.get_id(), leaf)) {
+        for (EffectProxy eff: op.get_effects()) {
+            assert(eff.get_conditions().empty());
+            if (factoring->get_factor(eff.get_fact().get_variable().get_id()) == leaf) {
+                int id_in_leaf = factoring->get_id_in_factor(eff.get_fact().get_variable().get_id());
+                leaf_states[leaf].back()[id_in_leaf] = eff.get_fact().get_value();
+            }
         }
     }
     return insert_id_or_pop_leaf_state(leaf);
