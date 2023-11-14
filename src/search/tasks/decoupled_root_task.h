@@ -34,6 +34,8 @@ class DecoupledRootTask : public RootTask {
 
     std::unordered_map<int, std::unordered_map<int, int>> leaf_op_to_svar;
 
+    std::unordered_map<int, int> global_op_id_to_original_op_id;
+
 public:
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;

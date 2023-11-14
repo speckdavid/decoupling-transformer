@@ -2,6 +2,7 @@
 
 #include "../axioms.h"
 #include "../decoupling/factoring.h"
+#include "../operator_id.h"
 #include "../plugins/plugin.h"
 #include "../task_utils/task_dump.h"
 #include "../task_utils/task_properties.h"
@@ -64,6 +65,12 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 
 void DecoupledRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
                                                       vector<State> &states) const {
+    // remap operator IDs to original operator IDs
+    vector<OperatorID> mapped_path;
+    for (auto op_id : path){
+        mapped_path.emplace_back(global_op_id_to_original_op_id.at(op_id.get_index()));
+    }
+    path = mapped_path;
     factoring->insert_leaf_paths(path, states, original_root_task);
 }
 
@@ -413,6 +420,7 @@ void DecoupledRootTask::create_operators() {
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
         if (factoring->is_global_operator(op_id)) {
             create_operator(op_id);
+            global_op_id_to_original_op_id[operators.size() - 1] = op_id;
         }
     }
 
