@@ -78,7 +78,7 @@ void PathPrices::update(const State &base_state,
     for (FactorID leaf(0); leaf < factoring.get_num_leaves(); ++leaf){
 
         if (factoring.is_fork_leaf(leaf) && !factoring.has_leaf_goal(leaf)){
-            // skip fork leaves that don't have a goal or whose goal is already achieved (only satisficing search)
+            // skip fork leaves that don't have a goal
             continue;
         }
 
@@ -90,11 +90,9 @@ void PathPrices::update(const State &base_state,
 
             change = false;
 
-            int num_states = 0;
             LeafStateHash id(0);
-            while (num_states < number_states[leaf]) {
+            while (id < leaf_state_space.get_num_states(leaf)) {
                 if (has_leaf_state(id, leaf)){
-                    ++num_states;
 
                     int cost = get_cost_of_state(id, leaf);
                     if (best_prices[id] <= cost){
@@ -139,8 +137,8 @@ void PathPrices::apply_global_op_to_leaves(const PathPrices &old_cpg,
             number_states[leaf] = old_cpg.number_states[leaf];
             goal_costs[leaf] = old_cpg.goal_costs[leaf];
             paths[leaf] = old_cpg.paths[leaf];
-            for (size_t id = 0; id < paths[leaf].size(); ++id){
-                paths[leaf][id].reset_generating_op();
+            for (PathPriceInfo &info : paths[leaf]){
+                info.reset_generating_op();
             }
             continue;
         }
@@ -275,86 +273,86 @@ void PathPrices::insert_leaf_actions(const AbstractTask &task,
         }
 
         // iterate over leaf factors
-        for (FactorID factor(0); factor < num_leaves; ++factor){
+        for (FactorID leaf(0); leaf < num_leaves; ++leaf){
 
             bool change = true;
-            while (change && marked_leaf_states[factor] != LeafStateHash::MAX){
+            while (change && marked_leaf_states[leaf] != LeafStateHash::MAX){
                 // backtrack in current CPG to next center action
                 change = false;
 
-                const PathPriceInfo &path_info = price_tags[step]->get_path_info(marked_leaf_states[factor], factor);
+                const PathPriceInfo &path_info = price_tags[step]->get_path_info(marked_leaf_states[leaf], leaf);
                 if (path_info.is_new){
                     if (path_info.generating_op != OperatorID::no_operator){
                         // leaf action
                         assert(path_info.predecessor != LeafStateHash::MAX);
-                        assert(path_info.predecessor != marked_leaf_states[factor]); // not a self-loop
+                        assert(path_info.predecessor != marked_leaf_states[leaf]); // not a self-loop
                         assert(factoring.is_leaf_only_operator(path_info.generating_op.get_index()) &&
-                               find(factoring.get_leaf_operators(factor).begin(),
-                                    factoring.get_leaf_operators(factor).end(),
-                                    path_info.generating_op) != factoring.get_leaf_operators(factor).end());
+                               find(factoring.get_leaf_operators(leaf).begin(),
+                                    factoring.get_leaf_operators(leaf).end(),
+                                    path_info.generating_op) != factoring.get_leaf_operators(leaf).end());
 
-                        marked_leaf_states[factor] = path_info.predecessor;
+                        marked_leaf_states[leaf] = path_info.predecessor;
                         decoupled_plan.push_back(path_info.generating_op);
                         change = true;
                     } else {
-                        // marked_leaf_states[factor] is initial leaf state
+                        // marked_leaf_states[leaf] is initial leaf state
                         assert(op_id == OperatorID::no_operator);
                         assert(path_info.predecessor == LeafStateHash::MAX);
 
-                        marked_leaf_states[factor] = LeafStateHash::MAX;
+                        marked_leaf_states[leaf] = LeafStateHash::MAX;
                     }
                 }
             }
 
             bool need_compliant_leaf_state = false;
 
-            if (marked_leaf_states[factor] != LeafStateHash::MAX &&
+            if (marked_leaf_states[leaf] != LeafStateHash::MAX &&
                 op_id != OperatorID::no_operator &&
-                    factoring.has_eff_on_leaf(op_id, factor)){
+                factoring.has_eff_on_leaf(op_id, leaf)){
                 // mimic leaf effects to predecessor decoupled state
-                const PathPriceInfo &path_info = price_tags[step]->get_path_info(marked_leaf_states[factor], factor);
+                const PathPriceInfo &path_info = price_tags[step]->get_path_info(marked_leaf_states[leaf], leaf);
 
                 assert(path_info.generating_op == OperatorID::no_operator);
 
                 if (path_info.predecessor != LeafStateHash::MAX){
                     // predecessor leaf state in predecessor decoupled state
-                    marked_leaf_states[factor] = path_info.predecessor;
+                    marked_leaf_states[leaf] = path_info.predecessor;
                 } else {
                     // center action completely overwrites leaf,
                     // pick any leaf state in predecessor decoupled state
-//                    assert(op->get_effects(factor).size() == factoring.get_leaf(factor).size()); TODO
+                    assert(factoring.get_num_effects_on_leaf(task_proxy.get_operators()[op_id], leaf) == (int) factoring.get_leaf(leaf).size());
 
                     need_compliant_leaf_state = true;
-                    marked_leaf_states[factor] = LeafStateHash::MAX;
+                    marked_leaf_states[leaf] = LeafStateHash::MAX;
                 }
             }
 
-            if (need_compliant_leaf_state || (op_id != OperatorID::no_operator &&
-                    factoring.has_eff_on_leaf(op_id, factor))){
+            if (need_compliant_leaf_state ||
+                (op_id != OperatorID::no_operator && factoring.has_pre_on_leaf(op_id, leaf))){
                 // collect and mark leaf precondition of center op
-                assert(marked_leaf_states[factor] == LeafStateHash::MAX ||
-                       leaf_state_space.is_applicable(marked_leaf_states[factor], factor, op_id));
+                assert(marked_leaf_states[leaf] == LeafStateHash::MAX ||
+                       leaf_state_space.is_applicable(marked_leaf_states[leaf], leaf, op_id));
 
-                if (marked_leaf_states[factor] == LeafStateHash::MAX){
+                if (marked_leaf_states[leaf] == LeafStateHash::MAX){
                     int best_price = numeric_limits<int>::max();
 
-                    size_t number_states = price_tags[step + 1]->get_number_states(factor);
+                    size_t number_states = price_tags[step + 1]->get_number_states(leaf);
                     LeafStateHash id(0);
                     while (number_states > 0) {
-                        if (price_tags[step + 1]->has_leaf_state(id, factor)){
+                        if (price_tags[step + 1]->has_leaf_state(id, leaf)){
                             --number_states;
-                            if (leaf_state_space.is_applicable(id, factor, op_id)){
-                                int cost = price_tags[step + 1]->get_cost_of_state(id, factor);
+                            if (leaf_state_space.is_applicable(id, leaf, op_id)){
+                                int cost = price_tags[step + 1]->get_cost_of_state(id, leaf);
                                 if (cost < best_price){
                                     best_price = cost;
-                                    marked_leaf_states[factor] = id;
+                                    marked_leaf_states[leaf] = id;
                                 }
                             }
                         }
                         ++id;
                     }
 
-                    assert(marked_leaf_states[factor] != LeafStateHash::MAX);
+                    assert(marked_leaf_states[leaf] != LeafStateHash::MAX);
                 }
             }
         }
