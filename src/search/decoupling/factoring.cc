@@ -433,7 +433,7 @@ bool Factoring::has_pre_on_leaf(OperatorID op_id, FactorID leaf) const {
 }
 
 bool Factoring::has_pre_on_leaf(int op_id, int leaf) const {
-    return has_eff_on_leaf(OperatorID(op_id), FactorID(leaf));
+    return has_op_leaf_pre[leaf][op_id];
 }
 
 bool Factoring::has_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
@@ -442,7 +442,7 @@ bool Factoring::has_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
 }
 
 bool Factoring::has_eff_on_leaf(int op_id, int leaf) const {
-    return has_eff_on_leaf(OperatorID(op_id), FactorID(leaf));
+    return has_op_leaf_eff[leaf][op_id];
 }
 
 bool Factoring::has_pre_or_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
