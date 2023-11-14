@@ -159,8 +159,9 @@ void DecoupledRootTask::create_variables() {
     }
 
     // secondary variable for operator preconditions
-    int op_id = 0;
+    int op_id = -1;
     for (const auto &op : original_root_task->operators) {
+        ++op_id;
         if (!factoring->is_global_operator(op_id))
             continue;
 
@@ -184,7 +185,6 @@ void DecoupledRootTask::create_variables() {
                 leaf_op_to_svar[leaf][op_id] = variables.size() - 1;
             }
         }
-        ++op_id;
     }
 }
 
