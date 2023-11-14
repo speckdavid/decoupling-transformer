@@ -127,9 +127,12 @@ void PathPrices::apply_global_op_to_leaves(const PathPrices &old_cpg,
                                            OperatorProxy op,
                                            const Factoring &factoring,
                                            const LeafStateSpace &leaf_state_space) {
+
+    assert(factoring.is_global_operator(op.get_id()));
+
     for (FactorID leaf(0); leaf < factoring.get_num_leaves(); ++leaf){
 
-        bool has_pre_on_factor = factoring.has_pre_on_leaf(OperatorID(op.get_id()), leaf);
+        bool has_pre_on_factor = factoring.has_pre_on_leaf(op.get_id(), leaf);
         size_t num_effects = factoring.get_num_effects_on_leaf(op, leaf);
 
         if (!has_pre_on_factor && num_effects == 0){
@@ -158,11 +161,11 @@ void PathPrices::apply_global_op_to_leaves(const PathPrices &old_cpg,
         }
 
         // check which leaf states satisfy center precondition and apply effects
-        size_t number_states = old_cpg.get_number_states(leaf);
+        size_t num_states = old_cpg.get_number_states(leaf);
         LeafStateHash id(0);
-        while (number_states > 0) {
+        while (num_states > 0) {
             if (old_cpg.has_leaf_state(id, leaf)){
-                --number_states;
+                --num_states;
 
                 if (!has_pre_on_factor || leaf_state_space.is_applicable(id, leaf, op)){
                     if (num_effects == 0){
@@ -187,6 +190,7 @@ void PathPrices::apply_global_op_to_leaves(const PathPrices &old_cpg,
             }
             ++id;
         }
+        assert(number_states[leaf] > 0);
     }
 }
 
@@ -217,6 +221,7 @@ void PathPrices::insert_leaf_actions(const AbstractTask &task,
                                  leaf_state_space.is_leaf_goal_state(LeafStateHash(0), leaf));
     }
     price_tags[0]->update(states[0], task_proxy, factoring, leaf_state_space);
+    assert(ranges::all_of(price_tags[0]->number_states, [](int x) { return x > 0; }));
 
     for (size_t i = 1; i < states.size(); ++i){
         if (!factoring.is_fork_factoring()){
@@ -229,6 +234,7 @@ void PathPrices::insert_leaf_actions(const AbstractTask &task,
             price_tags[i].reset(new PathPrices(*price_tags[i - 1].get()));
         }
         price_tags[i]->update(states[i], task_proxy, factoring, leaf_state_space);
+        assert(ranges::all_of(price_tags[i]->number_states, [](int x) { return x > 0; }));
     }
 
     // start from goal state
@@ -264,7 +270,7 @@ void PathPrices::insert_leaf_actions(const AbstractTask &task,
 
     vector<OperatorID> decoupled_plan;
 
-    // go through center path and fill in leaf actions
+    // go through global path and fill in leaf actions
     for (size_t step = 0; step < price_tags.size(); ++step){
 
         OperatorID op_id(OperatorID::no_operator);
