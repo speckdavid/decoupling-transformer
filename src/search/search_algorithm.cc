@@ -111,7 +111,7 @@ bool SearchAlgorithm::check_goal_and_set_plan(const State &state) {
 
 void SearchAlgorithm::save_plan_if_necessary() {
     if (found_solution()) {
-        plan_manager.save_plan(get_plan(), task_proxy);
+        plan_manager.save_plan(get_plan(), task->get_task_proxy_for_plan_saving());
     }
 }
 

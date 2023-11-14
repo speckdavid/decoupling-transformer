@@ -64,7 +64,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 
 void DecoupledRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
                                                       vector<State> &states) const {
-    factoring->insert_leaf_paths(path, states);
+    factoring->insert_leaf_paths(path, states, original_root_task);
 }
 
 void DecoupledRootTask::print_statistics() const {

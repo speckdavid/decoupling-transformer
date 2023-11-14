@@ -24,8 +24,8 @@ void PathPriceInfo::dump(const AbstractTask &task) const {
 }
 
 PathPrices::PathPrices(int num_leaves) {
-    number_states.resize(num_leaves);
-    goal_costs.resize(num_leaves);
+    number_states.resize(num_leaves, 0);
+    goal_costs.resize(num_leaves, -1);
     paths.resize(num_leaves);
 }
 
@@ -48,6 +48,9 @@ bool PathPrices::add_state(LeafStateHash id, FactorID leaf, int cost,
         added = true;
         paths[leaf].resize(id + 1);
         number_states[leaf]++;
+    } else if (paths[leaf][id].price == -1) {
+        added = true;
+        number_states[leaf]++;
     } else if (paths[leaf][id].price > cost){
         added = true;
     }
@@ -56,7 +59,7 @@ bool PathPrices::add_state(LeafStateHash id, FactorID leaf, int cost,
         paths[leaf][id].generating_op = generating_op;
         paths[leaf][id].predecessor = predecessor;
         paths[leaf][id].is_new = true;
-        if (is_goal_state && goal_costs[leaf] > cost){
+        if (is_goal_state && (goal_costs[leaf] == -1 || goal_costs[leaf] > cost)){
             goal_costs[leaf] = cost;
         }
     }
@@ -179,7 +182,7 @@ void PathPrices::apply_global_op_to_leaves(const PathPrices &old_cpg,
                                   old_cpg.get_cost_of_state(id, leaf),
                                   OperatorID::no_operator,
                                   id,
-                                  leaf_state_space.is_leaf_goal_state(id, leaf));
+                                  leaf_state_space.is_leaf_goal_state(succ_id, leaf));
                         paths[leaf][succ_id].reset_generating_op();
                     }
                 }

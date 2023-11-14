@@ -49,6 +49,7 @@ inline void feed(HashState &hash_state, const FactPair &fact) {
 }
 
 class State;
+class TaskProxy;
 
 class AbstractTask : public subscriber::SubscriberService<AbstractTask> {
 public:
@@ -107,8 +108,12 @@ public:
     virtual void reconstruct_plan_if_necessary(std::vector<OperatorID> &/*path*/,
                                                std::vector<State> &/*states*/) const {
         // If we run decoupled search, the decoupled root task needs to reconstruct the
-        // solution to get a proper plan. By default, we do nothin.
+        // solution to get a proper plan. By default, we do nothing.
     }
+
+    // If we run decoupled search, we need the original task to save the reconstructed plan.
+    // By default, we return this task.
+    virtual TaskProxy get_task_proxy_for_plan_saving() const;
 };
 
 #endif

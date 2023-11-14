@@ -538,8 +538,10 @@ string Factoring::get_leaf_state_name(int leaf_, int leaf_state) const {
     return leaf_state_space->get_name(LeafStateHash(leaf_state), leaf);
 }
 
-void Factoring::insert_leaf_paths(std::vector<OperatorID> &path, std::vector<State> &states) const {
-    PathPrices::insert_leaf_actions(*task, *this, *leaf_state_space, path, states);
+void Factoring::insert_leaf_paths(vector<OperatorID> &path,
+                                  vector<State> &states,
+                                  const shared_ptr<AbstractTask> &original_root_task) const {
+    PathPrices::insert_leaf_actions(*original_root_task, *this, *leaf_state_space, path, states);
 }
 
 void Factoring::add_options_to_feature(plugins::Feature &feature) {
