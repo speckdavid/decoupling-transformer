@@ -165,8 +165,9 @@ bool Factoring::has_leaf_goal(FactorID leaf) const {
 bool Factoring::is_center_applicable(const State &state, OperatorProxy op) const {
     for (FactProxy pre : op.get_preconditions()) {
         int var = pre.get_variable().get_id();
+        int new_id = get_id_in_factor(var);
         if (get_factor(var) == FactorID::CENTER &&
-            state[var].get_value() != pre.get_value()) {
+            state[new_id].get_value() != pre.get_value()) {
             return false;
         }
     }
