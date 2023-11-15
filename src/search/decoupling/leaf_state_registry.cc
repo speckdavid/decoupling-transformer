@@ -35,15 +35,19 @@ LeafStateHash LeafStateRegistry::insert_id_or_pop_leaf_state(FactorID factor) {
 }
 
 LeafState LeafStateRegistry::get_leaf_state(LeafStateHash id, FactorID factor) const {
-    return LeafState(*task, *factoring, leaf_states[factor][id], LeafStateID(id, factor));
+    assert(factor != FactorID::CENTER && factor < leaf_states.size());
+    assert(id != LeafStateHash::MAX && id < leaf_states[factor].size());
+    return LeafState(*task, *factoring, this, LeafStateID(id, factor));
 }
 
 LeafStateHash LeafStateRegistry::get_successor_leaf_state_hash(const LeafState &predecessor, OperatorProxy op) {
     FactorID leaf = predecessor.get_id().get_factor();
-    assert(leaf != FactorID::CENTER);
-    leaf_states[leaf].push_back(predecessor.values);
+    LeafStateHash id = predecessor.id.hash();
+    assert(leaf != FactorID::CENTER && leaf < leaf_states.size());
+    assert(id != LeafStateHash::MAX && id < leaf_states[leaf].size());
+    leaf_states[leaf].push_back(leaf_states[leaf][id]);
     if (factoring->has_eff_on_leaf(op.get_id(), leaf)) {
-        for (EffectProxy eff: op.get_effects()) {
+        for (EffectProxy eff : op.get_effects()) {
             assert(eff.get_conditions().empty());
             if (factoring->get_factor(eff.get_fact().get_variable().get_id()) == leaf) {
                 int id_in_leaf = factoring->get_id_in_factor(eff.get_fact().get_variable().get_id());

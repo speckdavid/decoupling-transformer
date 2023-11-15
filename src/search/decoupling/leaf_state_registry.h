@@ -15,6 +15,8 @@
 namespace decoupling {
 
 class LeafStateRegistry {
+    friend class LeafState;
+
     std::shared_ptr<AbstractTask> task;
     std::shared_ptr<Factoring> factoring;
 

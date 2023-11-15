@@ -1,6 +1,7 @@
 #include "leaf_state.h"
 
 #include "factoring.h"
+#include "leaf_state_registry.h"
 
 #include <cassert>
 #include <iostream>
@@ -10,25 +11,24 @@ using namespace std;
 namespace decoupling {
 LeafState::LeafState(const AbstractTask &task,
                      const Factoring &factoring,
-                     const vector<int> &values,
+                     const LeafStateRegistry *registry,
                      LeafStateID id)
     : task(&task),
       factoring(&factoring),
-      id(id),
-      values(values) {
+      registry(registry),
+      id(id) {
     assert(id != LeafStateID::no_state);
     assert(id.hash() != LeafStateHash::MAX);
     assert(id.get_factor() != FactorID::CENTER);
 }
 
-int LeafState::operator[](size_t index) const {
-    assert(factoring->get_factor(index) == id.get_factor());
-    return values[factoring->get_id_in_factor(index)];
+int LeafState::operator[](int var) const {
+    assert(factoring->get_factor(var) == id.get_factor());
+    return registry->leaf_states[id.get_factor()][id.hash()][factoring->get_id_in_factor(var)];
 }
 
 int LeafState::operator[](VariableProxy var) const {
-    assert(factoring->get_factor(var.get_id()) == id.get_factor());
-    return values[factoring->get_id_in_factor(var.get_id())];
+    return (*this)[var.get_id()];
 }
 
 string LeafState::get_pddl() const {
