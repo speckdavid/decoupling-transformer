@@ -74,6 +74,7 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
             }
         } else {
             heuristic = numeric_limits<int>::max();
+            sampled_states.clear();
             undecoupled_task->get_sampled_states(state, state_samples, sampled_states);
             for (const State &sampled_state : sampled_states) {
                 if (our_h_cache.count(sampled_state) == 0) {
