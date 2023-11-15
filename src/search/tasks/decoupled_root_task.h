@@ -5,6 +5,7 @@
 
 #include "../task_proxy.h"
 
+#include <map>
 #include <unordered_map>
 
 namespace plugins {
@@ -23,16 +24,17 @@ class DecoupledRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task;
     std::shared_ptr<decoupling::Factoring> factoring;
 
-    bool share_effects;
-    std::vector<std::vector<ExplicitEffect>> leaf_to_shareable_effects;
-    std::vector<std::vector<ExplicitEffect*>> operator_shared_effects;
+    bool same_leaf_preconditons_single_variable;
+    bool implicit_effects;
 
     std::unordered_map<int, int> center_var_to_pvar;
     std::unordered_map<int, int> leaf_to_goal_svar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_pvar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_svar;
 
+    std::map<std::vector<FactPair>, int> precondition_to_svar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_op_to_svar;
+
 
     std::unordered_map<int, int> global_op_id_to_original_op_id;
 
@@ -65,13 +67,18 @@ protected:
 
     bool are_initial_states_consistent() const;
 
+    // variables
+    void create_center_variables();
+    void create_leaf_state_variables();
+    void create_goal_condition_variables();
+    void create_precondition_variables();
     void create_variables();
+
     void create_mutexes();
     void create_initial_state();
     void create_goal();
 
     // operators
-    void precompute_shareable_effects();
     void set_precondition_of_operator(int op_id, ExplicitOperator &op);
     void set_effect_of_operator(int op_id, ExplicitOperator &op);
     void create_operator(int op_id);
@@ -83,6 +90,8 @@ protected:
     void create_precondition_axioms();
     void create_leaf_only_operator_axioms();
     void create_axioms();
+
+    void release_memory();
 };
 }
 

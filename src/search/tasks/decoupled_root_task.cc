@@ -19,7 +19,13 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
-      share_effects(options.get<bool>("share_effects")) {
+      same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
+      implicit_effects(options.get<bool>("implicit_effects")) {
+    if (implicit_effects) {
+        cerr << "not implemented yet!" << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
+    }
+
     factoring->compute_factoring();
 
     utils::Timer transformation_timer;
@@ -57,6 +63,8 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
     print_statistics();
 
+    release_memory();
+
     if (options.get<bool>("write_sas_file")) {
         write_sas_file("dec_output.sas");
         utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
@@ -67,7 +75,7 @@ void DecoupledRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
                                                       vector<State> &states) const {
     // remap operator IDs to original operator IDs
     vector<OperatorID> mapped_path;
-    for (auto op_id : path){
+    for (auto op_id : path) {
         mapped_path.emplace_back(global_op_id_to_original_op_id.at(op_id.get_index()));
     }
     path = mapped_path;
@@ -116,14 +124,15 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
     return true;
 }
 
-void DecoupledRootTask::create_variables() {
-    vector<int> center = factoring->get_center();
-    for (int var : center) {
+void DecoupledRootTask::create_center_variables() {
+    for (int var : factoring->get_center()) {
         variables.push_back(original_root_task->variables.at(var));
         center_var_to_pvar[var] = variables.size() - 1;
     }
+}
 
-    // primary variable for leaf states
+void DecoupledRootTask::create_leaf_state_variables() {
+// primary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
             string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
@@ -140,7 +149,9 @@ void DecoupledRootTask::create_variables() {
             leaf_lstate_to_svar[leaf][lstate] = variables.size() - 1;
         }
     }
+}
 
+void DecoupledRootTask::create_goal_condition_variables() {
     // secondary variable for goal conditions
     for (const auto &g_fact : original_root_task->goals) {
         int var = g_fact.var;
@@ -157,35 +168,68 @@ void DecoupledRootTask::create_variables() {
             leaf_to_goal_svar[leaf] = variables.size() - 1;
         }
     }
+}
 
-    // secondary variable for operator preconditions
-    int op_id = -1;
-    for (const auto &op : original_root_task->operators) {
-        ++op_id;
+// secondary variable for operator preconditions
+void DecoupledRootTask::create_precondition_variables() {
+    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
         if (!factoring->is_global_operator(op_id))
             continue;
+
+        const auto &op = original_root_task->operators[op_id];
 
         // If we want to use the op name in the variable name, we need to have no white spaces!
         string no_space_op_name = op.name;
         replace(no_space_op_name.begin(), no_space_op_name.end(), ' ', '-');
 
+        vector<vector<FactPair>> leaf_preconditions(factoring->get_num_leaves());
         for (const auto &pre : op.preconditions) {
             int var = pre.var;
-
 
             if (factoring->is_center_variable(var))
                 continue;
 
             int leaf = factoring->get_factor(var);
-            assert(leaf != -1);
+            leaf_preconditions[leaf].push_back(pre);
+        }
 
-            if (leaf_op_to_svar[leaf].count(op_id) == 0) {
+        for (size_t leaf = 0; leaf < leaf_preconditions.size(); ++leaf) {
+            const vector<FactPair> &leaf_pre = leaf_preconditions[leaf];
+
+            if (leaf_pre.empty())
+                continue;
+
+            // We have not seen this precondition and create a new secondary variable for it
+            if (!same_leaf_preconditons_single_variable || precondition_to_svar.count(leaf_pre) == 0) {
                 string name = "op-s(" + factoring->get_leaf_name(leaf) + "-" + no_space_op_name + ")";
                 variables.emplace_back(name, vector<string>{"False", "True"}, 0);
-                leaf_op_to_svar[leaf][op_id] = variables.size() - 1;
+                precondition_to_svar[leaf_pre] = variables.size() - 1;
             }
+
+            leaf_op_to_svar[leaf][op_id] = precondition_to_svar[leaf_pre];
         }
     }
+}
+
+void DecoupledRootTask::create_variables() {
+    int cur_num_variables = 0;
+
+    create_center_variables();
+    utils::g_log << "\tNumber of primary center variables: " << variables.size() - cur_num_variables << endl;
+    cur_num_variables = variables.size();
+
+    create_leaf_state_variables();
+    utils::g_log << "\tNumber of primary leaf state variables: " << (variables.size() - cur_num_variables) / 2 << endl;
+    utils::g_log << "\tNumber of secondary leaf state variables: " << (variables.size() - cur_num_variables) / 2 << endl;
+    cur_num_variables = variables.size();
+
+    create_goal_condition_variables();
+    utils::g_log << "\tNumber of secondary goal condition variables: " << variables.size() - cur_num_variables << endl;
+    cur_num_variables = variables.size();
+
+    create_precondition_variables();
+    utils::g_log << "\tNumber of secondary precondition variables: " << variables.size() - cur_num_variables << endl;
+    cur_num_variables = variables.size();
 }
 
 // TODO: At the moment we simply ignore mutexes by leaving them empty.
@@ -236,78 +280,6 @@ void DecoupledRootTask::create_goal() {
     assert(adjacent_find(goals.begin(), goals.end(),
                          [](const auto &a, const auto &b) {return a.var == b.var;}) == goals.end()
            && "Multiple goals for the same variable!");
-}
-
-void DecoupledRootTask::precompute_shareable_effects() {
-    leaf_to_shareable_effects.resize(factoring->get_num_leaves());
-
-    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
-        if (!factoring->is_global_operator(op_id))
-            continue;
-
-        for (int l = 0; l < factoring->get_num_leaves(); ++l) {
-            if (factoring->has_pre_or_eff_on_leaf(op_id, l))
-                continue;
-
-            if (!leaf_to_shareable_effects[l].empty())
-                continue;
-
-            assert(leaf_to_shareable_effects[l].empty());
-
-            for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
-                int pvar = leaf_lstate_to_pvar[l][ls];
-                auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
-
-                // Positive conditional effect
-                for (int pred : predecessor_ls) {
-                    int svar_pred = leaf_lstate_to_svar[l][pred];
-                    leaf_to_shareable_effects[l].emplace_back(pvar, 1, vector<FactPair> {FactPair(svar_pred, 1)});
-                }
-
-                // Negative conditional effect
-                ExplicitEffect eff(pvar, 0, vector<FactPair>());
-                for (int pred : predecessor_ls) {
-                    int svar_pred = leaf_lstate_to_svar[l][pred];
-                    eff.conditions.emplace_back(svar_pred, 0);
-                }
-                sort(eff.conditions.begin(), eff.conditions.end());
-
-                assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
-                                     [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
-                       && "Multiple effect conditions for the same variable!");
-
-                leaf_to_shareable_effects[l].push_back(eff);
-            }
-        }
-    }
-
-    // for (auto const& x : leaf_to_shareable_effects) {
-    //     for (auto const& eff : x ) {
-    //         utils::g_log << eff.fact << " if " << eff.conditions << endl;
-    //     }
-    //     cout << "" << endl;
-    // }
-
-
-    operator_shared_effects.resize(factoring->get_num_global_operators());
-
-    int g_op_id = 0;
-    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
-        if (!factoring->is_global_operator(op_id))
-            continue;
-
-        for (int l = 0; l < factoring->get_num_leaves(); ++l) {
-            if (factoring->has_pre_or_eff_on_leaf(op_id, l))
-                continue;
-
-            for (auto &eff : leaf_to_shareable_effects[l]) {
-                operator_shared_effects[g_op_id].push_back(&eff);
-            }
-
-            assert(factoring->has_pre_or_eff_on_leaf(g_op_id, l) || !operator_shared_effects[g_op_id].empty());
-        }
-        ++g_op_id;
-    }
 }
 
 void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator &new_op) {
@@ -363,9 +335,6 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
 
     // Effects on leaf states
     for (int l = 0; l < factoring->get_num_leaves(); ++l) {
-        if (share_effects && !factoring->has_pre_or_eff_on_leaf(op_id, l))
-            continue;
-
         for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
             int pvar = leaf_lstate_to_pvar[l][ls];
             auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
@@ -413,10 +382,6 @@ void DecoupledRootTask::create_operator(int op_id) {
 }
 
 void DecoupledRootTask::create_operators() {
-    if (share_effects) {
-        precompute_shareable_effects();
-    }
-
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
         if (factoring->is_global_operator(op_id)) {
             create_operator(op_id);
@@ -574,65 +539,46 @@ void DecoupledRootTask::create_axioms() {
     // }
 }
 
+// TODO: release more memory
+void DecoupledRootTask::release_memory() {
+    precondition_to_svar.clear();
+}
+
 const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
-    if (!share_effects || is_axiom)
+    if (!implicit_effects || is_axiom)
         return RootTask::get_effect(op_id, effect_id, is_axiom);
 
     if (effect_id < RootTask::get_num_operator_effects(op_id, is_axiom))
         return RootTask::get_effect(op_id, effect_id, is_axiom);
-    
-
-    assert((size_t)effect_id < operators.at(op_id).effects.size() + operator_shared_effects.at(op_id).size());
-    
-    int shared_effect_index = effect_id - operators.at(op_id).effects.size();
-    return *operator_shared_effects.at(op_id).at(shared_effect_index);
 }
 
 int DecoupledRootTask::get_num_operator_effects(int op_index, bool is_axiom) const {
-    if (!share_effects || is_axiom)
+    if (!implicit_effects || is_axiom)
         return RootTask::get_num_operator_effects(op_index, is_axiom);
-
-    return RootTask::get_num_operator_effects(op_index, is_axiom)
-           + operator_shared_effects.at(op_index).size();
 }
 
 int DecoupledRootTask::get_num_operator_effect_conditions(int op_index, int eff_index, bool is_axiom) const {
-    if (!share_effects || is_axiom)
+    if (!implicit_effects || is_axiom)
         return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
 
     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
         return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
-
-    assert((size_t)eff_index < operators.at(op_index).effects.size() + operator_shared_effects.at(op_index).size());
-
-    int shared_effect_index = eff_index - operators.at(op_index).effects.size();
-    return operator_shared_effects.at(op_index).at(shared_effect_index)->conditions.size();
 }
 
 FactPair DecoupledRootTask::get_operator_effect_condition(int op_index, int eff_index, int cond_index, bool is_axiom) const {
-    if (!share_effects || is_axiom)
+    if (!implicit_effects || is_axiom)
         return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
 
     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
         return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
-
-    assert((size_t)eff_index < operators.at(op_index).effects.size() + operator_shared_effects.at(op_index).size());
-
-    int shared_effect_index = eff_index - operators.at(op_index).effects.size();
-    return operator_shared_effects.at(op_index).at(shared_effect_index)->conditions.at(cond_index);
 }
 
 FactPair DecoupledRootTask::get_operator_effect(int op_index, int eff_index, bool is_axiom) const {
-    if (!share_effects || is_axiom)
+    if (!implicit_effects || is_axiom)
         return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
 
     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
         return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
-
-    assert((size_t)eff_index < operators.at(op_index).effects.size() + operator_shared_effects.at(op_index).size());
-
-    int shared_effect_index = eff_index - operators.at(op_index).effects.size();
-    return operator_shared_effects.at(op_index).at(shared_effect_index)->fact;
 }
 
 class DecoupledRootTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledRootTask> {
@@ -644,7 +590,8 @@ public:
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
-        add_option<bool>("share_effects", "Shares the effects of leaf states to reduce memory.", "true");
+        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
+        add_option<bool>("implicit_effects", "Represent effects implicitly and create them on demand", "false");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
     }
 
