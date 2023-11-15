@@ -557,10 +557,12 @@ bool CplexSolverInterface::has_solution() const {
             */
         case CPX_STAT_OPTIMAL_INFEAS:
         case CPX_STAT_FEASIBLE:
+        case CPXMIP_TIME_LIM_FEAS:
             return true;
         case CPX_STAT_UNBOUNDED:
         case CPX_STAT_INFEASIBLE:
         case CPXMIP_INFEASIBLE:
+        case CPXMIP_TIME_LIM_INFEAS:
             return false;
         default:
             cerr << "Unexpected status after solving LP/MIP: " << status << endl;
@@ -597,6 +599,8 @@ bool CplexSolverInterface::has_optimal_solution() const {
     case CPX_STAT_INFEASIBLE:
     case CPXMIP_INFEASIBLE:
     case CPX_STAT_FEASIBLE:
+    case CPXMIP_TIME_LIM_FEAS:
+    case CPXMIP_TIME_LIM_INFEAS:
         return false;
     default:
         cerr << "Unexpected status after solving LP/MIP: " << status << endl;
