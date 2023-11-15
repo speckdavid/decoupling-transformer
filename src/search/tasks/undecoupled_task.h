@@ -51,6 +51,8 @@ public:
     virtual std::vector<int> get_initial_state_values() const override;
 
     virtual void convert_state_values_from_parent(std::vector<int> &) const override;
+
+    void get_sampled_states(const State& dec_state, int samples, std::vector<State>& sampled_states) const;
 };
 }
 

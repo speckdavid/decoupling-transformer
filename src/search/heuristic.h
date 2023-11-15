@@ -13,6 +13,10 @@
 
 class TaskProxy;
 
+namespace tasks {
+class UndecoupledTask;
+}
+
 namespace plugins {
 class Feature;
 class Options;
@@ -58,6 +62,11 @@ protected:
     const std::shared_ptr<AbstractTask> task;
     // Use task_proxy to access task information.
     TaskProxy task_proxy;
+
+    std::shared_ptr<tasks::UndecoupledTask> undecoupled_task;
+    int state_samples;
+    std::vector<State> sampled_states;
+    utils::HashMap<State, int> our_h_cache;
 
     enum {DEAD_END = -1, NO_VALUE = -2};
 

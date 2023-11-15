@@ -5,6 +5,8 @@
 
 #include "../task_proxy.h"
 
+#include "../utils/rng.h"
+
 #include <map>
 #include <unordered_map>
 
@@ -22,6 +24,7 @@ namespace tasks {
 */
 class DecoupledRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task;
+    std::shared_ptr<utils::RandomNumberGenerator> rng;
     std::shared_ptr<decoupling::Factoring> factoring;
 
     bool same_leaf_preconditons_single_variable;
@@ -58,6 +61,9 @@ public:
         // If we run decoupled search, we need the original task to save the reconstructed plan.
         return TaskProxy(*original_root_task);
     }
+
+    void set_center_values(const State& dec_state, std::vector<int>& state) const;
+    void set_random_leave_values(const State& dec_state, std::vector<int>& state) const;
 
     std::shared_ptr<AbstractTask> get_original_root_task() const;
 

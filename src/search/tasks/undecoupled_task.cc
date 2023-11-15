@@ -5,7 +5,7 @@
 using namespace std;
 
 namespace tasks {
-UndecoupledTask::UndecoupledTask(const std::shared_ptr<AbstractTask> &parent) :
+UndecoupledTask::UndecoupledTask(const shared_ptr<AbstractTask> &parent) :
     DelegatingTask(parent),
     decoupled_task(dynamic_pointer_cast<DecoupledRootTask>(parent)) {
     if (!decoupled_task) {
@@ -19,7 +19,7 @@ int UndecoupledTask::get_num_variables() const {
     return original_task->get_num_variables();
 }
 
-std::string UndecoupledTask::get_variable_name(int var) const {
+string UndecoupledTask::get_variable_name(int var) const {
     return original_task->get_variable_name(var);
 }
 
@@ -35,7 +35,7 @@ int UndecoupledTask::get_variable_default_axiom_value(int var) const {
     return original_task->get_variable_default_axiom_value(var);
 }
 
-std::string UndecoupledTask::get_fact_name(const FactPair &fact) const {
+string UndecoupledTask::get_fact_name(const FactPair &fact) const {
     return original_task->get_fact_name(fact);
 }
 
@@ -49,7 +49,7 @@ int UndecoupledTask::get_operator_cost(int index, bool is_axiom) const {
 }
 
 
-std::string UndecoupledTask::get_operator_name(int index, bool is_axiom) const {
+string UndecoupledTask::get_operator_name(int index, bool is_axiom) const {
     return original_task->get_operator_name(index, is_axiom);
 }
 
@@ -102,11 +102,25 @@ FactPair UndecoupledTask::get_goal_fact(int index) const {
     return original_task->get_goal_fact(index);
 }
 
-std::vector<int> UndecoupledTask::get_initial_state_values() const {
+vector<int> UndecoupledTask::get_initial_state_values() const {
     return original_task->get_initial_state_values();
 }
 
-void UndecoupledTask::convert_state_values_from_parent(std::vector<int> &) const {}
+void UndecoupledTask::convert_state_values_from_parent(vector<int> &) const {}
+
+void UndecoupledTask::get_sampled_states(const State& dec_state, int samples, vector<State>& sampled_states) const {
+    assert(samples > 0);
+    assert(sampled_states.empty());
+
+    vector<int> center_state_values(original_task->get_num_variables());  
+    decoupled_task->set_center_values(dec_state, center_state_values);
+
+    for (int i = 0; i < samples; ++i) {
+        vector<int> state_values = center_state_values;
+        decoupled_task->set_random_leave_values(dec_state, state_values);
+        sampled_states.emplace_back(State(*this, move(state_values)));
+    }
+}
 
 class UndecoupledTaskFeature : public plugins::TypedFeature<AbstractTask, UndecoupledTask> {
 public:

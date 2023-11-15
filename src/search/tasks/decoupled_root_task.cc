@@ -6,6 +6,7 @@
 #include "../plugins/plugin.h"
 #include "../task_utils/task_dump.h"
 #include "../task_utils/task_properties.h"
+#include "../utils/rng_options.h"
 
 #include <algorithm>
 #include <fstream>
@@ -18,6 +19,7 @@ namespace tasks {
 DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
+      rng(utils::parse_rng_from_options(options)),
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
       same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
       implicit_effects(options.get<bool>("implicit_effects")) {
@@ -548,6 +550,25 @@ shared_ptr<AbstractTask> DecoupledRootTask::get_original_root_task() const {
     return original_root_task;
 }
 
+void DecoupledRootTask::set_center_values(const State& dec_state, vector<int>& state) const {
+    for (auto const& [original_var, decoupled_pvar] : center_var_to_pvar) {
+        state[original_var] = dec_state[decoupled_pvar].get_value();
+    }
+}
+
+void DecoupledRootTask::set_random_leave_values(const State& dec_state, vector<int>& state) const {
+    for (int l = 0; l < factoring->get_num_leaves(); ++l) {
+        vector<int> reached_leaf_states;
+        for (const auto& [lstate, svar] : leaf_lstate_to_svar.at(l)) {
+            if (dec_state[svar].get_value() == 1) {
+                reached_leaf_states.push_back(lstate);
+            }
+        }
+        int selected_leaf_state = *rng->choose(reached_leaf_states);
+        factoring->add_leaf_facts_to_state(state, l, selected_leaf_state);
+    }
+}
+
 const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
     if (!implicit_effects || is_axiom)
         return RootTask::get_effect(op_id, effect_id, is_axiom);
@@ -591,6 +612,7 @@ public:
         document_title("Decoupled task");
         document_synopsis(
             "A decoupled transformation of the root task.");
+        utils::add_rng_options(*this);
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
