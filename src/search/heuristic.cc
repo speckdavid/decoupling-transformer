@@ -79,12 +79,13 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
                 if (our_h_cache.count(sampled_state) == 0) {
                     our_h_cache[sampled_state] = compute_heuristic(sampled_state);
                 }
-                if (our_h_cache[sampled_state] > DEAD_END)
+                if (our_h_cache[sampled_state] > DEAD_END) {
                     heuristic = min(our_h_cache[sampled_state], heuristic);
+                }
             }
             if (heuristic == numeric_limits<int>::max()) {
                 heuristic = 0;
-                
+            }
         }
         result.set_count_evaluation(true);
     }
@@ -108,8 +109,9 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
         TaskProxy global_task_proxy = state.get_task();
         OperatorsProxy global_operators = global_task_proxy.get_operators();
         if (heuristic != EvaluationResult::INFTY) {
-            for (OperatorID op_id : preferred_operators)
+            for (OperatorID op_id : preferred_operators) {
                 assert(task_properties::is_applicable(global_operators[op_id], state));
+            }
         }
     }
 #endif
