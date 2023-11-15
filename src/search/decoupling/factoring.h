@@ -133,6 +133,8 @@ public:
     int get_initial_leaf_state(int leaf) const;
     const std::vector<LeafStateHash> &get_goal_leaf_states(int leaf) const;
 
+    bool is_ifork_and_leaf_state_space_invertible(FactorID leaf) const;
+
     // NOTE: this is not very efficiently implemented and should be called only once per operator
     std::vector<int> get_valid_precondition_leaf_states(int leaf, int op_id) const;
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;

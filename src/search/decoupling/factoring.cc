@@ -2,10 +2,9 @@
 
 #include "leaf_state.h"
 #include "plan_reconstruction.h"
-
 #include "../plugins/plugin.h"
-
 #include "../tasks/root_task.h"
+#include "../task_utils/task_properties.h"
 
 using namespace std;
 
@@ -24,6 +23,9 @@ Factoring::Factoring(const plugins::Options &opts) :
     task_proxy(TaskProxy(*task)),
     min_number_leaves(opts.get<int>("min_number_leaves")),
     max_leaf_size(opts.get<int>("max_leaf_size")) {
+
+    task_properties::verify_no_axioms(task_proxy);
+    task_properties::verify_no_conditional_effects(task_proxy);
 }
 
 void Factoring::apply_factoring() {
@@ -504,6 +506,11 @@ const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf_) const {
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
     return leaf_state_space->get_leaf_goal_states(FactorID(leaf));
+}
+
+bool Factoring::is_ifork_and_leaf_state_space_invertible(FactorID leaf) const {
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
+    return ignore_invertible_root_leaves && is_ifork_leaf(leaf) && leaf_state_space->is_leaf_invertible(leaf);
 }
 
 vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_id) const {
