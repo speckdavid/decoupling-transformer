@@ -160,7 +160,7 @@ const vector<OperatorID> &Factoring::get_leaf_operators(FactorID leaf) const {
 }
 
 bool Factoring::has_leaf_goal(FactorID leaf) const {
-    assert(leaf != FactorID::CENTER);
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
     return !goals_by_leaf[leaf].empty();
 }
 
@@ -188,7 +188,7 @@ int Factoring::get_num_effects_on_leaf(OperatorProxy op, FactorID leaf) const {
 }
 
 const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
-    assert(leaf != FactorID::CENTER);
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
     return goals_by_leaf[leaf];
 }
 
@@ -430,7 +430,7 @@ bool Factoring::is_fork_factoring() const {
 }
 
 bool Factoring::has_pre_on_leaf(OperatorID op_id, FactorID leaf) const {
-    assert(leaf != FactorID::CENTER);
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
     return has_op_leaf_pre[leaf][op_id.get_index()];
 }
 
@@ -439,7 +439,7 @@ bool Factoring::has_pre_on_leaf(int op_id, int leaf) const {
 }
 
 bool Factoring::has_eff_on_leaf(OperatorID op_id, FactorID leaf) const {
-    assert(leaf != FactorID::CENTER);
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
     return has_op_leaf_eff[leaf][op_id.get_index()];
 }
 
@@ -531,6 +531,18 @@ vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_
 
     // no precondition or effect => the only predecessor is the state itself
     return vector<int>{leaf_state};
+}
+
+void Factoring::add_leaf_facts_to_state(vector<int> &state, int leaf_, int leaf_state_) const {
+    FactorID leaf(leaf_);
+    LeafStateHash id(leaf_state_);
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
+    assert(id != LeafStateHash::MAX && id < leaf_state_space->get_num_states(leaf));
+
+    LeafState lstate = leaf_state_space->get_leaf_state(id, leaf);
+    for (int var : leaves[leaf]){
+        state[var] = lstate[var];
+    }
 }
 
 string Factoring::get_leaf_name(int leaf_) const {

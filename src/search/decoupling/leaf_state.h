@@ -14,22 +14,21 @@ class VariableProxy;
 namespace decoupling {
 
 class Factoring;
+class LeafStateRegistry;
 
 class LeafState {
     friend class LeafStateRegistry;
 
     const AbstractTask *task;
     const Factoring *factoring;
+    const LeafStateRegistry *registry;
 
-    LeafStateID id;
+    const LeafStateID id;
 
-    // Values for vars are maintained in a packed state and accessed on demand.
-    std::vector<int> values;
-
-    // Only used by the leaf state registry.
+        // Only used by the leaf state registry.
     LeafState(const AbstractTask &task,
               const Factoring &factoring,
-              const std::vector<int> &values,
+              const LeafStateRegistry *registry,
               LeafStateID id);
 
 public:
@@ -38,7 +37,7 @@ public:
         return id;
     }
 
-    int operator[](size_t index) const;
+    int operator[](int var) const;
 
     int operator[](VariableProxy var) const;
 

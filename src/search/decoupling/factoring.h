@@ -139,6 +139,8 @@ public:
     std::vector<int> get_valid_precondition_leaf_states(int leaf, int op_id) const;
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;
 
+    void add_leaf_facts_to_state(std::vector<int> &state, int leaf, int leaf_state) const;
+
     std::string get_leaf_name(int leaf) const;
     std::string get_leaf_state_name(int leaf, int leaf_state) const;
 
