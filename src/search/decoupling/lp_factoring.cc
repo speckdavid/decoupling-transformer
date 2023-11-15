@@ -186,6 +186,9 @@ void LPFactoring::compute_factoring_() {
 
     if (max_merge_steps == 0){
         filter_potential_leaves();
+        if (!check_timeout()){
+            return;
+        }
     }
 
     if (potential_leaves.empty()){
@@ -196,6 +199,9 @@ void LPFactoring::compute_factoring_() {
     if (max_merge_steps > 0) {
         merge_potential_leaves();
         filter_potential_leaves();
+        if (!check_timeout()){
+            return;
+        }
     }
 
     if (static_cast<int>(potential_leaves.size()) < min_number_leaves){
@@ -665,12 +671,10 @@ void LPFactoring::filter_potential_leaves() {
     }
     log << "Removed " << erase_leaves.size() << " potential leaves because of minimal flexibility/mobility." << endl;
 
-    potential_leaves.erase(remove_if(potential_leaves.begin(),
-            potential_leaves.end(),
-            [&erase_leaves](const PotentialLeaf &pl){return find(erase_leaves.begin(),
-                    erase_leaves.end(),
-                    pl.id) != erase_leaves.end();}),
-            potential_leaves.end());
+    for (auto it = erase_leaves.rbegin(); it != erase_leaves.rend(); ++it){
+        assert(potential_leaves[*it].id == *it);
+        potential_leaves.erase(potential_leaves.begin() + *it);
+    }
 
     if (!erase_leaves.empty()){
         size_t id = 0;
@@ -706,11 +710,11 @@ vector<LPFactoring::PotentialLeaf> LPFactoring::compute_potential_leaves() {
             int64_t size = 1;
             for (int var : action_schema.eff_vars){
                 size *= vars_proxy[var].get_domain_size();
-                if (max_leaf_size != 0 && size > max_leaf_size){
+                if (size > max_leaf_size){
                     break;
                 }
             }
-            if (max_leaf_size != 0 && size > max_leaf_size){
+            if (size > max_leaf_size){
                 continue;
             }
 
@@ -795,11 +799,11 @@ void LPFactoring::add_cg_sccs() {
         int64_t size = 1;
         for (int var : scc){
             size *= vars_proxy[var].get_domain_size();
-            if (max_leaf_size != 0 && size > max_leaf_size){
+            if (size > max_leaf_size){
                 break;
             }
         }
-        if (max_leaf_size != 0 && size > max_leaf_size){
+        if (size > max_leaf_size){
             continue;
         }
 
