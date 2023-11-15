@@ -126,7 +126,7 @@ void Factoring::apply_factoring() {
 }
 
 void Factoring::print_factoring() const {
-    if (log.is_at_least_normal()) {
+    if (log.is_at_least_verbose()) {
         log << "center factor:" << endl;
         for (int var: center) {
             log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
@@ -139,6 +139,8 @@ void Factoring::print_factoring() const {
                 log << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << endl;
             }
         }
+    }
+    if (log.is_at_least_normal()){
         if (interaction_graph->is_fork()) {
             log << "is fork factoring" << endl;
         } else if (interaction_graph->is_ifork()) {
