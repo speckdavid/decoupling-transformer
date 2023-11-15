@@ -289,11 +289,11 @@ void Factoring::check_factoring() const {
 
 void Factoring::compute_factoring() {
     if (!is_factoring_possible()) {
-        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     } else if (min_number_leaves > 1) {
         compute_action_schemas();
         if (!is_two_leaf_factoring_possible()) {
-            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+            utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
         }
     }
     compute_factoring_();
