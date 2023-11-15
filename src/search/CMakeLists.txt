@@ -696,6 +696,7 @@ create_fast_downward_library(
         tasks/factoring
         tasks/modified_goals_task
         tasks/modified_operator_costs_task
+        tasks/undecoupled_task
     DEPENDS
         decoupling task_properties
     DEPENDENCY_ONLY

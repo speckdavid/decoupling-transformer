@@ -59,6 +59,8 @@ public:
         return TaskProxy(*original_root_task);
     }
 
+    std::shared_ptr<AbstractTask> get_original_root_task() const;
+
 protected:
     virtual const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const override;
 

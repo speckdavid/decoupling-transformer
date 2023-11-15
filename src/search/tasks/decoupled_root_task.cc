@@ -544,6 +544,10 @@ void DecoupledRootTask::release_memory() {
     precondition_to_svar.clear();
 }
 
+shared_ptr<AbstractTask> DecoupledRootTask::get_original_root_task() const {
+    return original_root_task;
+}
+
 const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
     if (!implicit_effects || is_axiom)
         return RootTask::get_effect(op_id, effect_id, is_axiom);
