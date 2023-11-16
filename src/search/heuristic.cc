@@ -21,8 +21,10 @@ Heuristic::Heuristic(const plugins::Options &opts)
       cache_evaluator_values(opts.get<bool>("cache_estimates")),
       task(opts.get<shared_ptr<AbstractTask>>("transform")),
       task_proxy(*task),
+      g_root_task_proxy(*tasks::g_root_task),
       undecoupled_task(dynamic_pointer_cast<tasks::UndecoupledTask>(task)),
-      state_samples(opts.get<int>("state_samples")) {
+      state_samples(opts.get<int>("state_samples")),
+      min_operator_cost(task_properties::get_min_operator_cost(task_proxy)) {
     if (undecoupled_task && cache_evaluator_values) {
         cache_evaluator_values = false;
         log << "Setting cache_estimates=false for undecoupled task transformation!" << endl;
@@ -85,7 +87,12 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
                 }
             }
             if (heuristic == numeric_limits<int>::max()) {
-                heuristic = 0;
+                // Blind heuristic
+                if (task_properties::is_goal_state(g_root_task_proxy, state)) {
+                    heuristic = 0;
+                } else {
+                    heuristic = min_operator_cost;
+                }
             }
         }
         result.set_count_evaluation(true);
