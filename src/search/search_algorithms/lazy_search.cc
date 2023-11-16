@@ -10,6 +10,9 @@
 #include "../utils/rng.h"
 #include "../utils/rng_options.h"
 
+#include "../tasks/root_task.h"
+#include "../tasks/decoupled_root_task.h"
+
 #include <algorithm>
 #include <limits>
 #include <vector>
@@ -157,6 +160,10 @@ SearchStatus LazySearch::step() {
 
 
     SearchNode node = search_space.get_node(current_state);
+
+    // Check for decoupled search
+    assert(!dynamic_pointer_cast<tasks::DecoupledRootTask>(tasks::g_root_task) || dynamic_pointer_cast<tasks::DecoupledRootTask>(tasks::g_root_task)->is_valid_decoupled_state(node.get_state()));
+
     bool reopen = reopen_closed_nodes && !node.is_new() &&
         !node.is_dead_end() && (current_g < node.get_g());
 

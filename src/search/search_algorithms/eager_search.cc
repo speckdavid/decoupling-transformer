@@ -10,13 +10,15 @@
 #include "../task_utils/successor_generator.h"
 #include "../utils/logging.h"
 
+#include "../tasks/root_task.h"
+#include "../tasks/decoupled_root_task.h"
+#include "../task_utils/task_properties.h"
+
 #include <cassert>
 #include <cstdlib>
 #include <memory>
 #include <optional>
 #include <set>
-
-#include "../task_utils/task_properties.h"
 
 using namespace std;
 
@@ -118,6 +120,10 @@ SearchStatus EagerSearch::step() {
         }
         StateID id = open_list->remove_min();
         State s = state_registry.lookup_state(id);
+
+        // Check for decoupled search
+        assert(!dynamic_pointer_cast<tasks::DecoupledRootTask>(tasks::g_root_task) || dynamic_pointer_cast<tasks::DecoupledRootTask>(tasks::g_root_task)->is_valid_decoupled_state(s));
+
         node.emplace(search_space.get_node(s));
 
         if (node->is_closed())
@@ -170,14 +176,6 @@ SearchStatus EagerSearch::step() {
     }
 
     const State &s = node->get_state();
-
-    // Plan plan;
-    // search_space.trace_path(s, plan);
-    // for (auto op_id : plan) {
-    //     cout << task->get_operator_name(op_id.get_index(), false) << ", ";
-    // }
-    // cout << endl;
-    // task_properties::dump_fdr(s);
 
     if (check_goal_and_set_plan(s))
         return SOLVED;

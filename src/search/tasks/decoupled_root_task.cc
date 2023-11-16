@@ -339,10 +339,13 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
     for (int l = 0; l < factoring->get_num_leaves(); ++l) {
         for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
             int pvar = leaf_lstate_to_pvar[l][ls];
+            // cout << endl;
+            // cout << factoring->get_leaf_state_name(l, ls) << " predecssors for " << op.name << ": " << endl;
             auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
 
             // Positive conditional effect
             for (int pred : predecessor_ls) {
+                // cout << "\t" << factoring->get_leaf_state_name(l, pred) << endl;
                 int svar_pred = leaf_lstate_to_svar[l][pred];
                 ExplicitEffect eff(pvar, 1, vector<FactPair> {FactPair(svar_pred, 1)});
                 new_op.effects.push_back(eff);
@@ -393,7 +396,7 @@ void DecoupledRootTask::create_operators() {
 
     // for (int i = 0; i < get_num_operators(); ++i) {
     //     utils::g_log << get_operator_name(i, false) << ":" << endl;
-    //     // utils::g_log << "\tpre: " << get_operator_precondition(i, false) << endl;
+    //     utils::g_log << "\tpre: " << operators[i].preconditions << endl;
     //     utils::g_log << "\teff: " << endl;
     //     for (int eff_id = 0; eff_id < get_num_operator_effects(i, false); ++eff_id) {
     //         vector<FactPair> conds;
@@ -550,23 +553,40 @@ shared_ptr<AbstractTask> DecoupledRootTask::get_original_root_task() const {
     return original_root_task;
 }
 
-void DecoupledRootTask::set_center_values(const State& dec_state, vector<int>& state) const {
-    for (auto const& [original_var, decoupled_pvar] : center_var_to_pvar) {
+void DecoupledRootTask::set_center_values(const State &dec_state, vector<int> &state) const {
+    for (auto const & [original_var, decoupled_pvar] : center_var_to_pvar) {
         state[original_var] = dec_state[decoupled_pvar].get_value();
     }
 }
 
-void DecoupledRootTask::set_random_leave_values(const State& dec_state, vector<int>& state) const {
+void DecoupledRootTask::set_random_leave_values(const State &dec_state, vector<int> &state) const {
     for (int l = 0; l < factoring->get_num_leaves(); ++l) {
         vector<int> reached_leaf_states;
-        for (const auto& [lstate, svar] : leaf_lstate_to_svar.at(l)) {
+        for (const auto & [lstate, svar] : leaf_lstate_to_svar.at(l)) {
             if (dec_state[svar].get_value() == 1) {
                 reached_leaf_states.push_back(lstate);
             }
         }
+        assert(!reached_leaf_states.empty());
         int selected_leaf_state = *rng->choose(reached_leaf_states);
         factoring->add_leaf_facts_to_state(state, l, selected_leaf_state);
     }
+}
+
+bool DecoupledRootTask::is_valid_decoupled_state(const State &dec_state) const {
+    for (int l = 0; l < factoring->get_num_leaves(); ++l) {
+        vector<int> reached_leaf_states;
+        for (const auto & [lstate, svar] : leaf_lstate_to_svar.at(l)) {
+            if (dec_state[svar].get_value() == 1) {
+                reached_leaf_states.push_back(lstate);
+            }
+        }
+
+        if (reached_leaf_states.empty()) {
+            return false;
+        }
+    }
+    return true;
 }
 
 const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {

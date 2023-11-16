@@ -65,6 +65,8 @@ public:
     void set_center_values(const State& dec_state, std::vector<int>& state) const;
     void set_random_leave_values(const State& dec_state, std::vector<int>& state) const;
 
+    bool is_valid_decoupled_state(const State& dec_state) const;
+
     std::shared_ptr<AbstractTask> get_original_root_task() const;
 
 protected:
