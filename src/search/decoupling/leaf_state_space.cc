@@ -168,11 +168,6 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
                 leaf_state_predecessors[leaf].resize(id + 1);
             }
 
-            if (factoring->is_fork_leaf(leaf) && is_a_leaf_goal_state[leaf][id]){
-                // the goal states of fork leaves don't need successors
-                continue;
-            }
-
             vector<OperatorID> applicable_ops;
             get_applicable_ops(curr_leaf_state, applicable_ops);
 
