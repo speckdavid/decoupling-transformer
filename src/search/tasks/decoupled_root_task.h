@@ -47,6 +47,9 @@ public:
 
     void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
                                        std::vector<State> &states) const override;
+
+    virtual bool are_facts_mutex(
+        const FactPair &fact1, const FactPair &fact2) const override;
     
     virtual int get_num_operator_effects(
         int op_index, bool is_axiom) const override;
@@ -78,6 +81,7 @@ protected:
     bool are_initial_states_consistent() const;
 
     // variables
+    std::vector<std::string> get_fact_names(const std::string& var_name) const;
     void create_center_variables();
     void create_leaf_state_variables();
     void create_goal_condition_variables();

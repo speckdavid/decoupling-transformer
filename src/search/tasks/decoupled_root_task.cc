@@ -128,6 +128,13 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
     return true;
 }
 
+vector<string> DecoupledRootTask::get_fact_names(const string &var_name) const {
+    return vector<string>{
+        "NegatedAtom " + var_name,
+        "Atom " + var_name
+    };
+}
+
 void DecoupledRootTask::create_center_variables() {
     for (int var : factoring->get_center()) {
         variables.push_back(original_root_task->variables.at(var));
@@ -140,7 +147,7 @@ void DecoupledRootTask::create_leaf_state_variables() {
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
             string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
-            variables.emplace_back(name, vector<string>{"False", "True"}, -1);
+            variables.emplace_back(name, get_fact_names(name), -1);
             leaf_lstate_to_pvar[leaf][lstate] = variables.size() - 1;
         }
     }
@@ -149,7 +156,7 @@ void DecoupledRootTask::create_leaf_state_variables() {
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
             string name = "s(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
-            variables.emplace_back(name, vector<string>{"False", "True"}, 0);
+            variables.emplace_back(name, get_fact_names(name), 0);
             leaf_lstate_to_svar[leaf][lstate] = variables.size() - 1;
         }
     }
@@ -168,7 +175,7 @@ void DecoupledRootTask::create_goal_condition_variables() {
 
         if (leaf_to_goal_svar.count(leaf) == 0) {
             string name = "g-s(" + factoring->get_leaf_name(leaf) + ")";
-            variables.emplace_back(name, vector<string>{"False", "True"}, 0);
+            variables.emplace_back(name, get_fact_names(name), 0);
             leaf_to_goal_svar[leaf] = variables.size() - 1;
         }
     }
@@ -206,7 +213,7 @@ void DecoupledRootTask::create_precondition_variables() {
             // We have not seen this precondition and create a new secondary variable for it
             if (!same_leaf_preconditons_single_variable || precondition_to_svar.count(leaf_pre) == 0) {
                 string name = "op-s(" + factoring->get_leaf_name(leaf) + "-" + no_space_op_name + ")";
-                variables.emplace_back(name, vector<string>{"False", "True"}, 0);
+                variables.emplace_back(name, get_fact_names(name), 0);
                 precondition_to_svar[leaf_pre] = variables.size() - 1;
             }
 
@@ -594,6 +601,14 @@ bool DecoupledRootTask::is_valid_decoupled_state(const State &dec_state) const {
         }
     }
     return true;
+}
+
+bool DecoupledRootTask::are_facts_mutex(const FactPair &fact1, const FactPair &fact2) const {
+    if (fact1.var == fact2.var) {
+        // Same variable: mutex iff different value.
+        return fact1.value != fact2.value;
+    }
+    return false;
 }
 
 const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
