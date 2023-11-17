@@ -133,6 +133,24 @@ ALIASES["lama-first"] = [
     """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)))"""]
 
+ALIASES["fork-lama-first"] = [
+    "--root-task-transform",
+    "decoupled(factoring=lp(factoring_time_limit=30, strategy=mml, min_flexibility=1.0, add_cg_sccs=true))",
+    "--search",
+    "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
+    "let(hff, ff(transform=adapt_costs(one)),"
+    """lazy_greedy([hff,hlm],preferred=[hff,hlm],
+                               cost_type=one,reopen_closed=false)))"""]
+
+ALIASES["dec-flex-lama-first"] = [
+    "--root-task-transform",
+    "decoupled(factoring=lp(factoring_time_limit=30, strategy=mfa, min_flexibility=1.0, add_cg_sccs=true))",
+    "--search",
+    "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
+    "let(hff, ff(transform=adapt_costs(one)),"
+    """lazy_greedy([hff,hlm],preferred=[hff,hlm],
+                               cost_type=one,reopen_closed=false)))"""]
+
 ALIASES["seq-opt-bjolp"] = [
     "--search",
     "let(lmc, landmark_cost_partitioning(lm_reasonable_orders_hps(lm_merged([lm_rhw(),lm_hm(m=1)]))),"
