@@ -548,14 +548,6 @@ void DecoupledRootTask::create_axioms() {
                           {return axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var;}));
     assert(ranges::all_of(axioms, [](const auto &axiom)
                           {return axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value;}));
-
-    // for (const ExplicitOperator &axiom : axioms) {
-    //     vector<FactPair> conds = axiom.effects.at(0).conditions;
-    //     conds.insert(conds.begin(), axiom.preconditions.at(0));
-    //     utils::g_log << axiom.name << ": ("
-    //                  << axiom.effects.at(0).fact << ") <= "
-    //                  << conds << endl;
-    // }
 }
 
 // TODO: release more memory
