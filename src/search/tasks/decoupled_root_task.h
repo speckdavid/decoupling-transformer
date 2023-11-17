@@ -102,6 +102,8 @@ protected:
     void create_axioms();
 
     void release_memory();
+
+    void dump() const;
 };
 }
 

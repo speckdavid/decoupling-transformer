@@ -80,7 +80,10 @@ extern void print_variable_statistics(const TaskProxy &task_proxy);
 extern void dump_pddl(const State &state);
 extern void dump_fdr(const State &state);
 extern void dump_goals(const GoalsProxy &goals);
-extern void dump_task(const TaskProxy &task_proxy);
+extern void dump_operator(const OperatorProxy& op);
+extern void dump_operators(const OperatorsProxy& operators);
+extern void dump_axioms(const AxiomsProxy& axioms);
+extern void dump_task(const TaskProxy &task_proxy, bool with_actions, bool with_axioms);
 
 extern PerTaskInformation<int_packer::IntPacker> g_state_packers;
 }

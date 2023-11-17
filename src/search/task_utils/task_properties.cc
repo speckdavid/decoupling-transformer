@@ -139,7 +139,38 @@ void dump_goals(const GoalsProxy &goals) {
     }
 }
 
-void dump_task(const TaskProxy &task_proxy) {
+void dump_operator(const OperatorProxy &op) {
+    utils::g_log << "#" << op.get_id() << ": " << op.get_name() << endl;
+    utils::g_log << " pre: [ " << flush;
+
+    for (FactProxy pre : op.get_preconditions()) {
+        utils::g_log << pre.get_pair() << " " << flush;
+    }
+    utils::g_log << "]" << endl;
+
+    utils::g_log << " eff:" << endl;
+    for (EffectProxy eff : op.get_effects()) {
+        utils::g_log << " " << eff.get_fact().get_pair() << " if [ " << flush;
+        for (auto cond: eff.get_conditions()) {
+            utils::g_log << cond.get_pair() << " " << flush;
+        }
+        utils::g_log << "]" << endl;
+    }
+}
+
+void dump_operators(const OperatorsProxy &operators) {
+    for (OperatorProxy op : operators) {
+        dump_operator(op);
+    }
+}
+
+void dump_axioms(const AxiomsProxy &axioms) {
+    for (OperatorProxy ax : axioms) {
+        dump_operator(ax);
+    }
+}
+
+void dump_task(const TaskProxy &task_proxy, bool with_operators, bool with_axioms) {
     OperatorsProxy operators = task_proxy.get_operators();
     int min_action_cost = numeric_limits<int>::max();
     int max_action_cost = 0;
@@ -167,6 +198,15 @@ void dump_task(const TaskProxy &task_proxy) {
     utils::g_log << "Initial state (FDR):" << endl;
     dump_fdr(initial_state);
     dump_goals(task_proxy.get_goals());
+    utils::g_log << "Operators:" << endl;
+    if (with_operators) {
+        utils::g_log << "Operators:" << endl;
+        dump_operators(task_proxy.get_operators());
+    }
+    if (with_axioms) {
+        utils::g_log << "Axioms:" << endl;
+        dump_axioms(task_proxy.get_axioms());
+    }
 }
 
 PerTaskInformation<int_packer::IntPacker> g_state_packers(

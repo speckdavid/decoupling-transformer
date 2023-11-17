@@ -60,12 +60,14 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     axiom_evaluator.evaluate(initial_state_values);
     assert(are_initial_states_consistent());
 
-    // task_properties::dump_task(task_proxy);
-
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
     print_statistics();
 
     release_memory();
+
+    if (options.get<bool>("dump_task")) {
+        dump();
+    }
 
     if (options.get<bool>("write_sas_file")) {
         write_sas_file("dec_output.sas");
@@ -549,6 +551,11 @@ void DecoupledRootTask::release_memory() {
     precondition_to_svar.clear();
 }
 
+void DecoupledRootTask::dump() const {
+    task_properties::dump_task(TaskProxy(*this), true, true);
+}
+
+
 shared_ptr<AbstractTask> DecoupledRootTask::get_original_root_task() const {
     return original_root_task;
 }
@@ -639,6 +646,7 @@ public:
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
         add_option<bool>("implicit_effects", "Represent effects implicitly and create them on demand", "false");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
+        add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
