@@ -13,7 +13,8 @@ using namespace std;
 
 namespace blind_search_heuristic {
 BlindSearchHeuristic::BlindSearchHeuristic(const plugins::Options &opts)
-    : Heuristic(opts) {
+    : Heuristic(opts),
+      min_operator_cost(task_properties::get_min_operator_cost(task_proxy)) {
     if (log.is_at_least_normal()) {
         log << "Initializing blind search heuristic..." << endl;
     }

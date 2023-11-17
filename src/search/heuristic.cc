@@ -6,7 +6,6 @@
 #include "plugins/plugin.h"
 #include "task_utils/task_properties.h"
 #include "tasks/cost_adapted_task.h"
-#include "tasks/undecoupled_task.h"
 #include "tasks/root_task.h"
 
 #include <cassert>
@@ -20,16 +19,7 @@ Heuristic::Heuristic(const plugins::Options &opts)
       heuristic_cache(HEntry(NO_VALUE, true)), //TODO: is true really a good idea here?
       cache_evaluator_values(opts.get<bool>("cache_estimates")),
       task(opts.get<shared_ptr<AbstractTask>>("transform")),
-      task_proxy(*task),
-      g_root_task_proxy(*tasks::g_root_task),
-      undecoupled_task(dynamic_pointer_cast<tasks::UndecoupledTask>(task)),
-      state_samples(opts.get<int>("state_samples")),
-      min_operator_cost(task_properties::get_min_operator_cost(task_proxy)) {
-    if (undecoupled_task && cache_evaluator_values) {
-        cache_evaluator_values = false;
-        log << "Setting cache_estimates=false for undecoupled task transformation!" << endl;
-    }
-    sampled_states.reserve(state_samples);
+      task_proxy(*task) {
 }
 
 Heuristic::~Heuristic() {
@@ -51,7 +41,6 @@ void Heuristic::add_options_to_feature(plugins::Feature &feature) {
         " Currently, adapt_costs() and no_transform() are available.",
         "no_transform()");
     feature.add_option<bool>("cache_estimates", "cache heuristic estimates", "true");
-    feature.add_option<int>("state_samples", "#States sampled for undecoupled heuristic", "1");
 }
 
 EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
@@ -69,39 +58,9 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
         heuristic = heuristic_cache[state].h;
         result.set_count_evaluation(false);
     } else {
-        if (!undecoupled_task) {
-            heuristic = compute_heuristic(state);
-            if (cache_evaluator_values) {
-                heuristic_cache[state] = HEntry(heuristic, false);
-            }
-        } else {
-            heuristic = numeric_limits<int>::max();
-            sampled_states.clear();
-            undecoupled_task->get_sampled_states(state, state_samples, sampled_states);
-            for (const State &sampled_state : sampled_states) {
-                // We encountered a goal state and set the h-value to 0
-                if (task_properties::is_goal_state(task_proxy, sampled_state)) {
-                    heuristic = 0;
-                    break;
-                }
-
-                if (our_h_cache.count(sampled_state) == 0) {
-                    our_h_cache[sampled_state] = compute_heuristic(sampled_state);
-                }
-                if (our_h_cache[sampled_state] > DEAD_END) {
-                    heuristic = min(our_h_cache[sampled_state], heuristic);
-                }
-            }
-
-            // Potentially a deadend but not sure
-            if (heuristic == numeric_limits<int>::max()) {
-                // Blind heuristic
-                if (task_properties::is_goal_state(g_root_task_proxy, state)) {
-                    heuristic = 0;
-                } else {
-                    heuristic = min_operator_cost;
-                }
-            }
+        heuristic = compute_heuristic(state);
+        if (cache_evaluator_values) {
+            heuristic_cache[state] = HEntry(heuristic, false);
         }
         result.set_count_evaluation(true);
     }
@@ -120,26 +79,12 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
         heuristic = EvaluationResult::INFTY;
     }
 
-    // Remove -1 from preffered operators which can happen for landmark heuristic
-    if (undecoupled_task) {
-        ordered_set::OrderedSet<OperatorID> cleaned_preferred_operators;
-        for (OperatorID op_id : preferred_operators) {
-            if (op_id.get_index() != -1) {
-                cleaned_preferred_operators.insert(op_id);
-            }
-        }
-        preferred_operators = cleaned_preferred_operators;
-    }
-
-    assert(!preferred_operators.contains(OperatorID(-1)));
-
 #ifndef NDEBUG
     TaskProxy global_task_proxy = state.get_task();
     OperatorsProxy global_operators = global_task_proxy.get_operators();
     if (heuristic != EvaluationResult::INFTY) {
-        for (OperatorID op_id : preferred_operators) {
+        for (OperatorID op_id : preferred_operators)
             assert(task_properties::is_applicable(global_operators[op_id], state));
-        }
     }
 #endif
 

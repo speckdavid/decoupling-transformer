@@ -176,7 +176,6 @@ SearchStatus EagerSearch::step() {
     }
 
     const State &s = node->get_state();
-
     if (check_goal_and_set_plan(s))
         return SOLVED;
 

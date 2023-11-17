@@ -50,29 +50,26 @@ public:
     void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
                                        std::vector<State> &states) const override;
     
-    virtual int get_num_operator_effects(
-        int op_index, bool is_axiom) const override;
-    virtual int get_num_operator_effect_conditions(
-        int op_index, int eff_index, bool is_axiom) const override;
-    virtual FactPair get_operator_effect_condition(
-        int op_index, int eff_index, int cond_index, bool is_axiom) const override;
-    virtual FactPair get_operator_effect(
-        int op_index, int eff_index, bool is_axiom) const override;
+    // virtual int get_num_operator_effects(
+    //     int op_index, bool is_axiom) const override;
+    // virtual int get_num_operator_effect_conditions(
+    //     int op_index, int eff_index, bool is_axiom) const override;
+    // virtual FactPair get_operator_effect_condition(
+    //     int op_index, int eff_index, int cond_index, bool is_axiom) const override;
+    // virtual FactPair get_operator_effect(
+    //     int op_index, int eff_index, bool is_axiom) const override;
 
     virtual TaskProxy get_task_proxy_for_plan_saving() const {
         // If we run decoupled search, we need the original task to save the reconstructed plan.
         return TaskProxy(*original_root_task);
     }
 
-    void set_center_values(const State& dec_state, std::vector<int>& state) const;
-    void set_random_leave_values(const State& dec_state, std::vector<int>& state) const;
-
     bool is_valid_decoupled_state(const State& dec_state) const;
 
     std::shared_ptr<AbstractTask> get_original_root_task() const;
 
 protected:
-    virtual const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const override;
+    // virtual const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const override;
 
     void print_statistics() const;
     void write_sas_file(const std::string file_name) const;

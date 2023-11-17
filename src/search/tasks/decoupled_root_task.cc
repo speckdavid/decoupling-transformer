@@ -232,20 +232,20 @@ void DecoupledRootTask::create_variables() {
     int cur_num_variables = 0;
 
     create_center_variables();
-    utils::g_log << "\tNumber of primary center variables: " << variables.size() - cur_num_variables << endl;
+    utils::g_log << " Number of primary center variables: " << variables.size() - cur_num_variables << endl;
     cur_num_variables = variables.size();
 
     create_leaf_state_variables();
-    utils::g_log << "\tNumber of primary leaf state variables: " << (variables.size() - cur_num_variables) / 2 << endl;
-    utils::g_log << "\tNumber of secondary leaf state variables: " << (variables.size() - cur_num_variables) / 2 << endl;
+    utils::g_log << " Number of primary leaf state variables: " << (variables.size() - cur_num_variables) / 2 << endl;
+    utils::g_log << " Number of secondary leaf state variables: " << (variables.size() - cur_num_variables) / 2 << endl;
     cur_num_variables = variables.size();
 
     create_goal_condition_variables();
-    utils::g_log << "\tNumber of secondary goal condition variables: " << variables.size() - cur_num_variables << endl;
+    utils::g_log << " Number of secondary goal condition variables: " << variables.size() - cur_num_variables << endl;
     cur_num_variables = variables.size();
 
     create_precondition_variables();
-    utils::g_log << "\tNumber of secondary precondition variables: " << variables.size() - cur_num_variables << endl;
+    utils::g_log << " Number of secondary precondition variables: " << variables.size() - cur_num_variables << endl;
     cur_num_variables = variables.size();
 }
 
@@ -552,7 +552,12 @@ void DecoupledRootTask::create_axioms() {
 
 // TODO: release more memory
 void DecoupledRootTask::release_memory() {
+    #ifdef NDEBUG
+    leaf_lstate_to_pvar.clear();
+    leaf_lstate_to_svar.clear();
     precondition_to_svar.clear();
+    leaf_op_to_svar.clear();
+    #endif
 }
 
 void DecoupledRootTask::dump() const {
@@ -562,26 +567,6 @@ void DecoupledRootTask::dump() const {
 
 shared_ptr<AbstractTask> DecoupledRootTask::get_original_root_task() const {
     return original_root_task;
-}
-
-void DecoupledRootTask::set_center_values(const State &dec_state, vector<int> &state) const {
-    for (auto const & [original_var, decoupled_pvar] : center_var_to_pvar) {
-        state[original_var] = dec_state[decoupled_pvar].get_value();
-    }
-}
-
-void DecoupledRootTask::set_random_leave_values(const State &dec_state, vector<int> &state) const {
-    for (int l = 0; l < factoring->get_num_leaves(); ++l) {
-        vector<int> reached_leaf_states;
-        for (const auto & [lstate, svar] : leaf_lstate_to_svar.at(l)) {
-            if (dec_state[svar].get_value() == 1) {
-                reached_leaf_states.push_back(lstate);
-            }
-        }
-        assert(!reached_leaf_states.empty());
-        int selected_leaf_state = *rng->choose(reached_leaf_states);
-        factoring->add_leaf_facts_to_state(state, l, selected_leaf_state);
-    }
 }
 
 bool DecoupledRootTask::is_valid_decoupled_state(const State &dec_state) const {
@@ -600,42 +585,42 @@ bool DecoupledRootTask::is_valid_decoupled_state(const State &dec_state) const {
     return true;
 }
 
-const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
-    if (!implicit_effects || is_axiom)
-        return RootTask::get_effect(op_id, effect_id, is_axiom);
+// const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
+//     if (!implicit_effects || is_axiom)
+//         return RootTask::get_effect(op_id, effect_id, is_axiom);
 
-    if (effect_id < RootTask::get_num_operator_effects(op_id, is_axiom))
-        return RootTask::get_effect(op_id, effect_id, is_axiom);
-}
+//     if (effect_id < RootTask::get_num_operator_effects(op_id, is_axiom))
+//         return RootTask::get_effect(op_id, effect_id, is_axiom);
+// }
 
-int DecoupledRootTask::get_num_operator_effects(int op_index, bool is_axiom) const {
-    if (!implicit_effects || is_axiom)
-        return RootTask::get_num_operator_effects(op_index, is_axiom);
-}
+// int DecoupledRootTask::get_num_operator_effects(int op_index, bool is_axiom) const {
+//     if (!implicit_effects || is_axiom)
+//         return RootTask::get_num_operator_effects(op_index, is_axiom);
+// }
 
-int DecoupledRootTask::get_num_operator_effect_conditions(int op_index, int eff_index, bool is_axiom) const {
-    if (!implicit_effects || is_axiom)
-        return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
+// int DecoupledRootTask::get_num_operator_effect_conditions(int op_index, int eff_index, bool is_axiom) const {
+//     if (!implicit_effects || is_axiom)
+//         return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
 
-    if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
-        return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
-}
+//     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
+//         return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
+// }
 
-FactPair DecoupledRootTask::get_operator_effect_condition(int op_index, int eff_index, int cond_index, bool is_axiom) const {
-    if (!implicit_effects || is_axiom)
-        return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
+// FactPair DecoupledRootTask::get_operator_effect_condition(int op_index, int eff_index, int cond_index, bool is_axiom) const {
+//     if (!implicit_effects || is_axiom)
+//         return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
 
-    if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
-        return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
-}
+//     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
+//         return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
+// }
 
-FactPair DecoupledRootTask::get_operator_effect(int op_index, int eff_index, bool is_axiom) const {
-    if (!implicit_effects || is_axiom)
-        return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
+// FactPair DecoupledRootTask::get_operator_effect(int op_index, int eff_index, bool is_axiom) const {
+//     if (!implicit_effects || is_axiom)
+//         return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
 
-    if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
-        return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
-}
+//     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
+//         return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
+// }
 
 class DecoupledRootTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledRootTask> {
 public:
