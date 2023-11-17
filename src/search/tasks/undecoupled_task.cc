@@ -5,8 +5,8 @@
 using namespace std;
 
 namespace tasks {
-UndecoupledTask::UndecoupledTask(const shared_ptr<AbstractTask> &parent) :
-    DelegatingTask(parent),
+UndecoupledTask::UndecoupledTask(const shared_ptr<AbstractTask> &parent, OperatorCost cost_type) :
+    CostAdaptedTask(parent, cost_type),
     decoupled_task(dynamic_pointer_cast<DecoupledRootTask>(parent)) {
     if (!decoupled_task) {
         cerr << "Root task is no decoupled task!" << endl;
@@ -45,7 +45,8 @@ bool UndecoupledTask::are_facts_mutex(
 }
 
 int UndecoupledTask::get_operator_cost(int index, bool is_axiom) const {
-    return original_task->get_operator_cost(index, is_axiom);
+    OperatorProxy op(*original_task, index, is_axiom);
+    return get_adjusted_action_cost(op, cost_type, parent_is_unit_cost);
 }
 
 
@@ -85,9 +86,8 @@ FactPair UndecoupledTask::get_operator_effect(
     return original_task->get_operator_effect(op_index, eff_index, is_axiom);
 }
 
-// TODO: fix this
 int UndecoupledTask::convert_operator_index_to_parent(int index) const {
-    return index;
+    return decoupled_task->get_original_operator_id(index);
 }
 
 int UndecoupledTask::get_num_axioms() const {
@@ -128,10 +128,13 @@ public:
         document_title("Undecoupled task");
         document_synopsis(
             "Undecouples a decoupled task to the original one.");
+
+        add_cost_type_option_to_feature(*this);
     }
 
-    virtual shared_ptr<UndecoupledTask> create_component(const plugins::Options &/*options*/, const utils::Context &) const override {
-        return make_shared<UndecoupledTask>(g_root_task);
+    virtual shared_ptr<UndecoupledTask> create_component(const plugins::Options &options, const utils::Context &) const override {
+        OperatorCost cost_type = options.get<OperatorCost>("cost_type");
+        return make_shared<UndecoupledTask>(g_root_task, cost_type);
     }
 };
 

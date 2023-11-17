@@ -2,7 +2,7 @@
 #define TASKS_UNDECOUPLED_TASK_H
 
 #include "decoupled_root_task.h"
-#include "delegating_task.h"
+#include "cost_adapted_task.h"
 
 namespace plugins {
 class Options;
@@ -10,12 +10,12 @@ class Options;
 
 namespace tasks {
 
-class UndecoupledTask : public DelegatingTask {
+class UndecoupledTask : public CostAdaptedTask {
     std::shared_ptr<DecoupledRootTask> decoupled_task;
     std::shared_ptr<AbstractTask> original_task;
 
 public:
-    UndecoupledTask(const std::shared_ptr<AbstractTask> &parent);
+    UndecoupledTask(const std::shared_ptr<AbstractTask> &parent, OperatorCost cost_type);
     virtual ~UndecoupledTask() override = default;
 
     virtual int get_num_variables() const override;

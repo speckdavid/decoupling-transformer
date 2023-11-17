@@ -79,6 +79,12 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
             sampled_states.clear();
             undecoupled_task->get_sampled_states(state, state_samples, sampled_states);
             for (const State &sampled_state : sampled_states) {
+                // We encountered a goal state and set the h-value to 0
+                if (task_properties::is_goal_state(task_proxy, sampled_state)) {
+                    heuristic = 0;
+                    break;
+                }
+
                 if (our_h_cache.count(sampled_state) == 0) {
                     our_h_cache[sampled_state] = compute_heuristic(sampled_state);
                 }
@@ -86,6 +92,8 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
                     heuristic = min(our_h_cache[sampled_state], heuristic);
                 }
             }
+
+            // Potentially a deadend but not sure
             if (heuristic == numeric_limits<int>::max()) {
                 // Blind heuristic
                 if (task_properties::is_goal_state(g_root_task_proxy, state)) {
@@ -112,14 +120,25 @@ EvaluationResult Heuristic::compute_result(EvaluationContext &eval_context) {
         heuristic = EvaluationResult::INFTY;
     }
 
-#ifndef NDEBUG
-    if (undecoupled_task == nullptr) {
-        TaskProxy global_task_proxy = state.get_task();
-        OperatorsProxy global_operators = global_task_proxy.get_operators();
-        if (heuristic != EvaluationResult::INFTY) {
-            for (OperatorID op_id : preferred_operators) {
-                assert(task_properties::is_applicable(global_operators[op_id], state));
+    // Remove -1 from preffered operators which can happen for landmark heuristic
+    if (undecoupled_task) {
+        ordered_set::OrderedSet<OperatorID> cleaned_preferred_operators;
+        for (OperatorID op_id : preferred_operators) {
+            if (op_id.get_index() != -1) {
+                cleaned_preferred_operators.insert(op_id);
             }
+        }
+        preferred_operators = cleaned_preferred_operators;
+    }
+
+    assert(!preferred_operators.contains(OperatorID(-1)));
+
+#ifndef NDEBUG
+    TaskProxy global_task_proxy = state.get_task();
+    OperatorsProxy global_operators = global_task_proxy.get_operators();
+    if (heuristic != EvaluationResult::INFTY) {
+        for (OperatorID op_id : preferred_operators) {
+            assert(task_properties::is_applicable(global_operators[op_id], state));
         }
     }
 #endif

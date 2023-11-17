@@ -75,6 +75,15 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     }
 }
 
+int DecoupledRootTask::get_original_operator_id(int op_id) const {
+    if (original_op_id_to_global_op_id.count(op_id) == 0) {
+        assert(!factoring->is_global_operator(op_id));
+        return -1;
+    }
+
+    return original_op_id_to_global_op_id.at(op_id);
+}
+
 void DecoupledRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
                                                       vector<State> &states) const {
     // remap operator IDs to original operator IDs
@@ -243,9 +252,22 @@ void DecoupledRootTask::create_variables() {
     cur_num_variables = variables.size();
 }
 
-// TODO: At the moment we simply ignore mutexes by leaving them empty.
-// At least we could keep the mutexes over the center variables
+// We only keep center variables as mutexes
 void DecoupledRootTask::create_mutexes() {
+    mutexes.resize(variables.size());
+    for (size_t var = 0; var < variables.size(); ++var)
+        mutexes[var].resize(variables[var].domain_size);
+
+    for (size_t var = 0; var < original_root_task->mutexes.size(); ++var) {
+        for (size_t val = 0; val < original_root_task->mutexes.at(var).size(); ++val) {
+            for (const FactPair &fact : original_root_task->mutexes.at(var).at(val)) {
+                if (factoring->is_center_variable(fact.var)) {
+                    mutexes[center_var_to_pvar[var]][val].insert(
+                        FactPair(center_var_to_pvar[fact.var], fact.value));
+                }
+            }
+        }
+    }
 }
 
 void DecoupledRootTask::create_initial_state() {
@@ -400,23 +422,9 @@ void DecoupledRootTask::create_operators() {
         if (factoring->is_global_operator(op_id)) {
             create_operator(op_id);
             global_op_id_to_original_op_id[operators.size() - 1] = op_id;
+            original_op_id_to_global_op_id[op_id] = operators.size() - 1;
         }
     }
-
-    // for (int i = 0; i < get_num_operators(); ++i) {
-    //     utils::g_log << get_operator_name(i, false) << ":" << endl;
-    //     utils::g_log << "\tpre: " << operators[i].preconditions << endl;
-    //     utils::g_log << "\teff: " << endl;
-    //     for (int eff_id = 0; eff_id < get_num_operator_effects(i, false); ++eff_id) {
-    //         vector<FactPair> conds;
-    //         for (int ceff_id = 0; ceff_id < get_num_operator_effect_conditions(i, eff_id, false); ++ceff_id) {
-    //             conds.push_back(get_operator_effect_condition(i, eff_id, ceff_id, false));
-    //         }
-    //         utils::g_log << "\t   " << get_operator_effect(i, eff_id, false) << " if " << conds << endl;
-    //     }
-    //     cout << endl;
-    // }
-
     assert((int)operators.size() == factoring->get_num_global_operators());
 }
 
@@ -601,14 +609,6 @@ bool DecoupledRootTask::is_valid_decoupled_state(const State &dec_state) const {
         }
     }
     return true;
-}
-
-bool DecoupledRootTask::are_facts_mutex(const FactPair &fact1, const FactPair &fact2) const {
-    if (fact1.var == fact2.var) {
-        // Same variable: mutex iff different value.
-        return fact1.value != fact2.value;
-    }
-    return false;
 }
 
 const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {

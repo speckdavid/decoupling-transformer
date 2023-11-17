@@ -38,18 +38,17 @@ class DecoupledRootTask : public RootTask {
     std::map<std::vector<FactPair>, int> precondition_to_svar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_op_to_svar;
 
-
     std::unordered_map<int, int> global_op_id_to_original_op_id;
+    std::unordered_map<int, int> original_op_id_to_global_op_id;
 
 public:
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
 
+    int get_original_operator_id(int op_id) const;
+
     void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
                                        std::vector<State> &states) const override;
-
-    virtual bool are_facts_mutex(
-        const FactPair &fact1, const FactPair &fact2) const override;
     
     virtual int get_num_operator_effects(
         int op_index, bool is_axiom) const override;

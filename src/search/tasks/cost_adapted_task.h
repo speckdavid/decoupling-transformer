@@ -23,6 +23,7 @@ namespace tasks {
   cost, which is 0 by default.
 */
 class CostAdaptedTask : public DelegatingTask {
+protected:
     const OperatorCost cost_type;
     const bool parent_is_unit_cost;
 public:
