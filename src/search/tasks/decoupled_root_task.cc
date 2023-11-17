@@ -28,16 +28,13 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
         utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
     }
 
-    factoring->compute_factoring();
-
-    utils::Timer transformation_timer;
-
-    // TODO: statistics: time, number axioms, number variables, etc.
-    // TODO: options to only dump to sas
-
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
+
+    factoring->compute_factoring();
+
+    utils::Timer transformation_timer;
 
     utils::g_log << "Starting decoupling transformaton!" << endl;
     utils::g_log << "Creating new variables..." << endl;
@@ -152,7 +149,7 @@ void DecoupledRootTask::create_center_variables() {
 }
 
 void DecoupledRootTask::create_leaf_state_variables() {
-// primary variable for leaf states
+    // primary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
             string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
@@ -259,6 +256,8 @@ void DecoupledRootTask::create_mutexes() {
         mutexes[var].resize(variables[var].domain_size);
 
     for (size_t var = 0; var < original_root_task->mutexes.size(); ++var) {
+        if (!factoring->is_center_variable(var))
+            continue;
         for (size_t val = 0; val < original_root_task->mutexes.at(var).size(); ++val) {
             for (const FactPair &fact : original_root_task->mutexes.at(var).at(val)) {
                 if (factoring->is_center_variable(fact.var)) {
@@ -315,7 +314,7 @@ void DecoupledRootTask::create_goal() {
            && "Multiple goals for the same variable!");
 }
 
-void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator &new_op) {
+void DecoupledRootTask::set_preconditions_of_operator(int op_id, ExplicitOperator &new_op) {
     const auto &op = original_root_task->operators[op_id];
 
     // Create center preconditions (map center variable ids)
@@ -341,7 +340,7 @@ void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator
     }
 
     // We sort the vector of preconditions in increasing variable order
-    sort(new_op.preconditions.begin(), new_op.preconditions.end());
+    // sort(new_op.preconditions.begin(), new_op.preconditions.end());
 
     assert(op.preconditions.size() >= new_op.preconditions.size());
     assert(adjacent_find(new_op.preconditions.begin(), new_op.preconditions.end(),
@@ -349,7 +348,7 @@ void DecoupledRootTask::set_precondition_of_operator(int op_id, ExplicitOperator
            && "Multiple preconditions for the same variable!");
 }
 
-void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_op) {
+void DecoupledRootTask::set_center_effects_of_operator(int op_id, ExplicitOperator &new_op) {
     const auto &op = original_root_task->operators[op_id];
 
     // Create center effects (map center variable ids)
@@ -365,8 +364,9 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
             new_op.effects.push_back(new_eff);
         }
     }
+}
 
-    // Effects on leaf states
+void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator &new_op) {
     for (int l = 0; l < factoring->get_num_leaves(); ++l) {
         for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
             int pvar = leaf_lstate_to_pvar[l][ls];
@@ -388,7 +388,7 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
                 int svar_pred = leaf_lstate_to_svar[l][pred];
                 eff.conditions.emplace_back(svar_pred, 0);
             }
-            sort(eff.conditions.begin(), eff.conditions.end());
+            // sort(eff.conditions.begin(), eff.conditions.end());
 
             assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
                                  [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
@@ -396,14 +396,7 @@ void DecoupledRootTask::set_effect_of_operator(int op_id, ExplicitOperator &new_
 
             new_op.effects.push_back(eff);
         }
-
-        // Sort the vector based on the 'eff'. Is this necessary?
-        sort(new_op.effects.begin(), new_op.effects.end(), [](const ExplicitEffect &a, const ExplicitEffect &b) {
-                 return a.fact < b.fact;
-             });
     }
-
-    assert(!new_op.effects.empty());
 }
 
 void DecoupledRootTask::create_operator(int op_id) {
@@ -411,8 +404,12 @@ void DecoupledRootTask::create_operator(int op_id) {
     assert(!op.is_an_axiom);
 
     ExplicitOperator new_op(op.cost, op.name, op.is_an_axiom);
-    set_precondition_of_operator(op_id, new_op);
-    set_effect_of_operator(op_id, new_op);
+    set_preconditions_of_operator(op_id, new_op);
+    set_center_effects_of_operator(op_id, new_op);
+    if (!implicit_effects) {
+        set_leaf_effects_of_operator(op_id, new_op);
+        assert(!new_op.effects.empty());
+    }
 
     operators.push_back(new_op);
 }

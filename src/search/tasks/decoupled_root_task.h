@@ -92,8 +92,9 @@ protected:
     void create_goal();
 
     // operators
-    void set_precondition_of_operator(int op_id, ExplicitOperator &op);
-    void set_effect_of_operator(int op_id, ExplicitOperator &op);
+    void set_preconditions_of_operator(int op_id, ExplicitOperator &op);
+    void set_center_effects_of_operator(int op_id, ExplicitOperator &op);
+    void set_leaf_effects_of_operator(int op_id, ExplicitOperator &op);
     void create_operator(int op_id);
     void create_operators();
 
