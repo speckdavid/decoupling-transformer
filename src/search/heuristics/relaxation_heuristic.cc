@@ -1,5 +1,6 @@
 #include "relaxation_heuristic.h"
 
+#include "../plugins/plugin.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/collections.h"
 #include "../utils/logging.h"
@@ -68,10 +69,12 @@ RelaxationHeuristic::RelaxationHeuristic(const plugins::Options &opts)
         build_unary_operators(axiom);
 
     // Simplify unary operators.
-    utils::Timer simplify_timer;
-    simplify();
-    if (log.is_at_least_normal()) {
-        log << "time to simplify: " << simplify_timer << endl;
+    if (opts.get<bool>("simplify_unary_operators")) {
+        utils::Timer simplify_timer;
+        simplify();
+        if (log.is_at_least_normal()) {
+            log << "time to simplify: " << simplify_timer << endl;
+        }
     }
 
     // Cross-reference unary operators.
@@ -300,5 +303,9 @@ void RelaxationHeuristic::simplify() {
     if (log.is_at_least_normal()) {
         log << " done! [" << unary_operators.size() << " unary operators]" << endl;
     }
+}
+
+void RelaxationHeuristic::add_options_to_feature(plugins::Feature &feature) {
+    feature.add_option<bool>("simplify_unary_operators", "Simplification of unary operators", "true");
 }
 }

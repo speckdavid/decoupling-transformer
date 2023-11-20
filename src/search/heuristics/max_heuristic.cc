@@ -104,6 +104,7 @@ public:
         document_title("Max heuristic");
 
         Heuristic::add_options_to_feature(*this);
+        relaxation_heuristic::RelaxationHeuristic::add_options_to_feature(*this);
 
         document_language_support("action costs", "supported");
         document_language_support("conditional effects", "supported");
