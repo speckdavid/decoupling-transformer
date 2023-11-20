@@ -146,7 +146,6 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
 }
 
 bool DecoupledRootTask::is_ifork_optimizable(int leaf) const {
-    // return factoring->get_num_leaf_variables(leaf) == 1;
     return factoring->is_ifork_and_leaf_state_space_invertible(leaf) &&
            factoring->get_num_leaf_variables(leaf) == 1;
 }

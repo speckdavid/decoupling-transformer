@@ -23,8 +23,14 @@ Factoring::Factoring(const plugins::Options &opts) :
     task_proxy(TaskProxy(*task)),
     min_number_leaves(opts.get<int>("min_number_leaves")),
     max_leaf_size(opts.get<int>("max_leaf_size")) {
+
     task_properties::verify_no_axioms(task_proxy);
     task_properties::verify_no_conditional_effects(task_proxy);
+
+    if (prune_fork_leaf_state_spaces){
+        log << "Setting ignore_invertible_root_leaves=true is not (yet) supported." << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
 }
 
 void Factoring::apply_factoring() {
@@ -194,6 +200,7 @@ const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
 }
 
 bool Factoring::is_factoring_possible() const {
+    // TODO double-check this function! this is wrong!
     // if there exists a variable that is affected by all actions, then
     // no mobile factoring can exist.
     vector<int> op_count(task->get_num_variables(), 0);
@@ -603,7 +610,7 @@ void Factoring::add_options_to_feature(plugins::Feature &feature) {
                             );
     feature.add_option<bool>("ignore_invertible_root_leaves",
                              "root leaves with invertible state space will be removed",
-                             "false"
+                             "true"
                              );
     feature.add_option<bool>("prune_fork_leaf_state_spaces",
                              "run simulation-based pruning in fork leaves to reduce their state space",
