@@ -31,7 +31,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 
     utils::g_log << "Number of leaves: " << factoring->get_num_leaves() << endl;
     if (ifork_optimization) {
-        int num_optimzable_leaves;
+        int num_optimzable_leaves = 0;
         for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
             num_optimzable_leaves += is_ifork_optimizable(leaf) ? 1 : 0;
         }
