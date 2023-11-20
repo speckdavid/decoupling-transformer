@@ -138,7 +138,7 @@ ALIASES["forky-lama-first"] = [
     "decoupled(factoring=lp(factoring_time_limit=30, strategy=mml, min_flexibility=1.0, add_cg_sccs=true))",
     "--search",
     "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
-    "let(hff, ff(transform=adapt_costs(one)),"
+    "let(hff, ff(transform=adapt_costs(one),simplify_unary_operators=false),"
     """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)))"""]
 
@@ -147,7 +147,7 @@ ALIASES["dec-F02s-lama-first"] = [
     "decoupled(factoring=lp(factoring_time_limit=30, strategy=mfa, min_flexibility=0.2, add_cg_sccs=true))",
     "--search",
     "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
-    "let(hff, ff(transform=adapt_costs(one)),"
+    "let(hff, ff(transform=adapt_costs(one),simplify_unary_operators=false),"
     """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)))"""]
 
@@ -156,7 +156,7 @@ ALIASES["dec-F02s1M-lama-first"] = [
     "decoupled(factoring=lp(factoring_time_limit=30, strategy=mfa, min_flexibility=0.2, add_cg_sccs=true, max_leaf_size=1000000))",
     "--search",
     "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
-    "let(hff, ff(transform=adapt_costs(one)),"
+    "let(hff, ff(transform=adapt_costs(one),simplify_unary_operators=false),"
     """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)))"""]
 
@@ -165,7 +165,7 @@ ALIASES["dec-L02s1M-lama-first"] = [
     "decoupled(factoring=lp(factoring_time_limit=30, strategy=mml, min_flexibility=0.2, add_cg_sccs=true, max_leaf_size=1000000))",
     "--search",
     "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
-    "let(hff, ff(transform=adapt_costs(one)),"
+    "let(hff, ff(transform=adapt_costs(one),simplify_unary_operators=false),"
     """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)))"""]
 

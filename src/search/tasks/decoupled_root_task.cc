@@ -22,17 +22,22 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
       rng(utils::parse_rng_from_options(options)),
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
       same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
-      implicit_effects(options.get<bool>("implicit_effects")) {
-    if (implicit_effects) {
-        cerr << "not implemented yet!" << endl;
-        utils::exit_with(utils::ExitCode::SEARCH_UNSUPPORTED);
-    }
-
+      ifork_optimization(options.get<IForkOptimization>("ifork_optimization")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
 
     factoring->compute_factoring();
+
+    utils::g_log << "Number of leaves: " << factoring->get_num_leaves() << endl;
+    if (ifork_optimization) {
+        int num_optimzable_leaves;
+        for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
+            num_optimzable_leaves += is_ifork_optimizable(leaf) ? 1 : 0;
+        }
+        utils::g_log << "Number of ifork optimized leaves: " << num_optimzable_leaves << endl;
+        utils::g_log << "Number of normal leaves: " << factoring->get_num_leaves() - num_optimzable_leaves << endl;
+    }
 
     utils::Timer transformation_timer;
 
@@ -50,21 +55,27 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     utils::g_log << "Creating new axioms..." << endl;
     create_axioms();
 
+    if (options.get<bool>("dump_task")) {
+        dump();
+    }
+
     TaskProxy task_proxy(*this);
 
     // This is also done in the root task which is honestly quite hacky!
     AxiomEvaluator &axiom_evaluator = g_axiom_evaluators[task_proxy];
     axiom_evaluator.evaluate(initial_state_values);
-    assert(are_initial_states_consistent());
 
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
-    print_statistics();
-
-    release_memory();
 
     if (options.get<bool>("dump_task")) {
         dump();
     }
+
+    assert(are_initial_states_consistent());
+
+    print_statistics();
+
+    release_memory();
 
     if (options.get<bool>("write_sas_file")) {
         write_sas_file("dec_output.sas");
@@ -134,6 +145,12 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
     return true;
 }
 
+bool DecoupledRootTask::is_ifork_optimizable(int leaf) const {
+    // return factoring->get_num_leaf_variables(leaf) == 1;
+    return factoring->is_ifork_and_leaf_state_space_invertible(leaf) &&
+           factoring->get_num_leaf_variables(leaf) == 1;
+}
+
 vector<string> DecoupledRootTask::get_fact_names(const string &var_name) const {
     return vector<string>{
         "NegatedAtom " + var_name,
@@ -151,10 +168,17 @@ void DecoupledRootTask::create_center_variables() {
 void DecoupledRootTask::create_leaf_state_variables() {
     // primary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-        for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
-            string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
-            variables.emplace_back(name, get_fact_names(name), -1);
-            leaf_lstate_to_pvar[leaf][lstate] = variables.size() - 1;
+        if (ifork_optimization == IForkOptimization::MULTIVALUED && is_ifork_optimizable(leaf)) {
+            assert(factoring->get_leaf(leaf).size() == 1);
+            int var = factoring->get_leaf(leaf).at(0);
+            variables.push_back(original_root_task->variables.at(var));
+            ifork_leaf_var_to_pvar[var] = variables.size() - 1;
+        } else {
+            for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
+                string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
+                variables.emplace_back(name, get_fact_names(name), -1);
+                leaf_lstate_to_pvar[leaf][lstate] = variables.size() - 1;
+            }
         }
     }
 
@@ -281,9 +305,18 @@ void DecoupledRootTask::create_initial_state() {
 
     // Set the leaf state primary variables true which correspond to the initial state
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-        int lstate = factoring->get_initial_leaf_state(leaf);
-        int pvar = leaf_lstate_to_pvar[leaf][lstate];
-        initial_state_values[pvar] = 1;
+        if (ifork_optimization == IForkOptimization::MULTIVALUED && is_ifork_optimizable(leaf)) {
+            int leaf_var = factoring->get_leaf(leaf).at(0);
+            int value = original_root_task->initial_state_values[leaf_var];
+
+            assert(ifork_leaf_var_to_pvar.count(leaf_var));
+            int mapped_leaf_var = ifork_leaf_var_to_pvar[leaf_var];
+            initial_state_values[mapped_leaf_var] = value;
+        } else {
+            int lstate = factoring->get_initial_leaf_state(leaf);
+            int pvar = leaf_lstate_to_pvar[leaf][lstate];
+            initial_state_values[pvar] = 1;
+        }
     }
 }
 
@@ -366,50 +399,120 @@ void DecoupledRootTask::set_center_effects_of_operator(int op_id, ExplicitOperat
     }
 }
 
-void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator &new_op) {
-    for (int l = 0; l < factoring->get_num_leaves(); ++l) {
-        for (int ls = 0; ls < factoring->get_num_leaf_states(l); ++ls) {
-            int pvar = leaf_lstate_to_pvar[l][ls];
-            // cout << endl;
-            // cout << factoring->get_leaf_state_name(l, ls) << " predecssors for " << op.name << ": " << endl;
-            auto predecessor_ls = factoring->get_predecessors(l, ls, op_id);
+void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, ExplicitOperator &new_op, int leaf) {
+    for (int ls = 0; ls < factoring->get_num_leaf_states(leaf); ++ls) {
+        int pvar = leaf_lstate_to_pvar[leaf][ls];
+        // cout << endl;
+        // cout << factoring->get_leaf_state_name(leaf, ls) << " predecssors for " << op.name << ": " << endl;
+        auto predecessor_ls = factoring->get_predecessors(leaf, ls, op_id);
 
-            // Positive conditional effect
-            for (int pred : predecessor_ls) {
-                // cout << "\t" << factoring->get_leaf_state_name(l, pred) << endl;
-                int svar_pred = leaf_lstate_to_svar[l][pred];
-                ExplicitEffect eff(pvar, 1, vector<FactPair> {FactPair(svar_pred, 1)});
-                new_op.effects.push_back(eff);
-            }
-
-            // Negative conditional effect
-            ExplicitEffect eff(pvar, 0, vector<FactPair>());
-            for (int pred : predecessor_ls) {
-                int svar_pred = leaf_lstate_to_svar[l][pred];
-                eff.conditions.emplace_back(svar_pred, 0);
-            }
-            // sort(eff.conditions.begin(), eff.conditions.end());
-
-            assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
-                                 [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
-                   && "Multiple effect conditions for the same variable!");
-
+        // Positive conditional effect
+        for (int pred : predecessor_ls) {
+            // cout << "\t" << factoring->get_leaf_state_name(leaf, pred) << endl;
+            int svar_pred = leaf_lstate_to_svar[leaf][pred];
+            ExplicitEffect eff(pvar, 1, vector<FactPair> {FactPair(svar_pred, 1)});
             new_op.effects.push_back(eff);
+        }
+
+        // Negative conditional effect
+        ExplicitEffect eff(pvar, 0, vector<FactPair>());
+        for (int pred : predecessor_ls) {
+            int svar_pred = leaf_lstate_to_svar[leaf][pred];
+            eff.conditions.emplace_back(svar_pred, 0);
+        }
+        // sort(eff.conditions.begin(), eff.conditions.end());
+
+        assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
+                             [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
+               && "Multiple effect conditions for the same variable!");
+
+        new_op.effects.push_back(eff);
+    }
+}
+
+void DecoupledRootTask::set_ifork_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf) {
+    if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
+        return;
+
+    assert(factoring->get_num_leaf_variables(leaf) == 1);
+    int leaf_var = factoring->get_leaf(leaf).at(0);
+
+    if (ifork_optimization == IForkOptimization::MULTIVALUED) {
+        if (factoring->has_eff_on_leaf(op_id, leaf)) {
+            for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
+                FactPair cur_eff = expl_eff.fact;
+                if (cur_eff.var == leaf_var) {
+                    int mapped_pvar = ifork_leaf_var_to_pvar[cur_eff.var];
+                    op.effects.emplace_back(mapped_pvar, cur_eff.value, vector<FactPair>());
+                    break;
+                }
+            }
+        } else {
+            assert(factoring->has_pre_on_leaf(op_id, leaf));
+            for (const FactPair &pre: original_root_task->operators[op_id].preconditions) {
+                if (pre.var == leaf_var) {
+                    int mapped_pvar = ifork_leaf_var_to_pvar[pre.var];
+                    op.effects.emplace_back(mapped_pvar, pre.value, vector<FactPair>());
+                    break;
+                }
+            }
+        }
+    } else {
+        int true_succ_leaf_state = -1;
+
+        if (factoring->has_eff_on_leaf(op_id, leaf)) {
+            for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
+                FactPair cur_eff = expl_eff.fact;
+                if (cur_eff.var == leaf_var) {
+                    true_succ_leaf_state = factoring->get_single_var_leaf_state(leaf, cur_eff);
+                    break;
+                }
+            }
+        } else {
+            assert(factoring->has_pre_on_leaf(op_id, leaf));
+            for (const FactPair &pre: original_root_task->operators[op_id].preconditions) {
+                if (pre.var == leaf_var) {
+                    true_succ_leaf_state = factoring->get_single_var_leaf_state(leaf, pre);
+                    break;
+                }
+            }
+        }
+        assert(true_succ_leaf_state != -1);
+
+        // This leaf state becomes true
+        int true_pvar = leaf_lstate_to_pvar[leaf][true_succ_leaf_state];
+        op.effects.emplace_back(true_pvar, 1, vector<FactPair>());
+
+        // All others become false
+        for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
+            if (lstate != true_succ_leaf_state) {
+                int false_pvar = leaf_lstate_to_pvar[leaf][lstate];
+                op.effects.emplace_back(false_pvar, 0, vector<FactPair>());
+            }
+        }
+    }
+}
+
+void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator &op) {
+    for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
+        if (ifork_optimization && is_ifork_optimizable(leaf)) {
+            set_ifork_leaf_effects_of_operator(op_id, op, leaf);
+        } else {
+            set_general_leaf_effects_of_operator(op_id, op, leaf);
         }
     }
 }
 
 void DecoupledRootTask::create_operator(int op_id) {
+    assert(factoring->is_global_operator(op_id));
     const auto &op = original_root_task->operators[op_id];
     assert(!op.is_an_axiom);
 
     ExplicitOperator new_op(op.cost, op.name, op.is_an_axiom);
     set_preconditions_of_operator(op_id, new_op);
     set_center_effects_of_operator(op_id, new_op);
-    if (!implicit_effects) {
-        set_leaf_effects_of_operator(op_id, new_op);
-        assert(!new_op.effects.empty());
-    }
+    set_leaf_effects_of_operator(op_id, new_op);
+    assert(!new_op.effects.empty());
 
     operators.push_back(new_op);
 }
@@ -426,13 +529,35 @@ void DecoupledRootTask::create_operators() {
 }
 
 void DecoupledRootTask::create_frame_axioms() {
+    for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
+        if (ifork_optimization == IForkOptimization::MULTIVALUED && is_ifork_optimizable(leaf)) {
+            int leaf_var = factoring->get_leaf(leaf).at(0);
+            assert(ifork_leaf_var_to_pvar.count(leaf_var));
+            int mapped_leaf_var = ifork_leaf_var_to_pvar[leaf_var];
+            assert(original_root_task->variables[leaf_var].domain_size == factoring->get_num_leaf_states(leaf));
+            for (int val = 0; val < original_root_task->variables[leaf_var].domain_size; ++val) {
+                int lstate = factoring->get_single_var_leaf_state(leaf, FactPair(leaf_var, val));
+                string name = "ax-frame-" + factoring->get_leaf_state_name(leaf, lstate);
+                int svar = leaf_lstate_to_svar[leaf][lstate];
+
+                ExplicitOperator new_op(0, name, true);
+                new_op.preconditions.emplace_back(svar, 0);
+                FactPair cond(mapped_leaf_var, val);
+                new_op.effects.emplace_back(ExplicitEffect(svar, 1, std::vector<FactPair> {cond}));
+
+                axioms.push_back(new_op);
+            }
+        }
+    }
+
+    // leaf_lstate_to_pvar describe exactly all variables that are not optimized with
+    // ifork_optimization == IForkOptimization::MULTIVALUED
     for (const auto & [leaf, inner_map] : leaf_lstate_to_pvar) {
         for (const auto & [lstate, pvar] : inner_map) {
-            assert(leaf_lstate_to_svar.count(leaf));
             assert(leaf_lstate_to_svar[leaf].count(lstate));
 
-            int svar = leaf_lstate_to_svar[leaf][lstate];
             string name = "ax-frame-" + factoring->get_leaf_state_name(leaf, lstate);
+            int svar = leaf_lstate_to_svar[leaf][lstate];
 
             ExplicitOperator new_op(0, name, true);
             new_op.preconditions.emplace_back(svar, 0);
@@ -585,43 +710,6 @@ bool DecoupledRootTask::is_valid_decoupled_state(const State &dec_state) const {
     return true;
 }
 
-// const ExplicitEffect &DecoupledRootTask::get_effect(int op_id, int effect_id, bool is_axiom) const {
-//     if (!implicit_effects || is_axiom)
-//         return RootTask::get_effect(op_id, effect_id, is_axiom);
-
-//     if (effect_id < RootTask::get_num_operator_effects(op_id, is_axiom))
-//         return RootTask::get_effect(op_id, effect_id, is_axiom);
-// }
-
-// int DecoupledRootTask::get_num_operator_effects(int op_index, bool is_axiom) const {
-//     if (!implicit_effects || is_axiom)
-//         return RootTask::get_num_operator_effects(op_index, is_axiom);
-// }
-
-// int DecoupledRootTask::get_num_operator_effect_conditions(int op_index, int eff_index, bool is_axiom) const {
-//     if (!implicit_effects || is_axiom)
-//         return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
-
-//     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
-//         return RootTask::get_num_operator_effect_conditions(op_index, eff_index, is_axiom);
-// }
-
-// FactPair DecoupledRootTask::get_operator_effect_condition(int op_index, int eff_index, int cond_index, bool is_axiom) const {
-//     if (!implicit_effects || is_axiom)
-//         return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
-
-//     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
-//         return RootTask::get_operator_effect_condition(op_index, eff_index, cond_index, is_axiom);
-// }
-
-// FactPair DecoupledRootTask::get_operator_effect(int op_index, int eff_index, bool is_axiom) const {
-//     if (!implicit_effects || is_axiom)
-//         return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
-
-//     if (eff_index < RootTask::get_num_operator_effects(op_index, is_axiom))
-//         return RootTask::get_operator_effect(op_index, eff_index, is_axiom);
-// }
-
 class DecoupledRootTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledRootTask> {
 public:
     DecoupledRootTaskFeature() : TypedFeature("decoupled") {
@@ -633,7 +721,7 @@ public:
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
-        add_option<bool>("implicit_effects", "Represent effects implicitly and create them on demand", "false");
+        add_option<IForkOptimization>("ifork_optimization", "Optimization for inverted forks with a single variable", "multivalued");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
@@ -644,4 +732,11 @@ public:
 };
 
 static plugins::FeaturePlugin<DecoupledRootTaskFeature> _plugin;
+
+
+static plugins::TypedEnumPlugin<IForkOptimization> _enum_plugin({
+        {"none", "no optimization."},
+        {"binary", "primary ifork leaf variables are represented with binary variables"},
+        {"multivalued", "primary irofk leaf varibales are represented using the original variables"}
+    });
 }

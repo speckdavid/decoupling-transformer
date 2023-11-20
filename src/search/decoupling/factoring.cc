@@ -23,7 +23,6 @@ Factoring::Factoring(const plugins::Options &opts) :
     task_proxy(TaskProxy(*task)),
     min_number_leaves(opts.get<int>("min_number_leaves")),
     max_leaf_size(opts.get<int>("max_leaf_size")) {
-
     task_properties::verify_no_axioms(task_proxy);
     task_properties::verify_no_conditional_effects(task_proxy);
 }
@@ -140,7 +139,7 @@ void Factoring::print_factoring() const {
             }
         }
     }
-    if (log.is_at_least_normal()){
+    if (log.is_at_least_normal()) {
         if (interaction_graph->is_fork()) {
             log << "is fork factoring" << endl;
         } else if (interaction_graph->is_ifork()) {
@@ -388,6 +387,11 @@ int Factoring::get_num_leaves() const {
     return leaves.size();
 }
 
+int Factoring::get_num_leaf_variables(int leaf) const {
+    assert(leaf < (int)leaves.size());
+    return leaves.at(leaf).size();
+}
+
 int Factoring::get_num_leaf_states(int leaf_) const {
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
@@ -475,6 +479,21 @@ int Factoring::get_initial_leaf_state(int /*leaf*/) const {
     return 0; // by convention in the LeafStateRegistry
 }
 
+int Factoring::get_single_var_leaf_state(int leaf_, const FactPair &fact) const {
+    assert(leaf_ < (int)leaves.size());
+    assert(leaves.at(leaf_).size() == 1);
+    assert(leaves.at(leaf_).at(0) == fact.var);
+    FactorID leaf(leaf_);
+    for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
+        LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
+        if (lstate[fact.var] == fact.value)
+            return static_cast<int>(id);
+    }
+    cerr << "Could not find leaf state!" << endl;
+    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+    return -1;
+}
+
 vector<int> Factoring::get_valid_precondition_leaf_states(int leaf_, int op_id) const {
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
@@ -515,6 +534,10 @@ bool Factoring::is_ifork_and_leaf_state_space_invertible(FactorID leaf) const {
     return ignore_invertible_root_leaves && is_ifork_leaf(leaf) && leaf_state_space->is_leaf_invertible(leaf);
 }
 
+bool Factoring::is_ifork_and_leaf_state_space_invertible(int leaf) const {
+    return is_ifork_and_leaf_state_space_invertible(FactorID(leaf));
+}
+
 vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_id) const {
     FactorID leaf(leaf_);
     assert(leaf < leaves.size());
@@ -542,7 +565,7 @@ void Factoring::add_leaf_facts_to_state(vector<int> &state, int leaf_, int leaf_
     assert(id != LeafStateHash::MAX && id < leaf_state_space->get_num_states(leaf));
 
     LeafState lstate = leaf_state_space->get_leaf_state(id, leaf);
-    for (int var : leaves[leaf]){
+    for (int var : leaves[leaf]) {
         state[var] = lstate[var];
     }
 }

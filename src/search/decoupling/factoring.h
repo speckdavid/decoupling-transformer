@@ -110,6 +110,7 @@ public:
     bool is_global_operator(int operator_id) const;
 
     int get_num_leaves() const;
+    int get_num_leaf_variables(int leaf) const;
     int get_num_leaf_states(int leaf) const;
     int get_num_all_leaf_states() const;
     int get_num_all_goal_leaf_states() const;
@@ -134,7 +135,9 @@ public:
     const std::vector<LeafStateHash> &get_goal_leaf_states(int leaf) const;
 
     bool is_ifork_and_leaf_state_space_invertible(FactorID leaf) const;
+    bool is_ifork_and_leaf_state_space_invertible(int leaf) const;
 
+    int get_single_var_leaf_state(int leaf, const FactPair& fact) const;
     // NOTE: this is not very efficiently implemented and should be called only once per operator
     std::vector<int> get_valid_precondition_leaf_states(int leaf, int op_id) const;
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;

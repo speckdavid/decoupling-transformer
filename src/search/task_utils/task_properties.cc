@@ -198,7 +198,6 @@ void dump_task(const TaskProxy &task_proxy, bool with_operators, bool with_axiom
     utils::g_log << "Initial state (FDR):" << endl;
     dump_fdr(initial_state);
     dump_goals(task_proxy.get_goals());
-    utils::g_log << "Operators:" << endl;
     if (with_operators) {
         utils::g_log << "Operators:" << endl;
         dump_operators(task_proxy.get_operators());
