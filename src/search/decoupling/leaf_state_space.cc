@@ -132,6 +132,9 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
     bool change = true;
 
     vector<vector<int>> leaf_only_state_space_graph;
+    if (compute_leaf_invertibility){
+        leaf_only_state_space_graph.resize(1);
+    }
 
     while (change) {
 
