@@ -26,7 +26,7 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     bool is_two_leaf_factoring_possible() const;
     void check_factoring() const;
 
-    bool ignore_invertible_root_leaves;
+    bool optimize_leaf_unique_lstate;
     bool prune_fork_leaf_state_spaces;
 
     std::unique_ptr<LeafStateSpace> leaf_state_space;
@@ -44,7 +44,13 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     std::vector<std::vector<bool>> has_op_leaf_eff;
     std::vector<std::vector<OperatorID>> leaf_operators;
 
+    std::vector<bool> can_optimize_leaf_unique_lstate;
+
     void remove_never_applicable_global_ops(FactorID leaf);
+
+    bool does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const;
+
+    void check_can_optimize_leaf_unique_lstate();
 
     const std::vector<OperatorID> &get_leaf_operators(FactorID leaf) const;
 

@@ -14,21 +14,21 @@ vector<Factoring::ActionSchema> Factoring::action_schemas;
 vector<set<int>> Factoring::var_to_affecting_op;
 
 Factoring::Factoring(const plugins::Options &opts) :
-    ignore_invertible_root_leaves(opts.get<bool>("ignore_invertible_root_leaves")),
-    prune_fork_leaf_state_spaces(opts.get<bool>("prune_fork_leaf_state_spaces")),
-    num_global_operators(0),
-    log(utils::get_log_from_options(opts)),
-    factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
-    task(tasks::g_root_task),
-    task_proxy(TaskProxy(*task)),
-    min_number_leaves(opts.get<int>("min_number_leaves")),
-    max_leaf_size(opts.get<int>("max_leaf_size")) {
+        optimize_leaf_unique_lstate(opts.get<bool>("optimize_leaf_unique_lstate")),
+        prune_fork_leaf_state_spaces(opts.get<bool>("prune_fork_leaf_state_spaces")),
+        num_global_operators(0),
+        log(utils::get_log_from_options(opts)),
+        factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
+        task(tasks::g_root_task),
+        task_proxy(TaskProxy(*task)),
+        min_number_leaves(opts.get<int>("min_number_leaves")),
+        max_leaf_size(opts.get<int>("max_leaf_size")) {
 
     task_properties::verify_no_axioms(task_proxy);
     task_properties::verify_no_conditional_effects(task_proxy);
 
     if (prune_fork_leaf_state_spaces){
-        log << "Setting ignore_invertible_root_leaves=true is not (yet) supported." << endl;
+        log << "Setting prune_fork_leaf_state_spaces=true is not (yet) supported." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
 }
@@ -162,6 +162,56 @@ void Factoring::remove_never_applicable_global_ops(FactorID /*leaf*/) {
     // TODO implement this
 }
 
+bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const {
+    vector<bool> is_var_covered(leaves[leaf].size(), false);
+    size_t num_covered_vars = 0;
+    for (FactProxy pre : op.get_preconditions()){
+        int var = pre.get_variable().get_id();
+        if (get_factor(var) == leaf && !is_var_covered[var]){
+            is_var_covered[var] = true;
+            num_covered_vars++;
+            if (num_covered_vars == leaves[leaf].size()){
+                return true;
+            }
+        }
+    }
+    for (EffectProxy eff : op.get_effects()){
+        int var = eff.get_fact().get_variable().get_id();
+        if (get_factor(var) == leaf && !is_var_covered[var]){
+            is_var_covered[var] = true;
+            num_covered_vars++;
+            if (num_covered_vars == leaves[leaf].size()){
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void Factoring::check_can_optimize_leaf_unique_lstate() {
+    can_optimize_leaf_unique_lstate.resize(leaves.size(), true);
+    size_t num_optimizable_leaves = leaves.size();
+    for (auto op : task_proxy.get_operators()){
+        if (is_global_operator(op.get_id())){
+            for (FactorID leaf(0); leaf < leaves.size(); ++leaf) {
+                if (can_optimize_leaf_unique_lstate[leaf] &&
+                    has_pre_or_eff_on_leaf(op.get_id(), leaf)) {
+                    // if leaf is a proper fork leaf, i.e. a fork leaf and the CG is connected,
+                    // then it cannot be optimized
+                    if ((is_fork_leaf(leaf) && !is_ifork_leaf(leaf)) ||
+                        !does_op_uniquely_fix_lstate(op, leaf)){
+                        can_optimize_leaf_unique_lstate[leaf] = false;
+                        num_optimizable_leaves--;
+                    }
+                }
+            }
+        }
+        if (num_optimizable_leaves == 0){
+            break;
+        }
+    }
+}
+
 const vector<OperatorID> &Factoring::get_leaf_operators(FactorID leaf) const {
     return leaf_operators[leaf];
 }
@@ -200,34 +250,14 @@ const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
 }
 
 bool Factoring::is_factoring_possible() const {
-    // TODO double-check this function! this is wrong!
-    // if there exists a variable that is affected by all actions, then
-    // no mobile factoring can exist.
-    vector<int> op_count(task->get_num_variables(), 0);
-    vector<bool> var_not_affected_by_some_op(task->get_num_variables(), false);
-    int num_vars_not_affected_by_some_op = 0;
-    for (int i = 0; i < task->get_num_operators(); ++i) {
-        for (const EffectProxy &eff : task_proxy.get_operators()[i].get_effects()) {
-            int eff_var = eff.get_fact().get_variable().get_id();
-            if (op_count[eff_var] == i) {
-                ++op_count[eff_var];
-            } else if (!var_not_affected_by_some_op[eff_var]) {
-                var_not_affected_by_some_op[eff_var] = true;
-                ++num_vars_not_affected_by_some_op;
-                if (num_vars_not_affected_by_some_op == task->get_num_variables()) {
-                    // no variable is affected by all actions
-                    return true;
-                }
-            }
+    for (auto op : task_proxy.get_operators()) {
+        if (static_cast<int>(op.get_effects().size()) < task->get_num_variables()) {
+            // there exists a variable that is not affected by all actions
+            // => we can construct a mobile factoring with at least one leaf
+            return true;
         }
     }
-    for (int op_c : op_count) {
-        if (op_c == task->get_num_operators()) {
-            log << "No mobile factoring possible." << endl;
-            return false;
-        }
-    }
-    return true;
+    return false;
 }
 
 inline bool is_intersection_empty(const vector<int> &x, const vector<int> &y, int num_vars) {
@@ -311,11 +341,14 @@ void Factoring::compute_factoring() {
     check_factoring();
     log << "Number leaf factors: " << leaves.size() << endl;
     apply_factoring();
+    if (optimize_leaf_unique_lstate) {
+        check_can_optimize_leaf_unique_lstate();
+    }
     print_factoring();
     leaf_state_space = make_unique<LeafStateSpace>(shared_from_this(),
                                                    task,
                                                    log,
-                                                   ignore_invertible_root_leaves,
+                                                   false,
                                                    prune_fork_leaf_state_spaces);
 }
 
@@ -529,7 +562,8 @@ const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf_) const {
 
 bool Factoring::is_ifork_and_leaf_state_space_invertible(FactorID leaf) const {
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
-    return ignore_invertible_root_leaves && is_ifork_leaf(leaf) && leaf_state_space->is_leaf_invertible(leaf);
+    assert(leaf < can_optimize_leaf_unique_lstate.size());
+    return optimize_leaf_unique_lstate && can_optimize_leaf_unique_lstate[leaf];
 }
 
 bool Factoring::is_ifork_and_leaf_state_space_invertible(int leaf) const {
@@ -599,8 +633,8 @@ void Factoring::add_options_to_feature(plugins::Feature &feature) {
                             "timeout for computing the factoring",
                             "infinity"
                             );
-    feature.add_option<bool>("ignore_invertible_root_leaves",
-                             "root leaves with invertible state space will be removed",
+    feature.add_option<bool>("optimize_leaf_unique_lstate",
+                             "leaves for which every global operator induces a unique leaf state are optimized",
                              "true"
                              );
     feature.add_option<bool>("prune_fork_leaf_state_spaces",
