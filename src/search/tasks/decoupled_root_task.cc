@@ -145,8 +145,7 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
 }
 
 bool DecoupledRootTask::is_conclusive_leaf(int leaf) const {
-    return factoring->is_ifork_and_leaf_state_space_invertible(leaf) &&
-           factoring->get_num_leaf_variables(leaf) == 1;
+    return factoring->is_ifork_and_leaf_state_space_invertible(leaf);
 }
 
 vector<string> DecoupledRootTask::get_fact_names(const string &var_name) const {
@@ -580,11 +579,12 @@ void DecoupledRootTask::create_precondition_axioms() {
         for (const auto & [op_id, pre_svar] : inner_map) {
             assert(leaf_op_to_svar.count(leaf));
             assert(leaf_op_to_svar[leaf].count(op_id));
+            assert(factoring->is_global_operator(op_id));
             assert(op_id < (int)original_root_task->operators.size());
 
             vector<int> leaf_states_with_valid_precondition =
                 factoring->get_valid_leaf_states(leaf, original_root_task->operators[op_id].preconditions);
-            assert(!leaf_states_with_valid_precondition.empty());
+            assert(!leaf_states_with_valid_precondition.empty() || factoring->get_leaf(leaf).size() > 1);
             for (int pre_leaf_state : leaf_states_with_valid_precondition) {
                 string name = "ax-prec-" + original_root_task->operators[op_id].name + "-" +
                     factoring->get_leaf_state_name(leaf, pre_leaf_state);
