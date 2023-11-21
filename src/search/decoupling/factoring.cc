@@ -529,7 +529,7 @@ vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) con
             res.emplace_back(var, lstate[var]);
         }
     }
-    assert(res.size() == get_num_leaf_variables(leaf));
+    assert((int)res.size() == get_num_leaf_variables(leaf));
     return res;
 }
 
