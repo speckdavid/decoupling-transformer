@@ -19,10 +19,9 @@ namespace tasks {
 DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
-      rng(utils::parse_rng_from_options(options)),
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
       same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
-      ifork_optimization(options.get<IForkOptimization>("ifork_optimization")) {
+      conclusive_leaf_encoding(options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
@@ -30,13 +29,13 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     factoring->compute_factoring();
 
     utils::g_log << "Number of leaves: " << factoring->get_num_leaves() << endl;
-    if (ifork_optimization) {
-        int num_optimzable_leaves = 0;
+    if (conclusive_leaf_encoding) {
+        int num_conclusive_leaves = 0;
         for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-            num_optimzable_leaves += is_ifork_optimizable(leaf) ? 1 : 0;
+            num_conclusive_leaves += is_conclusive_leaf(leaf) ? 1 : 0;
         }
-        utils::g_log << "Number of ifork optimized leaves: " << num_optimzable_leaves << endl;
-        utils::g_log << "Number of normal leaves: " << factoring->get_num_leaves() - num_optimzable_leaves << endl;
+        utils::g_log << "Number of conclusive leaves: " << num_conclusive_leaves << endl;
+        utils::g_log << "Number of normal leaves: " << factoring->get_num_leaves() - num_conclusive_leaves << endl;
     }
 
     utils::Timer transformation_timer;
@@ -145,7 +144,7 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
     return true;
 }
 
-bool DecoupledRootTask::is_ifork_optimizable(int leaf) const {
+bool DecoupledRootTask::is_conclusive_leaf(int leaf) const {
     return factoring->is_ifork_and_leaf_state_space_invertible(leaf) &&
            factoring->get_num_leaf_variables(leaf) == 1;
 }
@@ -167,11 +166,11 @@ void DecoupledRootTask::create_center_variables() {
 void DecoupledRootTask::create_leaf_state_variables() {
     // primary variable for leaf states
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-        if (ifork_optimization == IForkOptimization::MULTIVALUED && is_ifork_optimizable(leaf)) {
-            assert(factoring->get_leaf(leaf).size() == 1);
-            int var = factoring->get_leaf(leaf).at(0);
-            variables.push_back(original_root_task->variables.at(var));
-            ifork_leaf_var_to_pvar[var] = variables.size() - 1;
+        if (conclusive_leaf_encoding == ConclusiveLeafEncoding::MULTIVALUED && is_conclusive_leaf(leaf)) {
+            for (int var : factoring->get_leaf(leaf)) {
+                variables.push_back(original_root_task->variables.at(var));
+                conclusive_leaf_var_to_pvar[var] = variables.size() - 1;
+            }
         } else {
             for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
                 string name = "v(" + factoring->get_leaf_state_name(leaf, lstate) + ")";
@@ -304,13 +303,14 @@ void DecoupledRootTask::create_initial_state() {
 
     // Set the leaf state primary variables true which correspond to the initial state
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-        if (ifork_optimization == IForkOptimization::MULTIVALUED && is_ifork_optimizable(leaf)) {
-            int leaf_var = factoring->get_leaf(leaf).at(0);
-            int value = original_root_task->initial_state_values[leaf_var];
+        if (conclusive_leaf_encoding == ConclusiveLeafEncoding::MULTIVALUED && is_conclusive_leaf(leaf)) {
+            for (int leaf_var : factoring->get_leaf(leaf)) {
+                int value = original_root_task->initial_state_values[leaf_var];
 
-            assert(ifork_leaf_var_to_pvar.count(leaf_var));
-            int mapped_leaf_var = ifork_leaf_var_to_pvar[leaf_var];
-            initial_state_values[mapped_leaf_var] = value;
+                assert(conclusive_leaf_var_to_pvar.count(leaf_var));
+                int mapped_leaf_var = conclusive_leaf_var_to_pvar[leaf_var];
+                initial_state_values[mapped_leaf_var] = value;
+            }
         } else {
             int lstate = factoring->get_initial_leaf_state(leaf);
             int pvar = leaf_lstate_to_pvar[leaf][lstate];
@@ -429,53 +429,43 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
     }
 }
 
-void DecoupledRootTask::set_ifork_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf) {
+void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf) {
     if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
         return;
 
-    assert(factoring->get_num_leaf_variables(leaf) == 1);
-    int leaf_var = factoring->get_leaf(leaf).at(0);
 
-    if (ifork_optimization == IForkOptimization::MULTIVALUED) {
-        if (factoring->has_eff_on_leaf(op_id, leaf)) {
-            for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
-                FactPair cur_eff = expl_eff.fact;
-                if (cur_eff.var == leaf_var) {
-                    int mapped_pvar = ifork_leaf_var_to_pvar[cur_eff.var];
-                    op.effects.emplace_back(mapped_pvar, cur_eff.value, vector<FactPair>());
-                    break;
-                }
-            }
-        } else {
-            assert(factoring->has_pre_on_leaf(op_id, leaf));
-            for (const FactPair &pre: original_root_task->operators[op_id].preconditions) {
-                if (pre.var == leaf_var) {
-                    int mapped_pvar = ifork_leaf_var_to_pvar[pre.var];
-                    op.effects.emplace_back(mapped_pvar, pre.value, vector<FactPair>());
-                    break;
-                }
-            }
+    vector<int> leaf_variables = factoring->get_leaf(leaf);
+
+    unordered_map<int, int> relevant_effects;
+    for (auto const &pre : original_root_task->operators[op_id].preconditions) {
+        if (factoring->get_factor(pre.var) == leaf) {
+            relevant_effects[pre.var] = pre.value;
+        }
+    }
+    for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
+        FactPair eff = expl_eff.fact;
+        if (factoring->get_factor(eff.var) == leaf) {
+            relevant_effects[eff.var] = eff.value;
+        }
+    }
+
+    assert((int)relevant_effects.size() == factoring->get_num_leaf_variables(leaf));
+
+    if (conclusive_leaf_encoding == ConclusiveLeafEncoding::MULTIVALUED) {
+        for (auto const & [var, val] : relevant_effects) {
+            int mapped_pvar = conclusive_leaf_var_to_pvar[var];
+            op.effects.emplace_back(mapped_pvar, val, vector<FactPair>());
         }
     } else {
-        int true_succ_leaf_state = -1;
-
-        if (factoring->has_eff_on_leaf(op_id, leaf)) {
-            for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
-                FactPair cur_eff = expl_eff.fact;
-                if (cur_eff.var == leaf_var) {
-                    true_succ_leaf_state = factoring->get_single_var_leaf_state(leaf, cur_eff);
-                    break;
-                }
-            }
-        } else {
-            assert(factoring->has_pre_on_leaf(op_id, leaf));
-            for (const FactPair &pre: original_root_task->operators[op_id].preconditions) {
-                if (pre.var == leaf_var) {
-                    true_succ_leaf_state = factoring->get_single_var_leaf_state(leaf, pre);
-                    break;
-                }
-            }
+        vector<FactPair> effs;
+        for (auto const & [var, val] : relevant_effects) {
+            effs.emplace_back(var, val);
         }
+
+        vector<int> valid_succ_leaf_states = factoring->get_valid_leaf_states(leaf, effs);
+        assert(valid_succ_leaf_states.size() == 1);
+        int true_succ_leaf_state = valid_succ_leaf_states.at(0);
+
         assert(true_succ_leaf_state != -1);
 
         // This leaf state becomes true
@@ -494,8 +484,8 @@ void DecoupledRootTask::set_ifork_leaf_effects_of_operator(int op_id, ExplicitOp
 
 void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator &op) {
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-        if (ifork_optimization && is_ifork_optimizable(leaf)) {
-            set_ifork_leaf_effects_of_operator(op_id, op, leaf);
+        if (conclusive_leaf_encoding && is_conclusive_leaf(leaf)) {
+            set_conclusive_leaf_effects_of_operator(op_id, op, leaf);
         } else {
             set_general_leaf_effects_of_operator(op_id, op, leaf);
         }
@@ -529,28 +519,29 @@ void DecoupledRootTask::create_operators() {
 
 void DecoupledRootTask::create_frame_axioms() {
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
-        if (ifork_optimization == IForkOptimization::MULTIVALUED && is_ifork_optimizable(leaf)) {
-            int leaf_var = factoring->get_leaf(leaf).at(0);
-            assert(ifork_leaf_var_to_pvar.count(leaf_var));
-            int mapped_leaf_var = ifork_leaf_var_to_pvar[leaf_var];
-            assert(original_root_task->variables[leaf_var].domain_size == factoring->get_num_leaf_states(leaf));
-            for (int val = 0; val < original_root_task->variables[leaf_var].domain_size; ++val) {
-                int lstate = factoring->get_single_var_leaf_state(leaf, FactPair(leaf_var, val));
+        if (conclusive_leaf_encoding == ConclusiveLeafEncoding::MULTIVALUED && is_conclusive_leaf(leaf)) {
+            for (int lstate = 0; lstate < factoring->get_num_leaf_states(leaf); ++lstate) {
                 string name = "ax-frame-" + factoring->get_leaf_state_name(leaf, lstate);
                 int svar = leaf_lstate_to_svar[leaf][lstate];
 
                 ExplicitOperator new_op(0, name, true);
                 new_op.preconditions.emplace_back(svar, 0);
-                FactPair cond(mapped_leaf_var, val);
-                new_op.effects.emplace_back(ExplicitEffect(svar, 1, std::vector<FactPair> {cond}));
 
+                std::vector<FactPair> conds;
+                for (const FactPair &fact : factoring->get_leaf_state_values(leaf, lstate)) {
+                    assert(conclusive_leaf_var_to_pvar.count(fact.var));
+                    int mapped_leaf_var = conclusive_leaf_var_to_pvar[fact.var];
+                    conds.emplace_back(mapped_leaf_var, fact.value);
+                }
+
+                new_op.effects.emplace_back(ExplicitEffect(svar, 1, move(conds)));
                 axioms.push_back(new_op);
             }
         }
     }
 
     // leaf_lstate_to_pvar describe exactly all variables that are not optimized with
-    // ifork_optimization == IForkOptimization::MULTIVALUED
+    // onlcusive_optimization == IForkOptimization::MULTIVALUED
     for (const auto & [leaf, inner_map] : leaf_lstate_to_pvar) {
         for (const auto & [lstate, pvar] : inner_map) {
             assert(leaf_lstate_to_svar[leaf].count(lstate));
@@ -591,7 +582,10 @@ void DecoupledRootTask::create_precondition_axioms() {
             assert(leaf_op_to_svar[leaf].count(op_id));
             assert(op_id < (int)original_root_task->operators.size());
 
-            for (int pre_leaf_state : factoring->get_valid_precondition_leaf_states(leaf, op_id)) {
+            vector<int> leaf_states_with_valid_precondition =
+                factoring->get_valid_leaf_states(leaf, original_root_task->operators[op_id].preconditions);
+            assert(!leaf_states_with_valid_precondition.empty());
+            for (int pre_leaf_state : leaf_states_with_valid_precondition) {
                 string name = "ax-prec-" + original_root_task->operators[op_id].name + "-" +
                     factoring->get_leaf_state_name(leaf, pre_leaf_state);
                 int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
@@ -715,12 +709,11 @@ public:
         document_title("Decoupled task");
         document_synopsis(
             "A decoupled transformation of the root task.");
-        utils::add_rng_options(*this);
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
-        add_option<IForkOptimization>("ifork_optimization", "Optimization for inverted forks with a single variable", "multivalued");
+        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Optimization for inverted forks with a single variable", "multivalued");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
@@ -733,9 +726,9 @@ public:
 static plugins::FeaturePlugin<DecoupledRootTaskFeature> _plugin;
 
 
-static plugins::TypedEnumPlugin<IForkOptimization> _enum_plugin({
-        {"none", "no optimization."},
-        {"binary", "primary ifork leaf variables are represented with binary variables"},
-        {"multivalued", "primary irofk leaf varibales are represented using the original variables"}
+static plugins::TypedEnumPlugin<ConclusiveLeafEncoding> _enum_plugin({
+        {"basic", "basic encoding"},
+        {"binary", "primary conclusive leaf variables are represented with binary variables"},
+        {"multivalued", "primary conclusive leaf varibales are represented using the original variables"}
     });
 }

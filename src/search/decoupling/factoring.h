@@ -137,9 +137,11 @@ public:
     bool is_ifork_and_leaf_state_space_invertible(FactorID leaf) const;
     bool is_ifork_and_leaf_state_space_invertible(int leaf) const;
 
-    int get_single_var_leaf_state(int leaf, const FactPair& fact) const;
-    // NOTE: this is not very efficiently implemented and should be called only once per operator
-    std::vector<int> get_valid_precondition_leaf_states(int leaf, int op_id) const;
+    std::vector<FactPair> get_leaf_state_values(int leaf, int leaf_state) const;
+
+    // NOTE: this function is not very efficiently implemented and should sparsly called
+    std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair>& partial_state);
+
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;
 
     void add_leaf_facts_to_state(std::vector<int> &state, int leaf, int leaf_state) const;

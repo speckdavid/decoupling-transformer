@@ -5,8 +5,6 @@
 
 #include "../task_proxy.h"
 
-#include "../utils/rng.h"
-
 #include <map>
 #include <unordered_map>
 
@@ -20,21 +18,20 @@ class Factoring;
 
 namespace tasks {
 
-enum IForkOptimization {FALSE = 0, BINARY = 1, MULTIVALUED = 2};
+enum ConclusiveLeafEncoding {BASIC = 0, BINARY = 1, MULTIVALUED = 2};
 
 /*
   Task transformation that decoupled the search space using derived variables and axioms
 */
 class DecoupledRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task;
-    std::shared_ptr<utils::RandomNumberGenerator> rng;
     std::shared_ptr<decoupling::Factoring> factoring;
 
     bool same_leaf_preconditons_single_variable;
-    IForkOptimization ifork_optimization;
+    ConclusiveLeafEncoding conclusive_leaf_encoding;
 
     std::unordered_map<int, int> center_var_to_pvar;
-    std::unordered_map<int, int> ifork_leaf_var_to_pvar;
+    std::unordered_map<int, int> conclusive_leaf_var_to_pvar;
     std::unordered_map<int, int> leaf_to_goal_svar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_pvar;
     std::unordered_map<int, std::unordered_map<int, int>> leaf_lstate_to_svar;
@@ -68,7 +65,7 @@ protected:
     void write_sas_file(const std::string file_name) const;
 
     bool are_initial_states_consistent() const;
-    bool is_ifork_optimizable(int leaf) const;
+    bool is_conclusive_leaf(int leaf) const;
 
     // variables
     std::vector<std::string> get_fact_names(const std::string& var_name) const;
@@ -86,7 +83,7 @@ protected:
     void set_preconditions_of_operator(int op_id, ExplicitOperator &op);
     void set_center_effects_of_operator(int op_id, ExplicitOperator &op);
     void set_general_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);
-    void set_ifork_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);
+    void set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);
     void set_leaf_effects_of_operator(int op_id, ExplicitOperator &op);
     void create_operator(int op_id);
     void create_operators();

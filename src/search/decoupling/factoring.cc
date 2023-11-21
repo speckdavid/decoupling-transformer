@@ -486,47 +486,38 @@ int Factoring::get_initial_leaf_state(int /*leaf*/) const {
     return 0; // by convention in the LeafStateRegistry
 }
 
-int Factoring::get_single_var_leaf_state(int leaf_, const FactPair &fact) const {
-    assert(leaf_ < (int)leaves.size());
-    assert(leaves.at(leaf_).size() == 1);
-    assert(leaves.at(leaf_).at(0) == fact.var);
+vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) const {
     FactorID leaf(leaf_);
-    for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
-        LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
-        if (lstate[fact.var] == fact.value)
-            return static_cast<int>(id);
-    }
-    cerr << "Could not find leaf state!" << endl;
-    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
-    return -1;
-}
+    LeafState lstate(leaf_state_space->get_leaf_state(LeafStateHash(leaf_state), leaf));
 
-vector<int> Factoring::get_valid_precondition_leaf_states(int leaf_, int op_id) const {
-    FactorID leaf(leaf_);
-    assert(leaf < leaves.size());
-    vector<FactProxy> leaf_pre;
-    for (FactProxy pre : task_proxy.get_operators()[op_id].get_preconditions()) {
-        if (var_to_factor[pre.get_variable().get_id()] == leaf) {
-            leaf_pre.push_back(pre);
+    vector<FactPair> res;
+    for (int var = 0; var < task->get_num_variables(); ++var) {
+        if (leaf_ == get_factor(var)) {
+            res.emplace_back(var, lstate[var]);
         }
     }
-    assert(!leaf_pre.empty()); // this should only be called if op_id has a precondition on leaf
+    assert(res.size() == get_num_leaf_variables(leaf));
+    return res;
+}
+
+vector<int> Factoring::get_valid_leaf_states(int leaf_, const vector<FactPair>& partial_state) {
+    FactorID leaf(leaf_);
+    assert(leaf < leaves.size()); 
 
     vector<int> satisfying_lstates;
     for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
         LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
-        bool applicable = true;
-        for (FactProxy pre : leaf_pre) {
-            if (lstate[pre.get_variable()] != pre.get_value()) {
-                applicable = false;
+        bool is_model = true;
+        for (const FactPair& fact : partial_state) {
+            if (leaf_ == get_factor(fact.var) && lstate[fact.var] != fact.value) {
+                is_model = false;
                 break;
             }
         }
-        if (applicable) {
+        if (is_model) {
             satisfying_lstates.push_back(static_cast<int>(id));
         }
     }
-
     return satisfying_lstates;
 }
 
