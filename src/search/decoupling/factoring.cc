@@ -200,34 +200,14 @@ const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
 }
 
 bool Factoring::is_factoring_possible() const {
-    // TODO double-check this function! this is wrong!
-    // if there exists a variable that is affected by all actions, then
-    // no mobile factoring can exist.
-    vector<int> op_count(task->get_num_variables(), 0);
-    vector<bool> var_not_affected_by_some_op(task->get_num_variables(), false);
-    int num_vars_not_affected_by_some_op = 0;
-    for (int i = 0; i < task->get_num_operators(); ++i) {
-        for (const EffectProxy &eff : task_proxy.get_operators()[i].get_effects()) {
-            int eff_var = eff.get_fact().get_variable().get_id();
-            if (op_count[eff_var] == i) {
-                ++op_count[eff_var];
-            } else if (!var_not_affected_by_some_op[eff_var]) {
-                var_not_affected_by_some_op[eff_var] = true;
-                ++num_vars_not_affected_by_some_op;
-                if (num_vars_not_affected_by_some_op == task->get_num_variables()) {
-                    // no variable is affected by all actions
-                    return true;
-                }
-            }
+    for (auto op : task_proxy.get_operators()) {
+        if (static_cast<int>(op.get_effects().size()) < task->get_num_variables()) {
+            // there exists a variable that is not affected by all actions
+            // => we can construct a mobile factoring with at least one leaf
+            return true;
         }
     }
-    for (int op_c : op_count) {
-        if (op_c == task->get_num_operators()) {
-            log << "No mobile factoring possible." << endl;
-            return false;
-        }
-    }
-    return true;
+    return false;
 }
 
 inline bool is_intersection_empty(const vector<int> &x, const vector<int> &y, int num_vars) {
