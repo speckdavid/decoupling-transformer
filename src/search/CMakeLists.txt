@@ -693,7 +693,6 @@ create_fast_downward_library(
         tasks/decoupled_root_task
         tasks/domain_abstracted_task
         tasks/domain_abstracted_task_factory
-        tasks/factoring
         tasks/modified_goals_task
         tasks/modified_operator_costs_task
     DEPENDS
@@ -712,6 +711,7 @@ create_fast_downward_library(
         decoupling/leaf_state_registry
         decoupling/leaf_state_space
         decoupling/lp_factoring
+        decoupling/mf_factoring
         decoupling/plan_reconstruction
     DEPENDENCY_ONLY
 )
