@@ -9,9 +9,6 @@
 using namespace std;
 
 namespace decoupling {
-vector<Factoring::ActionSchema> Factoring::action_schemas;
-
-vector<set<int>> Factoring::var_to_affecting_op;
 
 Factoring::Factoring(const plugins::Options &opts) :
         optimize_leaf_unique_lstate(opts.get<bool>("optimize_leaf_unique_lstate")),
@@ -167,8 +164,8 @@ bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) con
     size_t num_covered_vars = 0;
     for (FactProxy pre : op.get_preconditions()){
         int var = pre.get_variable().get_id();
-        if (get_factor(var) == leaf && !is_var_covered[var]){
-            is_var_covered[var] = true;
+        if (get_factor(var) == leaf && !is_var_covered[get_id_in_factor(var)]){
+            is_var_covered[get_id_in_factor(var)] = true;
             num_covered_vars++;
             if (num_covered_vars == leaves[leaf].size()){
                 return true;
@@ -177,8 +174,8 @@ bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) con
     }
     for (EffectProxy eff : op.get_effects()){
         int var = eff.get_fact().get_variable().get_id();
-        if (get_factor(var) == leaf && !is_var_covered[var]){
-            is_var_covered[var] = true;
+        if (get_factor(var) == leaf && !is_var_covered[get_id_in_factor(var)]){
+            is_var_covered[get_id_in_factor(var)] = true;
             num_covered_vars++;
             if (num_covered_vars == leaves[leaf].size()){
                 return true;
@@ -350,6 +347,13 @@ void Factoring::compute_factoring() {
                                                    log,
                                                    false,
                                                    prune_fork_leaf_state_spaces);
+    save_memory();
+}
+
+void Factoring::save_memory() {
+    // TODO save more memory, what about the leaf state space?
+    vector<ActionSchema>().swap(action_schemas);
+    vector<set<int>>().swap(var_to_affecting_op);
 }
 
 bool Factoring::check_timeout() const {
@@ -382,7 +386,7 @@ void Factoring::compute_action_schemas() {
                 scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
                 action_schemas.emplace_back(1, pre_vars, eff_vars);
             } else {
-                action_schemas[scheme_loockup[pre_vars][eff_vars]].incr_num_action();
+                action_schemas[scheme_loockup[pre_vars][eff_vars]].inc_num_actions();
             }
         }
     }

@@ -28,9 +28,9 @@ void LPFactoring::PotentialLeaf::add_leaf_only_schema(int action_schema) {
             action_schemes.end(),
             action_schema) == action_schemes.end()){
         action_schemes.push_back(action_schema);
-        num_actions += action_schemas[action_schema].num_actions;
+        num_actions += factoring->action_schemas[action_schema].num_actions;
         bool all_in = true;
-        for (int pre : action_schemas[action_schema].pre_vars){
+        for (int pre : factoring->action_schemas[action_schema].pre_vars){
             if (!std::binary_search(vars.begin(), vars.end(), pre)){
                 all_in = false;
                 break;
@@ -148,7 +148,7 @@ void LPFactoring::compute_factoring_() {
                 scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
                 action_schemas.emplace_back(1, pre_vars, eff_vars);
             } else {
-                action_schemas[scheme_loockup[pre_vars][eff_vars]].incr_num_action();
+                action_schemas[scheme_loockup[pre_vars][eff_vars]].inc_num_actions();
             }
             size_t as = scheme_loockup[pre_vars][eff_vars];
             for (const auto &fact : eff_facts){
@@ -626,6 +626,12 @@ void LPFactoring::compute_factoring_() {
     }
 }
 
+void LPFactoring::save_memory() {
+    Factoring::save_memory();
+    vector<set<int>>().swap(var_to_p_leaves);
+    vector<PotentialLeaf>().swap(potential_leaves);
+}
+
 void LPFactoring::compute_leaf_flexibility() {
     compute_var_to_ops_map();
     for (auto &pl : potential_leaves){
@@ -721,7 +727,7 @@ vector<LPFactoring::PotentialLeaf> LPFactoring::compute_potential_leaves() {
             if (leaf_lookup.find(action_schema.eff_vars) == leaf_lookup.end()){
                 size_t s = potential_leaves.size();
                 leaf_lookup[action_schema.eff_vars] = s;
-                potential_leaves.emplace_back(s, action_schema.eff_vars);
+                potential_leaves.emplace_back(this, s, action_schema.eff_vars);
                 potential_leaves[s].add_leaf_only_schema(as);
             } else {
                 potential_leaves[leaf_lookup[action_schema.eff_vars]].add_leaf_only_schema(as);
@@ -837,7 +843,7 @@ void LPFactoring::add_cg_sccs() {
                 }
             }
 
-            potential_leaves.push_back(PotentialLeaf(s, vars));
+            potential_leaves.push_back(PotentialLeaf(this, s, vars));
 
             for (size_t pleaf : subset_schemes){
                 assert(pleaf < potential_leaves.size() - added);
@@ -952,7 +958,7 @@ void LPFactoring::merge_potential_leaves() {
                     continue;
                 }
 
-                PotentialLeaf merged_leaf(id, merged_vars);
+                PotentialLeaf merged_leaf(this, id, merged_vars);
 
                 //calculate number of leaf actions and leaf-only actions
                 set<size_t> overlapping_with_merged_leaf;

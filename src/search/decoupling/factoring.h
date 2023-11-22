@@ -80,14 +80,14 @@ protected:
             : num_actions(num_actions), pre_vars(pre_vars), eff_vars(eff_vars) {
         }
 
-        void incr_num_action() {
+        void inc_num_actions() {
             num_actions++;
         }
     };
 
-    static std::vector<ActionSchema> action_schemas;
+    std::vector<ActionSchema> action_schemas;
 
-    static std::vector<std::set<int>> var_to_affecting_op;
+    std::vector<std::set<int>> var_to_affecting_op;
 
     int min_number_leaves;
     int max_leaf_size;
@@ -101,6 +101,7 @@ protected:
     void print_factoring() const;
 
     virtual void compute_factoring_() = 0;
+    virtual void save_memory();
 
 public:
     virtual ~Factoring() = default;
