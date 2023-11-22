@@ -49,6 +49,7 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     void remove_never_applicable_global_ops(FactorID leaf);
 
     bool does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const;
+    bool does_op_restrict_leaf(OperatorProxy op, FactorID leaf) const;
 
     void check_can_optimize_leaf_unique_lstate();
 

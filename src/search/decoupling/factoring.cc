@@ -185,26 +185,58 @@ bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) con
     return false;
 }
 
+bool Factoring::does_op_restrict_leaf(OperatorProxy op, FactorID leaf) const {
+    assert(is_global_operator(op.get_id()));
+    assert(leaf != FactorID::CENTER && leaf < leaves.size());
+    vector<bool> is_op_eff_var(task->get_num_variables(), false);
+    for (auto eff : op.get_effects()){
+        is_op_eff_var[eff.get_fact().get_variable().get_id()] = true;
+    }
+    for (auto op_id : get_leaf_operators(leaf)){
+        if (!is_global_operator(op_id.get_index())){
+            for (auto pre : task_proxy.get_operators()[op_id].get_preconditions()){
+                if (is_op_eff_var[pre.get_variable().get_id()]){
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void Factoring::check_can_optimize_leaf_unique_lstate() {
     can_optimize_leaf_unique_lstate.resize(leaves.size(), true);
     size_t num_optimizable_leaves = leaves.size();
     for (auto op : task_proxy.get_operators()){
         if (is_global_operator(op.get_id())){
             for (FactorID leaf(0); leaf < leaves.size(); ++leaf) {
-                if (can_optimize_leaf_unique_lstate[leaf] &&
-                    has_pre_or_eff_on_leaf(op.get_id(), leaf)) {
-                    // if leaf is a proper fork leaf, i.e. a fork leaf and the CG is connected,
-                    // then it cannot be optimized
-                    if ((is_fork_leaf(leaf) && !is_ifork_leaf(leaf)) ||
-                        !does_op_uniquely_fix_lstate(op, leaf)){
+                if (!can_optimize_leaf_unique_lstate[leaf]){
+                    continue;
+                }
+                if (has_pre_or_eff_on_leaf(op.get_id(), leaf)) {
+                    // if does_op_uniquely_fix_lstate holds, then after applying op,
+                    // there is a unique leaf state reached, which is what we need
+                    if (!does_op_uniquely_fix_lstate(op, leaf)){
+                        can_optimize_leaf_unique_lstate[leaf] = false;
+                        num_optimizable_leaves--;
+                    }
+                } else {
+                    if (is_fork_leaf(leaf) && !is_ifork_leaf(leaf)){
+                        // proper fork leafs, i.e. fork leaves with connection to the center, cannot be optimized
+                        // this is subsumed by the next check, but cheaper to compute
+                        can_optimize_leaf_unique_lstate[leaf] = false;
+                        num_optimizable_leaves--;
+                    } else if (does_op_restrict_leaf(op, leaf)){
+                        // the operator restricts the set of reachable leaf states by
+                        // en/disabling center preconditions of leaf-only operators
                         can_optimize_leaf_unique_lstate[leaf] = false;
                         num_optimizable_leaves--;
                     }
                 }
             }
-        }
-        if (num_optimizable_leaves == 0){
-            break;
+            if (num_optimizable_leaves == 0){
+                break;
+            }
         }
     }
 }
