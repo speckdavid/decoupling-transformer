@@ -27,6 +27,7 @@ class DecoupledRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task;
     std::shared_ptr<decoupling::Factoring> factoring;
 
+    bool skip_unnecessary_leaf_effects;
     bool same_leaf_preconditons_single_variable;
     ConclusiveLeafEncoding conclusive_leaf_encoding;
 

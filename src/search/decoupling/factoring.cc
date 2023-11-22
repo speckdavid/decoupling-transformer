@@ -204,6 +204,10 @@ bool Factoring::does_op_restrict_leaf(OperatorProxy op, FactorID leaf) const {
     return false;
 }
 
+bool Factoring::does_op_restrict_leaf(int op_id, int leaf) const {
+    return does_op_restrict_leaf(task_proxy.get_operators()[op_id], FactorID(leaf));
+}
+
 void Factoring::check_can_optimize_leaf_unique_lstate() {
     can_optimize_leaf_unique_lstate.resize(leaves.size(), true);
     size_t num_optimizable_leaves = leaves.size();

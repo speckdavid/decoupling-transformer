@@ -20,6 +20,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
+      skip_unnecessary_leaf_effects(options.get<bool>("skip_unnecessary_leaf_effects")),
       same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
       conclusive_leaf_encoding(options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")) {
     TaskProxy original_task_proxy(*original_root_task);
@@ -107,14 +108,14 @@ void DecoupledRootTask::print_statistics() const {
                                     {return var.axiom_layer == -1;});
     int num_secondary_vars = variables.size() - num_primary_vars;
 
-    // utils::g_log << "Original task size: " << original_root_task->get_encoding_size(false) << endl;
+    utils::g_log << "Original task size: " << original_root_task->get_encoding_size(false) << endl;
     utils::g_log << "Original number of variables: " << original_root_task->variables.size() << endl;
     utils::g_log << "Original number of primary variables: " << original_root_task->variables.size() << endl;
     utils::g_log << "Original number of secondary variables: " << 0 << endl;
-    utils::g_log << "Original number of operators: " << get_num_operators() << endl;
-    utils::g_log << "Original number of axioms: " << get_num_axioms() << endl;
+    utils::g_log << "Original number of operators: " << original_root_task->get_num_operators() << endl;
+    utils::g_log << "Original number of axioms: " << original_root_task->get_num_axioms() << endl;
 
-    // utils::g_log << "Task size: " << get_encoding_size(false) << endl;
+    utils::g_log << "Task size: " << get_encoding_size(false) << endl;
     utils::g_log << "Number of variables: " << variables.size() << endl;
     utils::g_log << "Number of primary variables: " << num_primary_vars << endl;
     utils::g_log << "Number of secondary variables: " << num_secondary_vars << endl;
@@ -486,7 +487,11 @@ void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator
         if (conclusive_leaf_encoding && is_conclusive_leaf(leaf)) {
             set_conclusive_leaf_effects_of_operator(op_id, op, leaf);
         } else {
-            set_general_leaf_effects_of_operator(op_id, op, leaf);
+            if (!skip_unnecessary_leaf_effects ||
+                factoring->has_pre_or_eff_on_leaf(op_id, leaf) ||
+                factoring->does_op_restrict_leaf(op_id, leaf)) {
+                set_general_leaf_effects_of_operator(op_id, op, leaf);
+            }
         }
     }
 }
@@ -714,6 +719,7 @@ public:
                                                       "method that computes the factoring");
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
         add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Optimization for inverted forks with a single variable", "multivalued");
+        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
