@@ -145,7 +145,7 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
 }
 
 bool DecoupledRootTask::is_conclusive_leaf(int leaf) const {
-    return factoring->is_ifork_and_leaf_state_space_invertible(leaf);
+    return factoring->is_conclusive_leaf(leaf);
 }
 
 vector<string> DecoupledRootTask::get_fact_names(const string &var_name) const {

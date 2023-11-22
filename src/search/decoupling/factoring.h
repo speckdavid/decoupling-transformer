@@ -142,12 +142,12 @@ public:
     int get_initial_leaf_state(int leaf) const;
     const std::vector<LeafStateHash> &get_goal_leaf_states(int leaf) const;
 
-    bool is_ifork_and_leaf_state_space_invertible(FactorID leaf) const;
-    bool is_ifork_and_leaf_state_space_invertible(int leaf) const;
+    bool is_conclusive_leaf(FactorID leaf) const;
+    bool is_conclusive_leaf(int leaf) const;
 
     std::vector<FactPair> get_leaf_state_values(int leaf, int leaf_state) const;
 
-    // NOTE: this function is not very efficiently implemented and should sparsly called
+    // NOTE: this function is not very efficiently implemented and should be called sparsely
     std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair>& partial_state);
 
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;

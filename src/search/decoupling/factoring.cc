@@ -596,14 +596,14 @@ const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf_) const {
     return leaf_state_space->get_leaf_goal_states(FactorID(leaf));
 }
 
-bool Factoring::is_ifork_and_leaf_state_space_invertible(FactorID leaf) const {
+bool Factoring::is_conclusive_leaf(FactorID leaf) const {
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
     assert(leaf < can_optimize_leaf_unique_lstate.size());
     return optimize_leaf_unique_lstate && can_optimize_leaf_unique_lstate[leaf];
 }
 
-bool Factoring::is_ifork_and_leaf_state_space_invertible(int leaf) const {
-    return is_ifork_and_leaf_state_space_invertible(FactorID(leaf));
+bool Factoring::is_conclusive_leaf(int leaf) const {
+    return is_conclusive_leaf(FactorID(leaf));
 }
 
 vector<int> Factoring::get_predecessors(int leaf_, int leaf_state, int operator_id) const {
