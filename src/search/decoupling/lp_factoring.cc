@@ -262,6 +262,19 @@ void LPFactoring::add_potential_leaf_to_action_schema_constraints(named_vector::
             constraints.push_back(constraint);
         }
     }
+
+    // an action schema can only be mobile for a leaf if it actually is a leaf
+    for (const auto &pleaf : potential_leaves){
+        if (skip_self_mobile_leaves && !pleaf.self_mobile_as.empty()){
+            continue;
+        }
+        for (size_t as_num = 0; as_num < pleaf.action_schemes.size(); ++as_num) {
+            lp::LPConstraint constraint(-infty, 0.0);
+            constraint.insert(pleaf.id, -1.0);
+            constraint.insert(mob_as_var_ids[pleaf.id][as_num], 1.0);
+            constraints.push_back(constraint);
+        }
+    }
 }
 
 bool LPFactoring::is_as_leaf_irrelevant(const ActionSchema &as, const PotentialLeaf &leaf) const {
