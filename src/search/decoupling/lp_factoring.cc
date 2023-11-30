@@ -214,22 +214,19 @@ void LPFactoring::add_potential_leaf_to_action_schema_constraints(named_vector::
                                                                   const vector<bool> &can_be_leaf_var,
                                                                   const vector<size_t> &c_vars_ids) const {
 
-    bool require_leaf_mobility_value = strategy != STRATEGY::MML &&
-                                       strategy != STRATEGY::MCL &&
-                                       strategy != STRATEGY::MCM;
+    bool skip_self_mobile_leaves = strategy == STRATEGY::MML &&
+                                   min_flexibility == 0.0 &&
+                                   min_mobility <= 1;
 
     // at least one action schema needs to be mobile in each leaf
-    for (size_t pleaf = 0; pleaf < potential_leaves.size(); ++pleaf) {
-        if (!require_leaf_mobility_value &&
-            !potential_leaves[pleaf].self_mobile_as.empty() &&
-            min_flexibility == 0.0 &&
-            min_mobility <= 1){
+    for (const auto &pleaf : potential_leaves) {
+        if (skip_self_mobile_leaves && !pleaf.self_mobile_as.empty()){
             continue;
         }
         lp::LPConstraint constraint(-infty, 0.0);
-        constraint.insert(pleaf, 1.0);
-        for (size_t as_num = 0; as_num < potential_leaves[pleaf].action_schemes.size(); ++as_num) {
-            constraint.insert(mob_as_var_ids[pleaf][as_num], -1.0);
+        constraint.insert(pleaf.id, 1.0);
+        for (size_t as_num = 0; as_num < pleaf.action_schemes.size(); ++as_num) {
+            constraint.insert(mob_as_var_ids[pleaf.id][as_num], -1.0);
         }
         constraints.push_back(constraint);
     }
@@ -240,28 +237,25 @@ void LPFactoring::add_potential_leaf_to_action_schema_constraints(named_vector::
 
     // set action schemas mobile if (1) it is part of a leaf, and
     // (2) precondition variables outside the leaf are in the center
-    for (size_t pleaf = 0; pleaf < potential_leaves.size(); ++pleaf){
-        if (!require_leaf_mobility_value &&
-            !potential_leaves[pleaf].self_mobile_as.empty() &&
-            min_flexibility == 0.0 &&
-            min_mobility <= 1){
+    for (const auto &pleaf : potential_leaves){
+        if (skip_self_mobile_leaves && !pleaf.self_mobile_as.empty()){
             continue;
         }
-        for (size_t as_num = 0; as_num < potential_leaves[pleaf].action_schemes.size(); ++as_num) {
-            set<int> outside_pre_vars;
-            for (int var : action_schemas[potential_leaves[pleaf].action_schemes[as_num]].pre_vars){
+        for (size_t as_num = 0; as_num < pleaf.action_schemes.size(); ++as_num) {
+            vector<int> outside_pre_vars;
+            for (int var : action_schemas[pleaf.action_schemes[as_num]].pre_vars){
                 if (can_be_leaf_var[var] &&
-                    !binary_search(potential_leaves[pleaf].vars.begin(),
-                                   potential_leaves[pleaf].vars.end(),
+                    !binary_search(pleaf.vars.begin(),
+                                   pleaf.vars.end(),
                                    var)){
-                    outside_pre_vars.insert(var);
+                    outside_pre_vars.push_back(var);
                 }
             }
 
             // action schema is mobile only if it is a leaf and all pre variables are center
             lp::LPConstraint constraint(-infty, 0.0);
-            constraint.insert(pleaf, -1.0);
-            constraint.insert(mob_as_var_ids[pleaf][as_num], outside_pre_vars.size() + 1.0);
+            constraint.insert(pleaf.id, -1.0);
+            constraint.insert(mob_as_var_ids[pleaf.id][as_num], outside_pre_vars.size() + 1.0);
             for (int var: outside_pre_vars) {
                 constraint.insert(c_vars_ids[var], -1.0);
             }
