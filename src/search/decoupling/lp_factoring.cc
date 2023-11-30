@@ -142,6 +142,18 @@ vector<size_t> LPFactoring::add_center_variables_and_get_ids(named_vector::Named
         constraints.push_back(constraint);
     }
 
+    for (int var = 0; var < task->get_num_variables(); ++var){
+        if (can_be_leaf_var[var]) {
+            // force LP var to be 1 (var is in center) if no potential leaf that contains var becomes a leaf
+            lp::LPConstraint constraint(-infty, -1.0);
+            constraint.insert(c_vars_ids[var], -1.0);
+            for (auto pleaf_id: var_to_p_leaves[var]) {
+                constraint.insert(pleaf_id, -1.0);
+            }
+            constraints.push_back(constraint);
+        }
+    }
+
     return c_vars_ids;
 }
 
