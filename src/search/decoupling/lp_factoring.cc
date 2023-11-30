@@ -347,12 +347,6 @@ void LPFactoring::construct_lp_conclusive(named_vector::NamedVector<lp::LPVariab
     assert(variables.size() == 0);
     assert(constraints.size() == 0);
 
-    if (strategy == STRATEGY::MCL) {
-        // TODO figure out how to enforce this using additional constraints
-        log << "ERROR: not implemented strategy MCL" << endl;
-        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-    }
-
     compute_action_schemas();
 
     if (action_schemas.empty()){
@@ -380,29 +374,41 @@ void LPFactoring::construct_lp_conclusive(named_vector::NamedVector<lp::LPVariab
         for (int var : pleaf.vars){
             can_be_leaf_var[var] = true;
         }
-        // for tie-breaking, give objective value of 1 to every mobile leaf
-        variables.push_back(lp::LPVariable(0.0, 1.0, 0.0, true));
+        double obj = 0.0;
+        if (strategy == STRATEGY::MCL) {
+            // for tie-breaking, give objective value of 1 to every mobile leaf
+            obj = 1.0;
+        }
+        variables.push_back(lp::LPVariable(0.0, 1.0, obj, true));
+    }
+
+    // an LP variable for every potential leaf that is 1 iff the leaf is conclusive
+    vector<int> concl_pleaf_lp_vars;
+    if (strategy == STRATEGY::MCL) {
+        assert(variables.size() == static_cast<int>(potential_leaves.size()));
+        for (size_t i = 0; i < potential_leaves.size(); ++i) {
+            concl_pleaf_lp_vars.push_back(variables.size());
+            variables.push_back(lp::LPVariable(0.0, 1.0, 100.0, true));
+        }
+        assert(concl_pleaf_lp_vars.size() == potential_leaves.size());
+        assert(variables.size() == 2 * static_cast<int>(potential_leaves.size()));
     }
 
     // binary var for each action schema of each potential leaf; 1 => is mobile, 0 => not
     vector<vector<size_t>> mob_as_var_ids(potential_leaves.size());
     // binary var for each action schema of each potential leaf; 1 => is conclusive for potential leaf, 0 => not
     vector<vector<size_t>> concl_as_var_ids(potential_leaves.size());
-    // for every potential leaf, the list of action schemas that need to be checked for conclusiveness
-    vector<vector<size_t>> concl_as_ids_by_pleaf(potential_leaves.size());
+
+    // for every potential leaf we store the list of action schemas relevant for the constraints;
+    // for MCL, this is the schemas that can be neither irrelevant nor conclusive for the leaf,
+    // for MCM, it's the schemas that become irrelevant or conclusive as global actions
+    vector<vector<size_t>> relevant_as_by_pleaf(potential_leaves.size());
 
     // list of LP variable IDs that represent mob_as_var_ids for every action schemas, i.e.,
     // the corresponding LP variable IDs across potential leaves
     vector<vector<size_t>> as_to_mob_as_var_ids(action_schemas.size());
 
     for (const PotentialLeaf &pleaf : potential_leaves){
-        if (strategy == STRATEGY::MCL &&
-            !pleaf.self_mobile_as.empty()){
-            // TODO include condition for self-conclusiveness, e.g. single-var inverted-fork leaves.
-            // if the leaf is self-mobile, there is no need to force
-            // one of its action schemas to be mobile
-            continue;
-        }
         for (auto as_id : pleaf.action_schemes){
             as_to_mob_as_var_ids[as_id].push_back(variables.size());
             mob_as_var_ids[pleaf.id].push_back(variables.size());
@@ -414,26 +420,36 @@ void LPFactoring::construct_lp_conclusive(named_vector::NamedVector<lp::LPVariab
                 // action schema is in pleaf => cannot be conclusive for pleaf
                 continue;
             }
-            bool can_be_conclusive = false;
+            bool conclusive_or_irrelevant = false;
             if (has_as_pre_or_eff_on_leaf(action_schemas[as_id], pleaf)){
                 if (is_as_leaf_conclusive(action_schemas[as_id], pleaf)){
-                    can_be_conclusive = true;
+                    conclusive_or_irrelevant = true;
                 }
             } else if (is_as_leaf_irrelevant(action_schemas[as_id], pleaf)){
-                can_be_conclusive = true;
+                conclusive_or_irrelevant = true;
             }
-            if (!can_be_conclusive){
-                // the leaf cannot be conclusive for this potential leaf, no need to add variables for the objective value
-                continue;
+            if (strategy == STRATEGY::MCM){
+                if (!conclusive_or_irrelevant){
+                    // the action schema cannot be conclusive for this potential leaf, no need to add variables for the objective value
+                    continue;
+                }
+            } else {
+                assert(strategy == STRATEGY::MCL);
+                if (conclusive_or_irrelevant){
+                    // the action schema will be conclusive or irrelevant for the leaf, no need to add a constraint
+                    continue;
+                }
             }
 
-            double obj = 0.0;
+            relevant_as_by_pleaf[pleaf.id].push_back(as_id);
+
             if (strategy == STRATEGY::MCM) {
-                obj = action_schemas[as_id].num_actions;
+                concl_as_var_ids[pleaf.id].push_back(variables.size());
+                variables.push_back(lp::LPVariable(0.0,
+                                                   1.0,
+                                                   action_schemas[as_id].num_actions,
+                                                   true));
             }
-            concl_as_ids_by_pleaf[pleaf.id].push_back(as_id);
-            concl_as_var_ids[pleaf.id].push_back(variables.size());
-            variables.push_back(lp::LPVariable(0.0, 1.0, obj, true));
         }
     }
 
@@ -457,19 +473,38 @@ void LPFactoring::construct_lp_conclusive(named_vector::NamedVector<lp::LPVariab
 
     // add constraints such that conclusiveness of action schemas for pleaves is set properly
     for (const auto &pleaf : potential_leaves) {
-        for (size_t concl_as_id_i = 0; concl_as_id_i < concl_as_ids_by_pleaf[pleaf.id].size(); ++concl_as_id_i) {
+        if (strategy == STRATEGY::MCL) {
             lp::LPConstraint constraint1(-infty, 0.0);
             constraint1.insert(pleaf.id, -1.0);
-            constraint1.insert(concl_as_var_ids[pleaf.id][concl_as_id_i], 1.0);
-            // action schema can only be conclusive for pleaf if pleaf becomes a leaf
+            constraint1.insert(concl_pleaf_lp_vars[pleaf.id], 1.0);
+            // pleaf can only be conclusive if it becomes a (mobile) leaf
             constraints.push_back(constraint1);
+        }
+        for (size_t i = 0; i < relevant_as_by_pleaf[pleaf.id].size(); ++i) {
+            size_t as_id = relevant_as_by_pleaf[pleaf.id][i];
+            if (strategy == STRATEGY::MCM){
+                lp::LPConstraint constraint1(-infty, 0.0);
+                constraint1.insert(pleaf.id, -1.0);
+                constraint1.insert(concl_as_var_ids[pleaf.id][i], 1.0);
+                // action schema can only be conclusive for pleaf if pleaf becomes a leaf
+                constraints.push_back(constraint1);
 
-            // action schema can be conclusive for pleaf only if it is a global action schema, i.e., iff it is not mobile for any potential leaf
-            size_t concl_as_id = concl_as_ids_by_pleaf[pleaf.id][concl_as_id_i];
-            for (auto as_mob_var_id : as_to_mob_as_var_ids[concl_as_id]) {
-                lp::LPConstraint constraint2(-infty, 1.0);
-                constraint2.insert(concl_as_var_ids[pleaf.id][concl_as_id_i], 1.0);
-                constraint2.insert(as_mob_var_id, 1.0);
+                // action schema can be conclusive for pleaf only if it is a global action schema, i.e., iff it is not mobile for any potential leaf
+                for (auto as_mob_var_id : as_to_mob_as_var_ids[as_id]) {
+                    lp::LPConstraint constraint2(-infty, 1.0);
+                    constraint2.insert(concl_as_var_ids[pleaf.id][i], 1.0);
+                    constraint2.insert(as_mob_var_id, 1.0);
+                    constraints.push_back(constraint2);
+                }
+            } else {
+                assert(strategy == STRATEGY::MCL);
+
+                // action schema cannot be conclusive or irrelevant for pleaf so needs to be leaf-only for some potential leaf
+                lp::LPConstraint constraint2(-infty, 0.0);
+                constraint2.insert(concl_pleaf_lp_vars[pleaf.id], 1.0);
+                for (auto as_mob_var_id : as_to_mob_as_var_ids[as_id]) {
+                    constraint2.insert(as_mob_var_id, -1.0);
+                }
                 constraints.push_back(constraint2);
             }
         }
