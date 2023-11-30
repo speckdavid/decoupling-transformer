@@ -123,18 +123,21 @@ vector<size_t> LPFactoring::add_center_variables_and_get_ids(named_vector::Named
     }
 
     // set center vars if potential leaf is not a leaf
-    for (size_t pleaf = 0; pleaf < potential_leaves.size(); ++pleaf) {
+    for (const auto &pleaf : potential_leaves) {
         // only consider the variables that can possibly be leaf variables
-        vector<int> vars;
-        for (int var : potential_leaves[pleaf].vars){
+        int num_vars = 0;
+        for (int var : pleaf.vars){
             if (can_be_leaf_var[var]){
-                vars.push_back(var);
+                ++num_vars;
             }
         }
-        lp::LPConstraint constraint(-infty, vars.size());
-        constraint.insert(pleaf, vars.size());
-        for (int var : vars) {
-            constraint.insert(c_vars_ids[var], 1.0);
+        lp::LPConstraint constraint(-infty, num_vars);
+        constraint.insert(pleaf.id, num_vars);
+        // if pleaf becomes leaf, then none of its variables can be center vars
+        for (int var : pleaf.vars) {
+            if (can_be_leaf_var[var]) {
+                constraint.insert(c_vars_ids[var], 1.0);
+            }
         }
         constraints.push_back(constraint);
     }
