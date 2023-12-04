@@ -522,6 +522,10 @@ void LPFactoring::construct_lp_all(named_vector::NamedVector<lp::LPVariable> &va
     vector<vector<unordered_map<size_t, size_t>>> facts_to_mobility;
     vector<vector<size_t>> sum_fact_mobility;
     if (strategy == STRATEGY::MFA){
+
+        // TODO properly fix this without recomputing the action schemas
+        action_schemas.clear(); // these were most probably initialized already
+
         // need to store information for effect *facts*, which gets otherwise lost
         facts_to_mobility.resize(task->get_num_variables());
         for (int var = 0; var < task->get_num_variables(); ++var){
