@@ -6,7 +6,11 @@ import platform
 import subprocess
 import sys
 
+from collections import defaultdict
+
 from lab import tools
+
+from lab.reports import Attribute, geometric_mean, arithmetic_mean
 
 from downward.experiment import FastDownwardExperiment
 from downward.reports.absolute import AbsoluteReport
@@ -43,14 +47,13 @@ DEFAULT_OPTIMAL_SUITE = [
 DEFAULT_SATISFICING_SUITE = [
     'agricola-sat18-strips', 'airport', 
     'barman-sat11-strips', 'barman-sat14-strips', 'blocks',
-    'childsnack-sat14-strips', 'citycar-sat14-adl',
-    'data-network-sat18-strips', 'depot', 'driverlog',
+    'childsnack-sat14-strips', 'data-network-sat18-strips', 'depot', 'driverlog',
     'elevators-sat08-strips', 'elevators-sat11-strips',
     'floortile-sat11-strips', 'floortile-sat14-strips', 'freecell', 
     'folding-sat23-norm', 'ged-sat14-strips', 'grid',
     'gripper', 'hiking-sat14-strips', 'logistics00', 'logistics98',
     'maintenance-sat14-adl', 'miconic', 'movie', 'mprime', 'mystery',
-    'nomystery-sat11-strips', 'nurikabe-sat18-adl', 'openstacks', 
+    'nomystery-sat11-strips',  
     'openstacks-sat08-strips', 'openstacks-sat11-strips', 'openstacks-sat14-strips',
     'openstacks-strips', 'organic-synthesis-sat18-strips',
     'organic-synthesis-split-sat18-strips', 'parcprinter-08-strips',
@@ -73,6 +76,95 @@ DEFAULT_SATISFICING_SUITE = [
     'woodworking-sat08-strips', 'woodworking-sat11-strips',
     'zenotravel']
 
+DEFAULT_UNSOLVABILITY_SUITE = [
+    ""
+]
+
+ATTRIBUTES = [
+    "cost",
+    "coverage",
+    "error",
+    "evaluations",
+    "expansions",
+    "expansions_until_last_jump",
+    "generated",
+    "memory",
+    "planner_memory",
+    "planner_time",
+    "run_dir",
+    "search_time",
+    "total_time",
+
+    Attribute('search_out_of_memory', absolute=True, min_wins=True),
+    Attribute('search_out_of_time', absolute=True, min_wins=True),
+
+    # decoupled attributes
+    Attribute('factoring_time', absolute=False, min_wins=True, function=arithmetic_mean),
+    Attribute("number_leaf_factors", absolute=True, min_wins=False),
+
+    Attribute('ff_simplify_time', absolute=False, min_wins=True, function=arithmetic_mean),
+    Attribute('ff_num_unary_operators', absolute=False, min_wins=True, function=sum),
+        
+    Attribute('transformation_time', absolute=False, min_wins=True, function=arithmetic_mean),
+    Attribute('task_size', absolute=False, min_wins=True, function=sum),
+    Attribute('original_task_size', absolute=False, min_wins=True, function=sum),
+    Attribute('number_variables', absolute=False, min_wins=True, function=sum),
+    Attribute('number_prime_variables', absolute=False, min_wins=True, function=sum),
+    Attribute('number_second_variables', absolute=False, min_wins=True, function=sum),
+    Attribute('number_operators', absolute=False, min_wins=True, function=sum),
+    Attribute('number_axioms', absolute=False, min_wins=True, function=sum),
+
+    Attribute('number_conclusive_leaves', absolute=True, min_wins=False),
+    Attribute('number_normal_leaves', absolute=True, min_wins=False),
+
+    Attribute('exhausted_search_space', absolute=True, min_wins=False),
+
+]
+
+class NonDecoupledTaskFilter:
+    def __init__(self, reference_configs=None):
+        self.decoupled_tasks = defaultdict(set)
+        self.factoring_not_possible_tasks = defaultdict(set)
+        self.maybe_not_possible_tasks = defaultdict(set)
+
+        self.unsupported_tasks = defaultdict(set)
+
+        self.reference_configs = reference_configs
+
+    def add_runs(self, run):
+        domain = run["domain"]
+        problem = run["problem"]
+        if run["error"] == "search-unsupported":
+            self.unsupported_tasks[domain].add(problem)
+        if self.reference_configs and run["algorithm"] not in self.reference_configs:
+            return run
+        if "number_leaf_factors" in run and run["number_leaf_factors"] > 0:
+            self.decoupled_tasks[domain].add(problem)
+        elif ("is_lp_factoring" in run and run["is_lp_factoring"] == 1) or ("is_miura_factoring" in run and run["is_miura_factoring"] == 1):
+            self.maybe_not_possible_tasks[domain].add(problem)
+        if "factoring_possible" in run and run["factoring_possible"] == 0:
+            self.factoring_not_possible_tasks[domain].add(problem) 
+        return run
+
+    def filter_non_decoupled_runs(self, run):
+        problem = run["problem"]
+        domain = run["domain"]
+        if problem in self.unsupported_tasks[domain]:
+            return False
+        if problem in self.factoring_not_possible_tasks[domain]:
+            return False
+        if problem in self.maybe_not_possible_tasks[domain] and problem not in self.decoupled_tasks[domain]:
+            return False
+        return run
+
+    def print_statistics(self):
+        print(f"Number instances where factoring is not possible: {sum(len(tasks) for tasks in self.factoring_not_possible_tasks.values())}")
+        print(f"Number instances where factoring was found: {sum(len(tasks) for tasks in self.decoupled_tasks.values())}")
+        print(f"Number instances where factoring may not be possible: {sum(len(tasks) for tasks in self.maybe_not_possible_tasks.values())}")
+        print(f"Number unsupported instances: {sum(len(tasks) for tasks in self.unsupported_tasks.values())}")
+
+
+        
 
 def get_script():
     """Get file name of main script."""
@@ -156,14 +248,7 @@ class IssueExperiment(FastDownwardExperiment):
         "memory",
         "planner_memory",
         "planner_time",
-        "quality",
         "run_dir",
-        "score_evaluations",
-        "score_expansions",
-        "score_generated",
-        "score_memory",
-        "score_search_time",
-        "score_total_time",
         "search_time",
         "total_time",
         ]
