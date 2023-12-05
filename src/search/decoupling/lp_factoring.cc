@@ -84,6 +84,10 @@ LPFactoring::LPFactoring(const plugins::Options &opts) : Factoring(opts),
         log << "Option max_merge_steps needs to be set > 0 for \"merge_dependent\" or \"merge_overlapping\" to have an effect." << endl;
         exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
+    if (strategy != STRATEGY::MFA && min_fact_flexibility > 0.0){
+        log << "Option min_fact_flexibility is only possible in combination with strategy MFA." << endl;
+        exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+    }
 }
 
 inline void get_combinations(const vector<size_t> &act_schemas,
