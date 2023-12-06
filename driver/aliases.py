@@ -133,6 +133,15 @@ ALIASES["lama-first"] = [
     """lazy_greedy([hff,hlm],preferred=[hff,hlm],
                                cost_type=one,reopen_closed=false)))"""]
 
+ALIASES["dec-ls1l-lama-first"] = [
+    "--root-task-transform",
+    "decoupled(factoring=lp(factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_number_leaves=1))",
+    "--search",
+    "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
+    "let(hff, ff(transform=adapt_costs(one)),"
+    """lazy_greedy([hff,hlm],preferred=[hff,hlm],
+                               cost_type=one,reopen_closed=false)))"""]
+
 ALIASES["dec-l1s1m-lama-first"] = [
     "--root-task-transform",
     "decoupled(factoring=lp(factoring_time_limit=30, strategy=mml, min_flexibility=1.0, add_cg_sccs=true, max_leaf_size=1000000))",
