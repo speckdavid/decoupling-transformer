@@ -21,7 +21,7 @@ import decoupling_parser
 DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_NAME = os.path.splitext(os.path.basename(__file__))[0]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
-REVISION = ""
+REVISION = "e696e5eedaaec073409dbcf42be686437e40b4ad"
 REVISIONS = [REVISION]
 
 CONFIGS = []

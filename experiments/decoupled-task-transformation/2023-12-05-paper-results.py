@@ -42,11 +42,14 @@ exp.add_fetcher("/proj/parground/users/x_dangn/decoupled-fd/experiments/decoupli
 MS_REVISION = "8c2bbe375222e0ba6cdb83b4c79ee4ade6e884ad"
 exp.add_fetcher("/proj/parground/users/x_dangn/torralba-sievers-ijcai2019-fast-downward/experiments/decoupling-transformer/data/2023-12-04-ff-po-als-eval", name="fetch-ms", merge=True, filter=[remove_revision])
 
-#ONE_L_REVISION = "32ef3a7297057a014a389c1291c3696f00d22ad4"
-#exp.add_fetcher("data/2023-12-05-one-leaf-no-restriction-eval", name="fetch-one-leaf-no-res", merge=True, filter=[remove_revision])
+C_ONE_L_REVISION = "32ef3a7297057a014a389c1291c3696f00d22ad4"
+exp.add_fetcher("data/2023-12-05-one-leaf-no-restriction-eval", name="fetch-one-leaf-no-res-C", merge=True, filter=[remove_revision])
 
-NOOPT_ONE_L_REVISION = "32ef3a7297057a014a389c1291c3696f00d22ad4"
-exp.add_fetcher("data/2023-12-06-ff-no-concl-opt-eval", name="fetch-no-concl-opt-single-leaf-F", merge=True, filter=[remove_revision])
+L_ONE_L_REVISION = "e696e5eedaaec073409dbcf42be686437e40b4ad"
+exp.add_fetcher("data/2023-12-06-L-one-leaf-no-restriction-eval", name="fetch-one-leaf-no-res-L", merge=True, filter=[remove_revision])
+
+NOOPT_REVISION = "32ef3a7297057a014a389c1291c3696f00d22ad4"
+exp.add_fetcher("data/2023-12-06-ff-no-concl-opt-eval", name="fetch-no-concl-opt-one-leaf-no-res-F", merge=True, filter=[remove_revision])
 
 
 attributes = common_setup.ATTRIBUTES
@@ -103,13 +106,13 @@ def remove_non_final_algorithms(run):
         return run
     return False
 
-FORMAT = "tex"
+FORMAT = "html"
 
 dec_filter = common_setup.NonDecoupledTaskFilter(["ff-F0.2s1M"])
 comp_coverage = CompactCoverageFilter()
 exp.add_report(AbsoluteReport(attributes=[Attribute("compact_coverage", absolute=True, min_wins=False)], filter=[remove_non_final_algorithms, dec_filter.add_runs, dec_filter.filter_non_decoupled_runs, comp_coverage.add_run, comp_coverage.set_compact_coverage], filter_algorithm=BIG_TABLE_ALGORITHMS, format=FORMAT), outfile=f"{SCRIPT_NAME}-filter-F0.2s1M-coverage.{FORMAT}")
 
-MF_TABLE_ALGORITHMS = ["ff-Fs1L", "ff-po", "ff-MF", "dec-cs1l-lama-first", "lama-first", "dec-mf-lama-first"]
+MF_TABLE_ALGORITHMS = ["ff-Cs1L", "ff-Ls1L", "ff-po", "ff-MF", "dec-cs1l-lama-first", "dec-ls1l-lama-first", "lama-first", "dec-mf-lama-first"]
 
 def remove_non_1leaf_algorithms(run):
     if run["algorithm"] in MF_TABLE_ALGORITHMS:
@@ -163,8 +166,52 @@ exp.add_report(
     name="scatterplot-task-size-optimization",
 )
 
+class TranformationTimeChecker:
+    def __init__(self, config):
+        self.config = config
+        self.times = [0] * 7
+        self.max_time = 0
+    def get_time(self, run):
+        if run["algorithm"] == self.config:
+            if "transformation_time" in run:
+                time = run["transformation_time"]
+                self.max_time = max(time, self.max_time)
+                if time < 1:
+                    self.times[0] += 1
+                elif time < 5:
+                    self.times[1] += 1
+                elif time < 10:
+                    self.times[2] += 1
+                elif time < 30:
+                    self.times[3] += 1
+                elif time < 60:
+                    self.times[4] += 1
+                else:
+                    self.times[5] += 1
+            else:
+                if "number_leaf_factors" in run:
+                    self.times[6] += 1
+        return run
+    def print_histogram(self):
+        print(f"Transformation time statistics: max={self.max_time}s")
+        print("<1s\t<5s\t<10s\t<30s\t<60s\t>=60s\tDNF")
+        print("\t".join(str(x) for x in self.times))
+
+trans_time_check = TranformationTimeChecker("ff-F0.2s1M")
+exp.add_report(
+    ScatterPlotReport(
+        attributes=["task_size"],
+        filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1M"],
+        filter=[trans_time_check.get_time],
+        #get_category=domain_as_category,
+        format="png",  # Use "tex" for pgfplots output.
+    ),
+    name="garbage",
+)
 
 exp.run_steps()
+
+trans_time_check.print_histogram()
 
 dec_filter.print_statistics()
 
