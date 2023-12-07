@@ -128,6 +128,7 @@ class NonDecoupledTaskFilter:
         self.maybe_not_possible_tasks = defaultdict(set)
 
         self.unsupported_tasks = defaultdict(set)
+        self.translate_oom_tasks = defaultdict(set)
 
         self.reference_configs = reference_configs
 
@@ -136,6 +137,8 @@ class NonDecoupledTaskFilter:
         problem = run["problem"]
         if run["error"] == "search-unsupported":
             self.unsupported_tasks[domain].add(problem)
+        if run["error"] == "translate-out-of-memory":
+            self.translate_oom_tasks[domain].add(problem)
         if self.reference_configs and run["algorithm"] not in self.reference_configs:
             return run
         if "number_leaf_factors" in run and run["number_leaf_factors"] > 0:
@@ -150,6 +153,8 @@ class NonDecoupledTaskFilter:
         problem = run["problem"]
         domain = run["domain"]
         if problem in self.unsupported_tasks[domain]:
+            return False 
+        if problem in self.translate_oom_tasks[domain]:
             return False
         if problem in self.factoring_not_possible_tasks[domain]:
             return False

@@ -83,7 +83,7 @@ exp.add_report(AbsoluteReport(attributes=attributes, filter=[dec_filter.add_runs
 #
 #dec_filter = common_setup.NonDecoupledTaskFilter([f"ff-F0.2s1M"])
 #exp.add_report(AbsoluteReport(attributes=["coverage"], filter=[dec_filter.add_runs, dec_filter.filter_non_decoupled_runs, filter_no_C_factoring, filter_only_lama]), outfile=f"{SCRIPT_NAME}-filter-F0.2s1M-coverage-lama.html")
-#exp.add_report(AbsoluteReport(attributes=["coverage"], filter=[dec_filter.filter_non_decoupled_runs, filter_no_C_factoring, filter_no_lama]), outfile=f"{SCRIPT_NAME}-filter-F0.2s1M-coverage-ff-po.html")
+#exp.add_report(AbsoluteReport(attributes=["coverage"], filter=[dec_filter.add_runs, dec_filter.filter_non_decoupled_runs, filter_no_C_factoring, filter_no_lama]), outfile=f"{SCRIPT_NAME}-filter-F0.2s1M-coverage-ff-po.html")
 
 class CompactCoverageFilter():
     def __init__(self):
@@ -191,18 +191,21 @@ class TranformationTimeChecker:
             else:
                 if "number_leaf_factors" in run:
                     self.times[6] += 1
+                else:
+                    print(f"unknown: {run['domain']}:{run['problem']}")
         return run
     def print_histogram(self):
         print(f"Transformation time statistics: max={self.max_time}s")
         print("<1s\t<5s\t<10s\t<30s\t<60s\t>=60s\tDNF")
         print("\t".join(str(x) for x in self.times))
 
+dec_filter = common_setup.NonDecoupledTaskFilter(["ff-F0.2s1M"])
 trans_time_check = TranformationTimeChecker("ff-F0.2s1M")
 exp.add_report(
     ScatterPlotReport(
         attributes=["task_size"],
         filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1M"],
-        filter=[trans_time_check.get_time],
+        filter=[dec_filter.add_runs, dec_filter.filter_non_decoupled_runs, trans_time_check.get_time],
         #get_category=domain_as_category,
         format="png",  # Use "tex" for pgfplots output.
     ),
