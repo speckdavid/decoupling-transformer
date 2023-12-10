@@ -125,6 +125,8 @@ public:
 
     bool is_fork_leaf(FactorID leaf) const;
     bool is_ifork_leaf(FactorID leaf) const;
+    bool is_fork_leaf(int leaf) const;
+    bool is_ifork_leaf(int leaf) const;
     bool is_fork_factoring() const;
 
     bool has_pre_on_leaf(OperatorID op_id, FactorID leaf) const;

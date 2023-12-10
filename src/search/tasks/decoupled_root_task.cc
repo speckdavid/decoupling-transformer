@@ -414,18 +414,20 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
         }
 
         // Negative conditional effect
-        ExplicitEffect eff(pvar, 0, vector<FactPair>());
-        for (int pred : predecessor_ls) {
-            int svar_pred = leaf_lstate_to_svar[leaf][pred];
-            eff.conditions.emplace_back(svar_pred, 0);
+        if (!skip_unnecessary_leaf_effects || !factoring->is_fork_leaf(leaf)) {
+            ExplicitEffect eff(pvar, 0, vector<FactPair>());
+            for (int pred: predecessor_ls) {
+                int svar_pred = leaf_lstate_to_svar[leaf][pred];
+                eff.conditions.emplace_back(svar_pred, 0);
+            }
+            // sort(eff.conditions.begin(), eff.conditions.end());
+
+            assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
+                                 [](const auto &a, const auto &b) { return a.var == b.var; }) == eff.conditions.end()
+                   && "Multiple effect conditions for the same variable!");
+
+            new_op.effects.push_back(eff);
         }
-        // sort(eff.conditions.begin(), eff.conditions.end());
-
-        assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
-                             [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
-               && "Multiple effect conditions for the same variable!");
-
-        new_op.effects.push_back(eff);
     }
 }
 

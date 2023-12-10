@@ -506,6 +506,18 @@ bool Factoring::is_ifork_leaf(FactorID leaf) const {
     return interaction_graph->is_ifork_leaf(leaf);
 }
 
+bool Factoring::is_fork_leaf(int leaf_) const {
+    assert(leaf_ >= 0 && leaf_ < FactorID::CENTER);
+    FactorID leaf(leaf_);
+    return interaction_graph->is_fork_leaf(leaf);
+}
+
+bool Factoring::is_ifork_leaf(int leaf_) const {
+    assert(leaf_ >= 0 && leaf_ < FactorID::CENTER);
+    FactorID leaf(leaf_);
+    return interaction_graph->is_ifork_leaf(leaf);
+}
+
 bool Factoring::is_fork_factoring() const {
     for (FactorID leaf(0); leaf < get_num_leaves(); ++leaf) {
         if (!is_fork_leaf(leaf)) {
