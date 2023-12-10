@@ -414,7 +414,7 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
         }
 
         // Negative conditional effect
-        if (!skip_unnecessary_leaf_effects || !factoring->is_fork_leaf(leaf)) {
+        if (!skip_unnecessary_leaf_effects || factoring->has_pre_or_eff_on_leaf(op_id, leaf)) {
             ExplicitEffect eff(pvar, 0, vector<FactPair>());
             for (int pred: predecessor_ls) {
                 int svar_pred = leaf_lstate_to_svar[leaf][pred];
