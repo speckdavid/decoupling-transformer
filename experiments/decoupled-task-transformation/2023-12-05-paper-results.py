@@ -233,12 +233,50 @@ exp.add_report(
         #get_category=domain_as_category,
         format="png",  # Use "tex" for pgfplots output.
     ),
-    name="garbage",
+    name="get-transformation-time-statistics",
 )
+
+class MFTimeChecker:
+    def __init__(self):
+        self.times = defaultdict(lambda: list([-1, -1]))
+    def get_time(self, run):
+        if run["coverage"] == 1 and run["algorithm"] in ["ff-MF", "ff-po", "dec-mf-lama-first", "lama-first"]:
+            run_id = f"{run['domain']}:{run['problem']}"
+            if run["algorithm"] == "ff-MF":
+                self.times[f"ff:{run_id}"][1] = run["planner_time"]
+            elif run["algorithm"] == "ff-po":
+                self.times[f"ff:{run_id}"][0] = run["planner_time"]
+            elif run["algorithm"] == "dec-mf-lama-first":
+                self.times[f"lama:{run_id}"][1] = run["planner_time"]
+            elif run["algorithm"] == "lama-first":
+                self.times[f"lama:{run_id}"][0] = run["planner_time"]
+        return run
+    def print_statistics(self):
+        if self.times.values():
+            entries = list(self.times.values())
+            assert all(len(x) == 2 for x in entries)
+            ratios = [x[0] / x[1] for x in entries if all(e >= 0 for e in x)]
+            print(f"Max speedup of MF over SAS baseline:  {max(ratios)}")
+            print(f"geometric mean speedup of MF over SAS baseline:   {geometric_mean(ratios)}")
+            print(f"artithmetic mean speedup of MF over SAS baseline: {arithmetic_mean(ratios)}")
+            print(len(ratios))
+
+mf_time_check = MFTimeChecker()
+exp.add_report(
+    ScatterPlotReport(
+        attributes=["task_size"],
+        filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1Mnceffo"],
+        filter=[mf_time_check.get_time],
+        #get_category=domain_as_category,
+        format="png",  # Use "tex" for pgfplots output.
+    ),
+    name="get-mf-runtime-statistics",
+)
+
 
 exp.run_steps()
 
 trans_time_check.print_histogram()
 
-dec_filter.print_statistics()
+mf_time_check.print_statistics()
 
