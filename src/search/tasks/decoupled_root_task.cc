@@ -145,6 +145,28 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
     return true;
 }
 
+bool DecoupledRootTask::is_conclusive_operator(int op_id, int leaf) const {
+    if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
+        return false;
+
+    vector<int> leaf_variables = factoring->get_leaf(leaf);
+
+    unordered_map<int, int> relevant_effects;
+    for (auto const &pre : original_root_task->operators[op_id].preconditions) {
+        if (factoring->get_factor(pre.var) == leaf) {
+            relevant_effects[pre.var] = pre.value;
+        }
+    }
+    for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
+        FactPair eff = expl_eff.fact;
+        if (factoring->get_factor(eff.var) == leaf) {
+            relevant_effects[eff.var] = eff.value;
+        }
+    }
+
+    return (int)relevant_effects.size() == factoring->get_num_leaf_variables(leaf);
+}
+
 bool DecoupledRootTask::is_conclusive_leaf(int leaf) const {
     return factoring->is_conclusive_leaf(leaf);
 }
@@ -423,7 +445,7 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
             // sort(eff.conditions.begin(), eff.conditions.end());
 
             assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
-                                 [](const auto &a, const auto &b) { return a.var == b.var; }) == eff.conditions.end()
+                                 [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
                    && "Multiple effect conditions for the same variable!");
 
             new_op.effects.push_back(eff);
@@ -431,10 +453,9 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
     }
 }
 
-void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf) {
+void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf, ConclusiveLeafEncoding encoding) {
     if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
         return;
-
 
     vector<int> leaf_variables = factoring->get_leaf(leaf);
 
@@ -453,7 +474,7 @@ void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, Expli
 
     assert((int)relevant_effects.size() == factoring->get_num_leaf_variables(leaf));
 
-    if (conclusive_leaf_encoding == ConclusiveLeafEncoding::MULTIVALUED) {
+    if (encoding == ConclusiveLeafEncoding::MULTIVALUED) {
         for (auto const & [var, val] : relevant_effects) {
             int mapped_pvar = conclusive_leaf_var_to_pvar[var];
             op.effects.emplace_back(mapped_pvar, val, vector<FactPair>());
@@ -487,12 +508,18 @@ void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, Expli
 void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator &op) {
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         if (conclusive_leaf_encoding && is_conclusive_leaf(leaf)) {
-            set_conclusive_leaf_effects_of_operator(op_id, op, leaf);
+            set_conclusive_leaf_effects_of_operator(op_id, op, leaf, conclusive_leaf_encoding);
         } else {
-            if (!skip_unnecessary_leaf_effects ||
-                factoring->has_pre_or_eff_on_leaf(op_id, leaf) ||
-                factoring->does_op_restrict_leaf(op_id, leaf)) {
+            if (!skip_unnecessary_leaf_effects) {
                 set_general_leaf_effects_of_operator(op_id, op, leaf);
+            } else {
+                if (factoring->has_pre_or_eff_on_leaf(op_id, leaf) || factoring->does_op_restrict_leaf(op_id, leaf)) {
+                    if (is_conclusive_operator(op_id, leaf)) {
+                        set_conclusive_leaf_effects_of_operator(op_id, op, leaf, ConclusiveLeafEncoding::BINARY);
+                    } else {
+                        set_general_leaf_effects_of_operator(op_id, op, leaf);
+                    }
+                }
             }
         }
     }
@@ -721,7 +748,7 @@ public:
                                                       "method that computes the factoring");
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
         add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Optimization for inverted forks with a single variable", "multivalued");
-        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
+        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence or are conclusive on the leaf.", "true");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }

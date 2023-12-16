@@ -66,6 +66,7 @@ protected:
     void write_sas_file(const std::string file_name) const;
 
     bool are_initial_states_consistent() const;
+    bool is_conclusive_operator(int op_id, int leaf) const;
     bool is_conclusive_leaf(int leaf) const;
 
     // variables
@@ -84,7 +85,7 @@ protected:
     void set_preconditions_of_operator(int op_id, ExplicitOperator &op);
     void set_center_effects_of_operator(int op_id, ExplicitOperator &op);
     void set_general_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);
-    void set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);
+    void set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf, ConclusiveLeafEncoding encoding);
     void set_leaf_effects_of_operator(int op_id, ExplicitOperator &op);
     void create_operator(int op_id);
     void create_operators();
