@@ -54,6 +54,9 @@ exp.add_fetcher("/proj/parground/users/x_dangn/torralba-sievers-ijcai2019-fast-d
 NOOPT_REVISION = "d261f84e10bc1fd8ef4f8e01e92635023e332f34"
 exp.add_fetcher("data/2023-12-10-neg-ceff-optimization-eval", name="fetch-neg-ceff-opt", merge=True, filter=[remove_revision])
 
+CON_ACT_OPT_REVISION = "043b332d86514a1703ccda263641cd4f9336a30a"
+exp.add_fetcher("data/2023-12-18-concl-act-opt-eval", name="fetch-concl-act-opt", merge=True, filter=[remove_revision])
+
 attributes = common_setup.ATTRIBUTES
 
 dec_filter = common_setup.NonDecoupledTaskFilter()
@@ -101,18 +104,18 @@ class CompactCoverageFilter():
             run["domain"] = "zzOther"
         return run
 
-BIG_TABLE_ALGORITHMS = ["ff-F0.2s1Mnopt", "ff-F0.2s1Mnceffo", "ff-po", "DS-ff-F0.2s1M", "RS-a-ls", "dec-f02s1m-lama-nceffo", "lama-first"]
+BIG_TABLE_ALGORITHMS = ["ff-F0.2s1Mnopt", "ff-F0.2s1Mnceffo", "ff-F0.2s1Mcao", "ff-po", "DS-ff-F0.2s1M", "RS-a-ls", "dec-f02s1m-lama-nceffo", "dec-f02s1m-lama-cao", "lama-first"]
 
 def remove_non_final_algorithms(run):
     if run["algorithm"] in BIG_TABLE_ALGORITHMS:
         return run
     return False
 
-FORMAT = "tex"
+FORMAT = "html"
 
-dec_filter1 = common_setup.NonDecoupledTaskFilter(["ff-F0.2s1Mnceffo"])
+dec_filter1 = common_setup.NonDecoupledTaskFilter(["ff-F0.2s1Mcao"])
 comp_coverage1 = CompactCoverageFilter()
-exp.add_report(AbsoluteReport(attributes=[Attribute("compact_coverage", absolute=True, min_wins=False)], filter=[remove_non_final_algorithms, dec_filter1.add_runs, dec_filter1.filter_non_decoupled_runs, comp_coverage1.add_run, comp_coverage1.set_compact_coverage], filter_algorithm=BIG_TABLE_ALGORITHMS, format=FORMAT), outfile=f"{SCRIPT_NAME}-filter-F0.2s1M-coverage.{FORMAT}")
+exp.add_report(AbsoluteReport(attributes=[Attribute("compact_coverage", absolute=True, min_wins=False), "task_size", "planner_time", "error", "planner_memory"], filter=[remove_non_final_algorithms, dec_filter1.add_runs, dec_filter1.filter_non_decoupled_runs, comp_coverage1.add_run, comp_coverage1.set_compact_coverage], filter_algorithm=BIG_TABLE_ALGORITHMS, format=FORMAT), outfile=f"{SCRIPT_NAME}-filter-F0.2s1M-coverage.{FORMAT}")
 
 MF_TABLE_ALGORITHMS = ["ff-Cs1Lnceffo", "ff-Ls1Lnceffo", "ff-po", "ff-MF", "dec-cs1l-lama-nceffo", "dec-ls1l-lama-nceffo", "lama-first", "dec-mf-lama-first"]
 
@@ -155,7 +158,7 @@ def concl_leaf_ratio_as_category(run1, run2):
     return ratio
 
 
-PLOT_FORMAT = "tex"
+PLOT_FORMAT = "png"
 
 size_setter = PlotTaskSizeSetter()
 exp.add_report(
@@ -178,6 +181,16 @@ exp.add_report(
         show_missing=False,
     ),
     name="scatterplot-task-size-optimization",
+)
+exp.add_report(
+    ScatterPlotReport(
+        attributes=["task_size"],
+        filter_algorithm=["ff-F0.2s1Mnceffo", "ff-F0.2s1Mcao"],
+        get_category=concl_leaf_ratio_as_category,
+        format=PLOT_FORMAT,
+        show_missing=False,
+    ),
+    name="scatterplot-task-size-optimization-concl-actions",
 )
 exp.add_report(
     ScatterPlotReport(
@@ -223,12 +236,12 @@ class TranformationTimeChecker:
         print("<1s\t<5s\t<10s\t<30s\t<60s\t>=60s\tDNF")
         print("\t".join(str(x) for x in self.times))
 
-dec_filter3 = common_setup.NonDecoupledTaskFilter(["ff-F0.2s1Mnceffo"])
-trans_time_check = TranformationTimeChecker("ff-F0.2s1Mnceffo")
+dec_filter3 = common_setup.NonDecoupledTaskFilter(["ff-F0.2s1Mcao"])
+trans_time_check = TranformationTimeChecker("ff-F0.2s1Mcao")
 exp.add_report(
     ScatterPlotReport(
         attributes=["task_size"],
-        filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1Mnceffo"],
+        filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1Mcao"],
         filter=[dec_filter3.add_runs, dec_filter3.filter_non_decoupled_runs, trans_time_check.get_time],
         #get_category=domain_as_category,
         format="png",  # Use "tex" for pgfplots output.
