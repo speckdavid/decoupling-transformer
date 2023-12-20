@@ -30,6 +30,7 @@ class DecoupledRootTask : public RootTask {
     bool skip_unnecessary_leaf_effects;
     bool same_leaf_preconditons_single_variable;
     ConclusiveLeafEncoding conclusive_leaf_encoding;
+    mutable std::unordered_map<int, std::unordered_set<int>> original_operator_tr_eff_vars;
 
     std::unordered_map<int, int> center_var_to_pvar;
     std::unordered_map<int, int> conclusive_leaf_var_to_pvar;
@@ -63,7 +64,8 @@ public:
 
 protected:
     void print_statistics() const;
-    void write_sas_file(const std::string file_name) const;
+    void write_sas_file(const std::string& file_name) const;
+    void write_pddl_files(const std::string& domain_file_name, const std::string& problem_file_name) const;
 
     bool are_initial_states_consistent() const;
     bool is_conclusive_operator(int op_id, int leaf) const;

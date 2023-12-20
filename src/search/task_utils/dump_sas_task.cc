@@ -1,11 +1,11 @@
-#include "task_dump.h"
+#include "dump_sas_task.h"
 
 #include "task_properties.h"
 #include "../tasks/root_task.h"
 
 using namespace std;
 
-namespace task_dump {
+namespace dump_sas_task {
 void extract_all_preconditions(const AbstractTask &task, int op_no, vector<FactPair> &all_preconditions) {
     for (int pre_ind = 0; pre_ind < task.get_num_operator_preconditions(op_no, false); ++pre_ind) {
         FactPair fact = task.get_operator_precondition(op_no, pre_ind, false);
@@ -47,7 +47,7 @@ void dump_variables_as_SAS(const AbstractTask &task, ostream &os) {
     for (int var = 0; var < task.get_num_variables(); ++var) {
         string no_space_var_name = task.get_variable_name(var);
         replace(no_space_var_name.begin(), no_space_var_name.end(), ' ', '-');
-        
+
         os << "begin_variable" << endl;
         os << no_space_var_name << endl;
         os << task.get_variable_axiom_layer(var) << endl;
@@ -158,7 +158,7 @@ void dump_operator_as_SAS(const AbstractTask &task, ostream &os, int op_no) {
     os << "begin_operator" << endl;
     os << task.get_operator_name(op_no, false) << endl;
     os << prevail.size() << endl;
-    for (FactPair cond : prevail) {
+    for (const FactPair &cond : prevail) {
         os << cond.var << " " << cond.value << endl;
     }
     os << all_effects.size() << endl;

@@ -751,7 +751,8 @@ create_fast_downward_library(
     NAME task_properties
     HELP "Task properties"
     SOURCES
-        task_utils/task_dump
+        task_utils/dump_sas_task
+        task_utils/dump_pddl_task
         task_utils/task_properties
     DEPENDENCY_ONLY
 )

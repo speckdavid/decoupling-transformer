@@ -4,7 +4,8 @@
 #include "../decoupling/factoring.h"
 #include "../operator_id.h"
 #include "../plugins/plugin.h"
-#include "../task_utils/task_dump.h"
+#include "../task_utils/dump_sas_task.h"
+#include "../task_utils/dump_pddl_task.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/rng_options.h"
 
@@ -55,10 +56,6 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     utils::g_log << "Creating new axioms..." << endl;
     create_axioms();
 
-    if (options.get<bool>("dump_task")) {
-        dump();
-    }
-
     TaskProxy task_proxy(*this);
 
     // This is also done in the root task which is honestly quite hacky!
@@ -77,9 +74,11 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 
     release_memory();
 
-    if (options.get<bool>("write_sas_file")) {
+    if (options.get<bool>("write_sas")) {
         write_sas_file("dec_output.sas");
-        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
+    }
+    if (options.get<bool>("write_pddl")) {
+        write_pddl_files("dec_domain.pddl", "dec_problem.pddl");
     }
 }
 
@@ -123,14 +122,36 @@ void DecoupledRootTask::print_statistics() const {
     utils::g_log << "Number of axioms: " << get_num_axioms() << endl;
 }
 
-void DecoupledRootTask::write_sas_file(const std::string file_name) const {
+void DecoupledRootTask::write_sas_file(const string &file_name) const {
     utils::Timer write_sas_file_timer;
-    utils::g_log << "Writing to dec_output.sas..." << flush;
-    std::ofstream output_file;
+    utils::g_log << "Writing to " << file_name << "..." << flush;
+    ofstream output_file;
     output_file.open(file_name);
-    task_dump::dump_as_SAS(*this, output_file);
+    dump_sas_task::dump_as_SAS(*this, output_file);
+    output_file.close();
     utils::g_log << "done!" << endl;
     utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
+}
+
+void DecoupledRootTask::write_pddl_files(const string &domain_file_name,
+                                         const string &problem_file_name) const {
+    utils::Timer write_pddl_files_timer;
+
+    utils::g_log << "Writing to " << domain_file_name << "..." << flush;
+    ofstream domain_output_file;
+    domain_output_file.open(domain_file_name);
+    dump_pddl_task::dump_domain_as_PDDL(*this, domain_output_file);
+    domain_output_file.close();
+    utils::g_log << "done!" << endl;
+
+    utils::g_log << "Writing to " << problem_file_name << "..." << flush;
+    ofstream problem_output_file;
+    problem_output_file.open(problem_file_name);
+    dump_pddl_task::dump_problem_as_PDDL(*this, problem_output_file);
+    problem_output_file.close();
+    utils::g_log << "done!" << endl;
+
+    utils::g_log << "Time for writing sas file: " << write_pddl_files_timer << endl;
 }
 
 bool DecoupledRootTask::are_initial_states_consistent() const {
@@ -146,25 +167,21 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
 }
 
 bool DecoupledRootTask::is_conclusive_operator(int op_id, int leaf) const {
-    if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
-        return false;
-
-    vector<int> leaf_variables = factoring->get_leaf(leaf);
-
-    unordered_map<int, int> relevant_effects;
-    for (auto const &pre : original_root_task->operators[op_id].preconditions) {
-        if (factoring->get_factor(pre.var) == leaf) {
-            relevant_effects[pre.var] = pre.value;
+    if (original_operator_tr_eff_vars.count(op_id) == 0) {
+        for (auto const &pre : original_root_task->operators[op_id].preconditions) {
+            original_operator_tr_eff_vars[op_id].insert(pre.var);
         }
-    }
-    for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
-        FactPair eff = expl_eff.fact;
-        if (factoring->get_factor(eff.var) == leaf) {
-            relevant_effects[eff.var] = eff.value;
+        for (const auto &eff: original_root_task->operators[op_id].effects) {
+            original_operator_tr_eff_vars[op_id].insert(eff.fact.var);
         }
     }
 
-    return (int)relevant_effects.size() == factoring->get_num_leaf_variables(leaf);
+    const vector<int> &leaf_vars = factoring->get_leaf(leaf);
+    const unordered_set<int> &op_tr_vars = original_operator_tr_eff_vars[op_id];
+
+    return all_of(leaf_vars.begin(), leaf_vars.end(),
+                  [&op_tr_vars](int element) {return op_tr_vars.find(element) != op_tr_vars.end();}
+                  );
 }
 
 bool DecoupledRootTask::is_conclusive_leaf(int leaf) const {
@@ -453,11 +470,10 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
     }
 }
 
-void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf, ConclusiveLeafEncoding encoding) {
+void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf,
+                                                                ConclusiveLeafEncoding encoding) {
     if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
         return;
-
-    vector<int> leaf_variables = factoring->get_leaf(leaf);
 
     unordered_map<int, int> relevant_effects;
     for (auto const &pre : original_root_task->operators[op_id].preconditions) {
@@ -560,7 +576,7 @@ void DecoupledRootTask::create_frame_axioms() {
                 ExplicitOperator new_op(0, name, true);
                 new_op.preconditions.emplace_back(svar, 0);
 
-                std::vector<FactPair> conds;
+                vector<FactPair> conds;
                 for (const FactPair &fact : factoring->get_leaf_state_values(leaf, lstate)) {
                     assert(conclusive_leaf_var_to_pvar.count(fact.var));
                     int mapped_leaf_var = conclusive_leaf_var_to_pvar[fact.var];
@@ -585,7 +601,7 @@ void DecoupledRootTask::create_frame_axioms() {
             ExplicitOperator new_op(0, name, true);
             new_op.preconditions.emplace_back(svar, 0);
             FactPair cond(pvar, 1);
-            new_op.effects.emplace_back(ExplicitEffect(svar, 1, std::vector<FactPair> {cond}));
+            new_op.effects.emplace_back(ExplicitEffect(svar, 1, vector<FactPair> {cond}));
 
             axioms.push_back(new_op);
         }
@@ -601,7 +617,7 @@ void DecoupledRootTask::create_goal_axioms() {
             ExplicitOperator new_op(0, name, true);
             new_op.preconditions.emplace_back(goal_svar, 0);
             FactPair cond(state_svar, 1);
-            new_op.effects.emplace_back(ExplicitEffect(goal_svar, 1, std::vector<FactPair> {cond}));
+            new_op.effects.emplace_back(ExplicitEffect(goal_svar, 1, vector<FactPair> {cond}));
 
             axioms.push_back(new_op);
         }
@@ -627,7 +643,7 @@ void DecoupledRootTask::create_precondition_axioms() {
                 ExplicitOperator new_op(0, name, true);
                 new_op.preconditions.emplace_back(pre_svar, 0);
                 FactPair cond(state_svar, 1);
-                new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, std::vector<FactPair> {cond}));
+                new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, vector<FactPair> {cond}));
 
                 axioms.push_back(new_op);
             }
@@ -709,6 +725,7 @@ void DecoupledRootTask::release_memory() {
     leaf_lstate_to_svar.clear();
     precondition_to_svar.clear();
     leaf_op_to_svar.clear();
+    original_operator_tr_eff_vars.clear();
     #endif
 }
 
@@ -749,8 +766,9 @@ public:
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
         add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Optimization for inverted forks with a single variable", "multivalued");
         add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence or are conclusive on the leaf.", "true");
-        add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
+        add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
+        add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
