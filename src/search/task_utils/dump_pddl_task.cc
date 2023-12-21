@@ -143,6 +143,36 @@ void dump_domain_operators(const AbstractTask &task, std::ostream &os) {
     }
 }
 
+void dump_problem_header(const AbstractTask & /*task*/, std::ostream &os) {
+    os << "(define (problem dec-problem)" << endl;
+    os << IND << "(:domain dec-domain)" << endl;
+}
+
+void dump_problem_footer(const AbstractTask & /*task*/, std::ostream &os) {
+    os << IND << "(:metric minimize (total-cost))" << endl;
+    os << ")" << endl;
+}
+
+void dump_problem_initial_state(const AbstractTask &task, std::ostream &os) {
+    os << IND << "(:init" << endl;
+    for (int var = 0; var < task.get_num_variables(); ++var) {
+        if (task.get_variable_axiom_layer(var) == -1) {
+            int val = task.get_initial_state_values().at(var);
+            os << IND << IND << get_var_val_name(task, FactPair(var, val)) << endl;
+        }
+    }
+    os << IND << IND << "(= (total-cost) 0)" << endl;
+    os << IND << ")" << endl;
+}
+
+void dump_problem_goal(const AbstractTask &task, std::ostream &os) {
+    os << IND << "(:goal (and" << endl;
+    for (int goal = 0; goal < task.get_num_goals(); ++goal) {
+        os << IND << IND << get_var_val_name(task, task.get_goal_fact(goal)) << endl;
+    }
+    os << IND << "))" << endl;
+}
+
 void dump_domain_as_PDDL(const AbstractTask &task, ostream &os) {
     dump_domain_header(task, os);
     dump_domain_requirements(task, os);
@@ -154,7 +184,9 @@ void dump_domain_as_PDDL(const AbstractTask &task, ostream &os) {
 }
 
 void dump_problem_as_PDDL(const AbstractTask &task, ostream &os) {
-    cerr << "Function dump_problem_as_PDDL not implemented yet!" << endl;
-    utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+    dump_problem_header(task, os);
+    dump_problem_initial_state(task, os);
+    dump_problem_goal(task, os);
+    dump_problem_footer(task, os);
 }
 }

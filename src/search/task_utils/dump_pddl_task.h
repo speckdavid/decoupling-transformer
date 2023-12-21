@@ -5,6 +5,11 @@
 
 #include <ostream>
 
+/*
+* We encode each fact as a binary variable. 
+* TODO: For all binary variables, use a single variable.
+*/
+
 namespace dump_pddl_task {
 std::string get_var_val_name(const AbstractTask &task, const FactPair &fact);
 
@@ -25,7 +30,11 @@ void dump_domain_axioms(const AbstractTask &task, std::ostream &os);
 void dump_domain_operator(const AbstractTask &task, std::ostream &os, int op_no);
 void dump_domain_operators(const AbstractTask &task, std::ostream &os);
 
-
+void dump_problem_header(const AbstractTask &task, std::ostream &os);
+void dump_problem_footer(const AbstractTask &task, std::ostream &os);
+void dump_problem_header(const AbstractTask &task, std::ostream &os);
+void dump_problem_initial_state(const AbstractTask &task, std::ostream &os);
+void dump_problem_goal(const AbstractTask &task, std::ostream &os);
 
 extern void dump_domain_as_PDDL(const AbstractTask &task, std::ostream &os);
 extern void dump_problem_as_PDDL(const AbstractTask &task, std::ostream &os);
