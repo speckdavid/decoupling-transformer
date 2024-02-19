@@ -142,7 +142,7 @@ void SearchSpace::trace_path(const State &goal_state,
         path.push_back(info.creating_operator);
         current_state = state_registry.lookup_state(info.parent_state_id);
     }
-    task->reconstruct_plan_if_necessary(path, states);
+    task->reconstruct_plan_if_necessary(path, states, state_registry);
     reverse(path.begin(), path.end());
 }
 

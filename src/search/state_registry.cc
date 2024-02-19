@@ -3,6 +3,7 @@
 #include "per_state_information.h"
 #include "task_proxy.h"
 
+#include "structural_symmetries/permutation.h"
 #include "task_utils/task_properties.h"
 #include "utils/logging.h"
 
@@ -93,6 +94,21 @@ State StateRegistry::get_successor_state(const State &predecessor, const Operato
         StateID id = insert_id_or_pop_state();
         return task_proxy.create_state(*this, id, buffer);
     }
+}
+
+State StateRegistry::permute_state(const State &state, const structural_symmetries::Permutation &permutation) {
+    PackedStateBin *buffer = new PackedStateBin[state_packer.get_num_bins()];
+    fill_n(buffer, state_packer.get_num_bins(), 0);
+    for (int i = 0; i < num_variables; ++i) {
+        pair<int, int> var_val = permutation.get_new_var_val_by_old_var_val(i, state[i].get_value());
+        assert(var_val.second < task_proxy.get_variables()[var_val.first].get_domain_size());
+        state_packer.set(buffer, var_val.first, var_val.second);
+    }
+    state_data_pool.push_back(buffer);
+    // buffer is copied by push_back
+    delete[] buffer;
+    StateID id = insert_id_or_pop_state();
+    return lookup_state(id);
 }
 
 int StateRegistry::get_bins_per_state() const {

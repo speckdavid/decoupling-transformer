@@ -154,6 +154,14 @@ ExplicitOperator::ExplicitOperator(int cost,
     name(name),
     is_an_axiom(is_an_axiom) {}
 
+ExplicitOperator::ExplicitOperator(int cost,
+                                   const std::string &name,
+                                   const std::vector<FactPair> &preconditions) :
+        preconditions(preconditions),
+        cost(cost),
+        name(name),
+        is_an_axiom(false) {}
+
 static void read_and_verify_version(istream &in) {
     int version;
     check_magic(in, "begin_version");

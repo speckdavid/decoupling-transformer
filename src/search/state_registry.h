@@ -109,6 +109,10 @@ namespace int_packer {
 class IntPacker;
 }
 
+namespace structural_symmetries {
+class Permutation;
+};
+
 using PackedStateBin = int_packer::IntPacker::Bin;
 
 
@@ -202,6 +206,8 @@ public:
       as it includes duplicate checking.
     */
     State get_successor_state(const State &predecessor, const OperatorProxy &op);
+
+    State permute_state(const State &state, const structural_symmetries::Permutation &permutation);
 
     /*
       Returns the number of states registered so far.

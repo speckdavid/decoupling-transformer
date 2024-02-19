@@ -93,7 +93,8 @@ int DecoupledRootTask::get_original_operator_id(int op_id) const {
 }
 
 void DecoupledRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
-                                                      vector<State> &states) const {
+                                                      vector<State> &states,
+                                                      StateRegistry &/*registry*/) const {
     // remap operator IDs to original operator IDs
     vector<OperatorID> mapped_path;
     for (auto op_id : path) {

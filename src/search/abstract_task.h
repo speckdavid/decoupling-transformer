@@ -1,8 +1,6 @@
 #ifndef ABSTRACT_TASK_H
 #define ABSTRACT_TASK_H
 
-#include "operator_id.h"
-
 #include "algorithms/subscriber.h"
 #include "utils/hash.h"
 
@@ -48,7 +46,9 @@ inline void feed(HashState &hash_state, const FactPair &fact) {
 }
 }
 
+class OperatorID;
 class State;
+class StateRegistry;
 class TaskProxy;
 
 class AbstractTask : public subscriber::SubscriberService<AbstractTask> {
@@ -105,11 +105,11 @@ public:
         std::vector<int> &values,
         const AbstractTask *ancestor_task) const = 0;
 
-    virtual void reconstruct_plan_if_necessary(std::vector<OperatorID> &/*path*/,
-                                               std::vector<State> &/*states*/) const {
-        // If we run decoupled search, the decoupled root task needs to reconstruct the
-        // solution to get a proper plan. By default, we do nothing.
-    }
+    // If we run decoupled search, the decoupled root task needs to reconstruct the
+    // solution to get a proper plan. By default, we do nothing.
+    virtual void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
+                                               std::vector<State> &states,
+                                               StateRegistry &registry) const;
 
     // If we run decoupled search, we need the original task to save the reconstructed plan.
     // By default, we return this task.

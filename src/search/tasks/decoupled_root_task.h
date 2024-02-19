@@ -50,7 +50,8 @@ public:
     int get_original_operator_id(int op_id) const;
 
     void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
-                                       std::vector<State> &states) const override;
+                                       std::vector<State> &states,
+                                       StateRegistry &registry) const override;
 
     virtual TaskProxy get_task_proxy_for_plan_saving() const {
         // If we run decoupled search, we need the original task to save the reconstructed plan.

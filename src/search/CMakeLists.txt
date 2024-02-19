@@ -695,8 +695,9 @@ create_fast_downward_library(
         tasks/domain_abstracted_task_factory
         tasks/modified_goals_task
         tasks/modified_operator_costs_task
+        tasks/symmetric_root_task
     DEPENDS
-        decoupling task_properties
+        decoupling structural_symmetries task_properties
     DEPENDENCY_ONLY
 )
 
@@ -957,5 +958,34 @@ create_fast_downward_library(
          "directed graph."
     SOURCES
         algorithms/sccs
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME bliss
+    HELP "Plugin containing a modified version of Bliss"
+    SOURCES
+        bliss/bignum
+        bliss/defs
+        bliss/graph
+        bliss/heap
+        bliss/kqueue
+        bliss/kstack
+        bliss/orbit
+        bliss/partition
+        bliss/timer
+        bliss/uintseqhash
+        bliss/utils
+    DEPENDENCY_ONLY
+)
+
+create_fast_downward_library(
+    NAME structural_symmetries
+    HELP "Plugin containing the code for computing structural symmetries"
+    SOURCES
+        structural_symmetries/graph_creator
+        structural_symmetries/group
+        structural_symmetries/permutation
+    DEPENDS bliss
     DEPENDENCY_ONLY
 )

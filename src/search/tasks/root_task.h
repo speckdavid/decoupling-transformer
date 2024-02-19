@@ -50,12 +50,14 @@ struct ExplicitOperator {
     void read_pre_post(std::istream &in);
     ExplicitOperator(std::istream &in, bool is_an_axiom, bool use_metric);
     ExplicitOperator(int cost, const std::string &name, bool is_an_axiom);
+    ExplicitOperator(int cost, const std::string &name, const std::vector<FactPair> &preconditions);
 
     int get_encoding_size() const;
 };
 
 class RootTask : public AbstractTask {
     friend class DecoupledRootTask;
+    friend class SymmetricRootTask;
 protected:
     std::vector<ExplicitVariable> variables;
     // TODO: think about using hash sets here.
