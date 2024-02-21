@@ -289,7 +289,7 @@ bool Permutation::replace_if_less_partial(vector<int> &state) const {
         int to_var = vars_affected[i];
         int from_var = from_vars[to_var];
 
-        if (state[from_var] == -1 || state[to_var] == -1){
+        if (state[from_var] == -1){
             continue;
         }
 
