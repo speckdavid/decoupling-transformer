@@ -780,8 +780,8 @@ static plugins::FeaturePlugin<DecoupledRootTaskFeature> _plugin;
 
 
 static plugins::TypedEnumPlugin<ConclusiveLeafEncoding> _enum_plugin({
-        {"basic", "one primary variable per leaf state"},
-        {"binary", "primary conclusive leaf variables are represented with binary variables"},
-        {"multivalued", "primary conclusive leaf varibales are represented using the original variables"}
+        {"basic", "no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves."},
+        {"binary", "primary conclusive leaf variables are represented by binary variables. Operators do not have conditional effects regarding a conclusive leaf; instead, they set the primary variable corresponding to the unique reached leaf state to true and all others to false."},
+        {"multivalued", "primary conclusive leaf variables are represented using the original variables in a factored manner. Operators do not have conditional effects regarding a conclusive leaf; they simply set the primary leaf variables to the corresponding values of the reached leaf state."}
     });
 }
