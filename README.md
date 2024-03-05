@@ -1,3 +1,47 @@
+# Decoupled Search for the Masses: A Novel Task Transformation for Classical Planning
+
+This repository contains the code for the ICAPS 2024 paper ([[pdf]]() [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)). 
+It extends [Fast Downward 23.06](https://github.com/aibasel/downward/) by the possibility of running the search on a decoupled representation of the planning problem.
+
+## Build instructions
+
+See [BUILD.md](BUILD.md). To use the decoupled representation, it is necessary to install CPLEX as described in the file.
+
+## Recommended Search Configurations
+
+We recommend the following search configuration which we defined as aliases.
+
+```
+./fast-downward.py --alias XXX domain.pddl problem.pddl
+```
+
+## Other Search Configuration
+
+You can also create your own search configuration on the decoupled task as follows.
+
+```
+./fast-downward.py --root-task-transform "decoupled(factoring=lp(factoring_time_limit=30, strategy=mcl, add_cg_sccs=true, min_number_leaves=2))" --search "XXX"
+```
+TODO: use a reasonable config above!
+Here, the search "XXX" can be selected as in normal Fast Downward, e.g. "astar(blind())". For more information, see the [Fast Downward website](https://www.fast-downward.org).
+
+### Parameters
+
+TODO: Generate Synopsis
+
+## Decoupled task to SAS or PDDL
+
+TODO: Describe pipeline
+
+## Citation
+David Speck and Daniel Gnad:
+Decoupled Search for the Masses: A Novel Task Transformation for Classical Planning.
+ICAPS 2024.
+[[pdf]]() [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)
+
+---
+
+
 <img src="misc/images/fast-downward.svg" width="800" alt="Fast Downward">
 
 Fast Downward is a domain-independent classical planning system.

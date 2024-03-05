@@ -1,7 +1,10 @@
 #include "dump_pddl_task.h"
 
 #include "task_properties.h"
+
 #include "../tasks/root_task.h"
+#include "../utils/logging.h"
+
 
 using namespace std;
 
@@ -174,6 +177,8 @@ void dump_problem_goal(const AbstractTask &task, std::ostream &os) {
 }
 
 void dump_domain_as_PDDL(const AbstractTask &task, ostream &os) {
+    utils::g_log << "Warning: The PDDL encoding is suboptimal."
+                 << "It is verbose and can be optimized in various ways." << endl;
     dump_domain_header(task, os);
     dump_domain_requirements(task, os);
     dump_domain_predicates(task, os);

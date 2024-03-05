@@ -763,8 +763,8 @@ public:
 
         add_option<shared_ptr<decoupling::Factoring>>("factoring",
                                                       "method that computes the factoring");
-        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
-        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Optimization for inverted forks with a single variable", "multivalued");
+        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaves have a single secondary variable.", "true");
+        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conlcusive leaf encoding", "multivalued");
         add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence or are conclusive on the leaf.", "true");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
         add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
@@ -780,7 +780,7 @@ static plugins::FeaturePlugin<DecoupledRootTaskFeature> _plugin;
 
 
 static plugins::TypedEnumPlugin<ConclusiveLeafEncoding> _enum_plugin({
-        {"basic", "basic encoding"},
+        {"basic", "one primary variable per leaf state"},
         {"binary", "primary conclusive leaf variables are represented with binary variables"},
         {"multivalued", "primary conclusive leaf varibales are represented using the original variables"}
     });
