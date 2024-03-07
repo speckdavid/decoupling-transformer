@@ -47,7 +47,7 @@ Here, the search "XXX" can be selected as in normal Fast Downward, e.g., `"lazy_
 #### LP Factoring
 
 ```
-lp(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time_limit=infinity, optimize_leaf_unique_lstate=true, prune_fork_leaf_state_spaces=false, strategy=MML, min_mobility=1, min_flexibility=0, min_fact_flexibility=0, add_cg_sccs=false, max_merge_steps=0, merge_dependent=false, merge_overlapping=false)
+lp(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time_limit=infinity, prune_fork_leaf_state_spaces=false, strategy=MML, min_mobility=1, min_flexibility=0, min_fact_flexibility=0, add_cg_sccs=false, max_merge_steps=0, merge_dependent=false, merge_overlapping=false)
 ```
 - `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
   - `silent`: only the most basic output
@@ -57,7 +57,6 @@ lp(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time
 - `min_number_leaves` (int): maximum number of leaves
 - `max_leaf_size` (int): maximum domain size product of variables in a leaf
 - `factoring_time_limit` (int): timeout for computing the factoring
-- `optimize_leaf_unique_lstate` (bool): leaves for which every global operator induces a unique leaf state are optimized
 - `prune_fork_leaf_state_spaces` (bool): run simulation-based pruning in fork leaves to reduce their state space
 - `strategy` ({mml, mmas, mm_opt, mm_approx, mfa, mm, mcl, mcm}): TODO
   - `MML`: maximize mobile leaves
@@ -79,7 +78,7 @@ lp(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time
 #### Miura & Fukunaga factoring
 
 ```
-mf(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time_limit=infinity, optimize_leaf_unique_lstate=true, prune_fork_leaf_state_spaces=false)
+mf(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time_limit=infinity, prune_fork_leaf_state_spaces=false)
 ```
 
 - `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
@@ -90,7 +89,6 @@ mf(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time
 - `min_number_leaves` (int): maximum number of leaves
 - `max_leaf_size` (int): maximum domain size product of variables in a leaf
 - `factoring_time_limit` (int): timeout for computing the factoring
-- `optimize_leaf_unique_lstate` (bool): leaves for which every global operator induces a unique leaf state are optimized
 - `prune_fork_leaf_state_spaces` (bool): run simulation-based pruning in fork leaves to reduce their state space
 
 ## Decoupled task to SAS or PDDL
