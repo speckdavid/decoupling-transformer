@@ -1,6 +1,6 @@
 # Decoupled Search for the Masses: A Novel Task Transformation for Classical Planning
 
-This repository contains the code for the ICAPS 2024 paper ([[pdf]]() [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)). 
+This repository contains the code for the ICAPS 2024 paper ([[pdf]](https://mrlab.ai/papers/speck-gnad-icaps2024.pdf) [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)). 
 It extends [Fast Downward 23.06](https://github.com/aibasel/downward/) by the possibility of running the search on a decoupled representation of the planning problem.
 
 ## Build instructions
@@ -15,6 +15,8 @@ We recommend the following search configuration which we defined as aliases.
 ./fast-downward.py --alias XXX domain.pddl problem.pddl
 ```
 
+See [driver/aliases.py](driver/aliases.py) for more aliases.
+
 ## Other Search Configuration
 
 You can also create your own search configuration on the decoupled task as follows.
@@ -23,11 +25,73 @@ You can also create your own search configuration on the decoupled task as follo
 ./fast-downward.py --root-task-transform "decoupled(factoring=lp(factoring_time_limit=30, strategy=mcl, add_cg_sccs=true, min_number_leaves=2))" --search "XXX"
 ```
 TODO: use a reasonable config above!
-Here, the search "XXX" can be selected as in normal Fast Downward, e.g. "astar(blind())". For more information, see the [Fast Downward website](https://www.fast-downward.org).
+Here, the search "XXX" can be selected as in normal Fast Downward, e.g., `"lazy_greedy([ff()])"`. For more information, see the [Fast Downward website](https://www.fast-downward.org).
 
 ### Parameters
 
-TODO: Generate Synopsis
+```
+--root-task-transform decoupled(factoring, same_leaf_preconditons_single_variable=true, conclusive_leaf_encoding=multivalued, skip_unnecessary_leaf_effects=true, dump_task=false, write_sas=false, write_pddl=false)
+```
+
+- `factoring` (Factoring): method that computes the factoring (see below)
+- `same_leaf_preconditons_single_variable` (bool): The same preconditions of leaves have a single secondary variable.
+- `conclusive_leaf_encoding` ({basic, binary, multivalued}): Conclusive leaf encoding.
+  - `basic`: no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves.
+  - `binary`: primary conclusive leaf variables are represented by binary variables. Operators do not have conditional effects regarding a conclusive leaf; instead, they set the primary variable corresponding to the unique reached leaf state to true and all others to false.
+  - `multivalued`: primary conclusive leaf variables are represented using the original variables in a factored manner. Operators do not have conditional effects regarding a conclusive leaf; they simply set the primary leaf variables to the corresponding values of the reached leaf state.
+- `skip_unnecessary_leaf_effects` (bool): Skip unnecessary leaf effects for operators that have no influence or are conclusive on the leaf.
+- `dump_task` (bool): Dumps the task to the console.
+- `write_sas` (bool): Writes the decoupled task to dec_output.sas.
+- `write_pddl` (bool): Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.
+
+#### LP Factoring
+
+```
+lp(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time_limit=infinity, optimize_leaf_unique_lstate=true, prune_fork_leaf_state_spaces=false, strategy=MML, min_mobility=1, min_flexibility=0, min_fact_flexibility=0, add_cg_sccs=false, max_merge_steps=0, merge_dependent=false, merge_overlapping=false)
+```
+- `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
+  - `silent`: only the most basic output
+  - `normal`: relevant information to monitor progress
+  - `verbose`: full output
+  - `debug`: like verbose with additional debug output
+- `min_number_leaves` (int): maximum number of leaves
+- `max_leaf_size` (int): maximum domain size product of variables in a leaf
+- `factoring_time_limit` (int): timeout for computing the factoring
+- `optimize_leaf_unique_lstate` (bool): leaves for which every global operator induces a unique leaf state are optimized
+- `prune_fork_leaf_state_spaces` (bool): run simulation-based pruning in fork leaves to reduce their state space
+- `strategy` ({mml, mmas, mm_opt, mm_approx, mfa, mm, mcl, mcm}): TODO
+  - `MML`: maximize mobile leaves
+  - `MMAS`: maximize mobile action schemas
+  - `MM_OPT`: maximize mobility
+  - `MM_APPROX`: maximize mobility (approximation)
+  - `MFA`: maximize mobile facts
+  - `MM`: maximize mobility (sum)
+  - `MCL`: maximize number of mobile conclusive leaves
+  - `MCM`: maximize conclusive mobility, i.e. number of conclusive actions (sum)
+- `min_mobility` (int): TODO
+- `min_flexibility` (double): TODO
+- `min_fact_flexibility` (double): TODO
+- `add_cg_sccs` (bool): TODO
+- `max_merge_steps` (int): TODO
+- `merge_dependent` (bool): TODO
+- `merge_overlapping` (bool): TODO
+
+#### Miura & Fukunaga factoring
+
+```
+mf(verbosity=normal, min_number_leaves=2, max_leaf_size=infinity, factoring_time_limit=infinity, optimize_leaf_unique_lstate=true, prune_fork_leaf_state_spaces=false)
+```
+
+- `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
+ - `silent`: only the most basic output
+ - `normal`: relevant information to monitor progress
+ - `verbose`: full output
+ - `debug`: like verbose with additional debug output
+- `min_number_leaves` (int): maximum number of leaves
+- `max_leaf_size` (int): maximum domain size product of variables in a leaf
+- `factoring_time_limit` (int): timeout for computing the factoring
+- `optimize_leaf_unique_lstate` (bool): leaves for which every global operator induces a unique leaf state are optimized
+- `prune_fork_leaf_state_spaces` (bool): run simulation-based pruning in fork leaves to reduce their state space
 
 ## Decoupled task to SAS or PDDL
 
@@ -37,7 +101,7 @@ TODO: Describe pipeline
 David Speck and Daniel Gnad:
 Decoupled Search for the Masses: A Novel Task Transformation for Classical Planning.
 ICAPS 2024.
-[[pdf]]() [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)
+[[pdf]](https://mrlab.ai/papers/speck-gnad-icaps2024.pdf) [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)
 
 ---
 
