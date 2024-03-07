@@ -60,12 +60,6 @@ class LPFactoring : public decoupling::Factoring {
 
     bool add_cg_sccs_;
 
-    int max_merge_steps;
-
-    bool merge_overlapping;
-
-    bool merge_dependent;
-
     std::vector<std::set<int>> var_to_p_leaves; // maps variables to potential leaf ids
 
     std::vector<PotentialLeaf> potential_leaves;
@@ -77,8 +71,6 @@ class LPFactoring : public decoupling::Factoring {
     void compute_potential_leaves();
 
     void add_cg_sccs();
-
-    void merge_potential_leaves();
 
     void recompute_var_to_p_leaves();
 

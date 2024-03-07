@@ -47,10 +47,7 @@ LPFactoring::LPFactoring(const plugins::Options &opts) : Factoring(opts),
         min_mobility(opts.get<int>("min_mobility")),
         min_flexibility(opts.get<double>("min_flexibility")),
         min_fact_flexibility(opts.get<double>("min_fact_flexibility")),
-        add_cg_sccs_(opts.get<bool>("add_cg_sccs")),
-        max_merge_steps(opts.get<int>("max_merge_steps")),
-        merge_overlapping(opts.get<bool>("merge_overlapping")),
-        merge_dependent(opts.get<bool>("merge_dependent")) {
+        add_cg_sccs_(opts.get<bool>("add_cg_sccs")) {
 
     if (log.is_at_least_normal()) {
         log << "Using LP factoring with strategy: ";
@@ -77,13 +74,6 @@ LPFactoring::LPFactoring(const plugins::Options &opts) : Factoring(opts),
         }
     }
 
-    if (max_merge_steps > 0 && !merge_dependent && !merge_overlapping){
-        log << "At least one of \"merge_dependent\" or \"merge_overlapping\" needs to be set when merging leaves." << endl;
-        exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-    } else if (max_merge_steps == 0 && (merge_dependent || merge_overlapping)){
-        log << "Option max_merge_steps needs to be set > 0 for \"merge_dependent\" or \"merge_overlapping\" to have an effect." << endl;
-        exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-    }
     if (strategy != STRATEGY::MFA && min_fact_flexibility > 0.0){
         log << "Option min_fact_flexibility is only possible in combination with strategy MFA." << endl;
         exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -1069,21 +1059,14 @@ void LPFactoring::compute_potential_leaves() {
         add_cg_sccs();
     }
 
-    if (max_merge_steps == 0){
-        filter_potential_leaves();
-        if (!check_timeout()){
-            return;
-        }
+    filter_potential_leaves();
+    if (!check_timeout()){
+        return;
     }
 
     if (potential_leaves.empty()){
         log << "No potential leaves." << endl;
         return;
-    }
-
-    if (max_merge_steps > 0) {
-        merge_potential_leaves();
-        filter_potential_leaves();
     }
 }
 
@@ -1173,187 +1156,33 @@ void LPFactoring::add_cg_sccs() {
     log << "Added " << added << " causal-graph SCC potential leaves." << endl;
 }
 
-void LPFactoring::merge_potential_leaves() {
-
-    queue<size_t> open;
-    for (const PotentialLeaf &p_leaf : potential_leaves) {
-        open.push(p_leaf.id);
-    }
-
-    const causal_graph::CausalGraph &cg = task_proxy.get_causal_graph();
-
-    size_t added = 0;
-
-    size_t id = potential_leaves.size();
-    vector<PotentialLeaf> merged_leaves;
-    for (int iteration = 0; iteration < max_merge_steps; ++iteration) {
-        while (!open.empty()) {
-            const PotentialLeaf &p_leaf = potential_leaves[open.front()];
-            open.pop();
-
-            set<size_t> merge_candidates;
-
-            if (merge_overlapping){
-                for (int var : p_leaf.vars) {
-                    for (size_t index : var_to_p_leaves[var]) {
-                        merge_candidates.insert(index);
-                    }
-                }
-
-                set<size_t> erase_cands;
-                for (size_t cand : merge_candidates){
-                    const vector<int> &vars = potential_leaves[cand].vars;
-                    if (vars.size() == 1 ||
-                            includes(p_leaf.vars.begin(), p_leaf.vars.end(), vars.begin(), vars.end()) ||
-                            includes(vars.begin(), vars.end(), p_leaf.vars.begin(), p_leaf.vars.end())) {
-                        erase_cands.insert(cand);
-                    }
-                }
-                for (size_t c : erase_cands){
-                    merge_candidates.erase(c);
-                }
-            }
-
-            if (merge_dependent){
-                for (int var : p_leaf.vars) {
-                    for (int c_var : cg.get_predecessors(var)){
-                        for (size_t index : var_to_p_leaves[c_var]) {
-                            merge_candidates.insert(index);
-                        }
-                    }
-                    for (int c_var : cg.get_successors(var)){
-                        for (size_t index : var_to_p_leaves[c_var]) {
-                            merge_candidates.insert(index);
-                        }
-                    }
-                }
-
-                set<size_t> erase_cands;
-                for (size_t cand : merge_candidates){
-                    const vector<int> &vars = potential_leaves[cand].vars;
-                    if (includes(p_leaf.vars.begin(), p_leaf.vars.end(), vars.begin(), vars.end()) ||
-                            includes(vars.begin(), vars.end(), p_leaf.vars.begin(), p_leaf.vars.end())) {
-                        erase_cands.insert(cand);
-                    }
-                }
-                for (size_t c : erase_cands){
-                    merge_candidates.erase(c);
-                }
-            }
-            for (size_t cand : merge_candidates) {
-                vector<int> merged_vars;
-                merged_vars.reserve(p_leaf.vars.size() + potential_leaves[cand].vars.size());
-                set_union(p_leaf.vars.begin(),
-                        p_leaf.vars.end(),
-                        potential_leaves[cand].vars.begin(),
-                        potential_leaves[cand].vars.end(),
-                        back_inserter(merged_vars));
-
-                //duplicate check
-                bool duplicate = false;
-                for (size_t j : var_to_p_leaves[merged_vars[0]]) {
-                    if (potential_leaves[j].vars == merged_vars) {
-                        duplicate = true;
-                        break;
-                    }
-                }
-                if (!duplicate) {
-                    for (const PotentialLeaf &merged_leaf : merged_leaves) {
-                        if (merged_leaf.vars == merged_vars) {
-                            duplicate = true;
-                            break;
-                        }
-                    }
-                }
-                if (duplicate) {
-                    continue;
-                }
-
-                PotentialLeaf merged_leaf(this, id, merged_vars);
-
-                //calculate number of leaf actions and leaf-only actions
-                set<size_t> overlapping_with_merged_leaf;
-                for (int var : merged_vars) {
-                    for (size_t j : var_to_p_leaves[var]) {
-                        overlapping_with_merged_leaf.insert(j);
-                    }
-                }
-                for (size_t ol_leaf : overlapping_with_merged_leaf) {
-                    if (includes(merged_vars.begin(),
-                            merged_vars.end(),
-                            potential_leaves[ol_leaf].vars.begin(),
-                            potential_leaves[ol_leaf].vars.end())) {
-                        for (size_t as : potential_leaves[ol_leaf].action_schemes){
-                            merged_leaf.add_leaf_only_schema(as);
-                        }
-                    }
-                }
-
-                merged_leaves.push_back(merged_leaf);
-                ++id;
-            }
-        }
-        added += merged_leaves.size();
-        for (const PotentialLeaf &merged_leaf : merged_leaves) {
-            assert(potential_leaves.size() == merged_leaf.id);
-            open.push(potential_leaves.size());
-            potential_leaves.push_back(merged_leaf);
-            for (int var : merged_leaf.vars) {
-                var_to_p_leaves[var].insert(merged_leaf.id);
-            }
-        }
-        merged_leaves.clear();
-    }
-    log << "Added " << added << " merged leaves." << endl;
-}
-
-
 void LPFactoring::add_options_to_parser(plugins::Feature &feature) {
     feature.add_option<STRATEGY>(
             "strategy",
-            "TODO",
+            "This option determines the property of the factoring that is being "
+                  "optimized by the LP, e.g. the number of mobile leaves, or the sum"
+                  "of leaf mobility.",
             "MML"
     );
-
     feature.add_option<int>(
             "min_mobility",
-            "TODO",
+            "Minimum number of leaf-only actions per leaf factor.",
             "1"
     );
-
     feature.add_option<double>(
             "min_flexibility",
-            "TODO",
+            "Minimum flexibility (ratio between the number of leaf-only vs. all actions affecting a leaf.",
             "0"
     );
-
     feature.add_option<double>(
             "min_fact_flexibility",
-            "TODO",
+            "Fact flexibility is measured as the mean ratio across all facts in a leaf of the number of"
+                  "leaf-only vs. all actions affecting that leaf. This option imposes a minimum on that metric.",
             "0"
     );
-
     feature.add_option<bool>(
             "add_cg_sccs",
-            "TODO",
-            "false"
-    );
-
-    feature.add_option<int>(
-            "max_merge_steps",
-            "TODO",
-            "0"
-    );
-
-    feature.add_option<bool>(
-            "merge_dependent",
-            "TODO",
-            "false"
-    );
-
-    feature.add_option<bool>(
-            "merge_overlapping",
-            "TODO",
+            "If true, every SCC of the causal graph is considered a leaf candidate.",
             "false"
     );
 }
