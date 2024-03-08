@@ -66,6 +66,7 @@ protected:
     void print_statistics() const;
     void write_sas_file(const std::string& file_name) const;
     void write_pddl_files(const std::string& domain_file_name, const std::string& problem_file_name) const;
+    void write_factoring_file(const std::string& file_name) const;
 
     bool are_initial_states_consistent() const;
     bool is_conclusive_operator(int op_id, int leaf) const;

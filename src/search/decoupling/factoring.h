@@ -15,7 +15,6 @@
 #include <set>
 
 namespace decoupling {
-
 class InteractionGraph;
 
 class Factoring : public std::enable_shared_from_this<Factoring> {
@@ -151,7 +150,7 @@ public:
     std::vector<FactPair> get_leaf_state_values(int leaf, int leaf_state) const;
 
     // NOTE: this function is not very efficiently implemented and should be called sparsely
-    std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair>& partial_state);
+    std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair> &partial_state);
 
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;
 

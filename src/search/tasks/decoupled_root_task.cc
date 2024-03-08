@@ -80,6 +80,9 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     if (options.get<bool>("write_pddl")) {
         write_pddl_files("dec_domain.pddl", "dec_problem.pddl");
     }
+    if (options.get<bool>("write_factoring")) {
+        write_factoring_file("factoring.txt");
+    }
 }
 
 int DecoupledRootTask::get_original_operator_id(int op_id) const {
@@ -151,7 +154,26 @@ void DecoupledRootTask::write_pddl_files(const string &domain_file_name,
     problem_output_file.close();
     utils::g_log << "done!" << endl;
 
-    utils::g_log << "Time for writing sas file: " << write_pddl_files_timer << endl;
+    utils::g_log << "Time for writing pddl files: " << write_pddl_files_timer << endl;
+}
+
+void DecoupledRootTask::write_factoring_file(const string &file_name) const {
+    utils::Timer write_sas_file_timer;
+    utils::g_log << "Writing to " << file_name << "..." << flush;
+    ofstream output_file;
+    output_file.open(file_name);
+
+    // We only write the leaves. The center is induces but it.
+    for (const auto &leaf: factoring->get_leaves()) {
+        for (int var: leaf) {
+            output_file << var << " ";
+        }
+        output_file << std::endl;
+    }
+
+    output_file.close();
+    utils::g_log << "done!" << endl;
+    utils::g_log << "Time for writing factoring file: " << write_sas_file_timer << endl;
 }
 
 bool DecoupledRootTask::are_initial_states_consistent() const {
@@ -768,6 +790,7 @@ public:
         add_option<bool>("dump_task", "Dumps the task to the console.", "false");
         add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
         add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
+        add_option<bool>("write_factoring", "Writes the factoring of the decoupled task to factoring.txt.", "false");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {

@@ -571,7 +571,7 @@ int Factoring::get_initial_leaf_state(int /*leaf*/) const {
 
 vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) const {
     assert(leaf_ >= 0 && leaf_ != FactorID::CENTER && leaf_ < static_cast<int>(leaves.size()));
-    assert(leaf_state >= 0 && leaf_state < LeafStateHash::MAX);
+    assert(leaf_state >= 0 && (size_t)leaf_state < LeafStateHash::MAX);
 
     FactorID leaf(leaf_);
     LeafState lstate(leaf_state_space->get_leaf_state(LeafStateHash(leaf_state), leaf));

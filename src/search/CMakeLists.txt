@@ -711,6 +711,7 @@ create_fast_downward_library(
         decoupling/leaf_state_registry
         decoupling/leaf_state_space
         decoupling/lp_factoring
+        decoupling/manual_factoring
         decoupling/mf_factoring
         decoupling/plan_reconstruction
     DEPENDENCY_ONLY
