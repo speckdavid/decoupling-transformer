@@ -10,7 +10,11 @@ using namespace std;
 namespace decoupling {
 ManualFactoring::ManualFactoring(const plugins::Options &opts) :
     Factoring(opts) {
+    min_number_leaves = 1;
     leaves = opts.get_list<vector<int>>("leaves");
+    if (log.is_at_least_normal()) {
+        log << "Using Manual factoring method: " << leaves << endl;
+    }
 }
 
 void ManualFactoring::compute_factoring_() {

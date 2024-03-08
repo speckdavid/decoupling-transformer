@@ -164,12 +164,22 @@ void DecoupledRootTask::write_factoring_file(const string &file_name) const {
     output_file.open(file_name);
 
     // We only write the leaves. The center is induces but it.
-    for (const auto &leaf: factoring->get_leaves()) {
-        for (int var: leaf) {
-            output_file << var << " ";
+    const auto &leaves = factoring->get_leaves();
+    output_file << "[";
+    for (size_t leaf = 0; leaf < leaves.size(); ++leaf) {
+        output_file << "[";
+        for (size_t var = 0; var < leaves[leaf].size(); ++var) {
+            output_file << leaves[leaf][var];
+            if (var < leaves[leaf].size() - 1) {
+                output_file << ",";
+            }
         }
-        output_file << std::endl;
+        output_file << "]";
+        if (leaf < leaves.size() - 1) {
+            output_file << ",";
+        }
     }
+    output_file << "]";
 
     output_file.close();
     utils::g_log << "done!" << endl;

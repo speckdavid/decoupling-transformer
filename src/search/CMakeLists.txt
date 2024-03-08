@@ -690,6 +690,7 @@ create_fast_downward_library(
     NAME extra_tasks
     HELP "Non-core task transformations"
     SOURCES
+        tasks/decoupled_plan_reconstruction_task
         tasks/decoupled_root_task
         tasks/domain_abstracted_task
         tasks/domain_abstracted_task_factory
