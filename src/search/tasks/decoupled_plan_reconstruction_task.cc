@@ -12,18 +12,21 @@
 using namespace std;
 
 namespace tasks {
-static string read_file_to_string(const string &filename) {
+static vector<string> read_file_to_string(const string &filename) {
     ifstream file(filename);
-    string content;
+    vector<string> lines;
+    string line;
 
     if (file.is_open()) {
-        getline(file, content);
+        while (std::getline(file, line)) {
+            lines.push_back(line);
+        }
         file.close();
     } else {
         cerr << "Unable to open file: " << filename << endl;
     }
 
-    return content;
+    return lines;
 }
 
 
@@ -33,8 +36,9 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
 
+    // Factoring file to leave vector
     vector<vector<int>> leaves;
-    string leave_str = read_file_to_string("factoring.txt");
+    string leave_str = read_file_to_string("factoring.txt")[0];
     assert(leave_str.size() > 2);
     leave_str = leave_str.substr(1, leave_str.length() - 2);
     leave_str = regex_replace(leave_str, regex("\\],"), "];");
@@ -44,6 +48,26 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
         for (auto var_str : utils::split(leaf_str, ",")) {
             leaves.back().push_back(stoi(var_str));
         }
+    }
+
+    // Plan file to vector of operator ids
+    vector<OperatorID> plan;
+    vector<string> plan_steps = read_file_to_string("decoupled_plan");
+    plan_steps.erase(std::remove_if(plan_steps.begin(), plan_steps.end(),
+                                    [](const std::string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
+    for (string &op_name : plan_steps) {
+        op_name = op_name.substr(1, op_name.length() - 2);
+        for (auto const &op : original_task_proxy.get_operators()) {
+            if (op_name == op.get_name()) {
+                plan.push_back(OperatorID(op.get_id()));
+                break;
+            }
+        }
+    }
+
+    if (plan.size() != plan_steps.size()) {
+        cerr << "Can not align plan file to planning task!" << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
     }
 
     plugins::Options opts;
@@ -66,7 +90,7 @@ class DecoupledPlanReconstructionTaskFeature : public plugins::TypedFeature<Abst
 public:
     DecoupledPlanReconstructionTaskFeature() : TypedFeature("decoupled_plan_reconstruction") {
         document_title("Decoupled plan reconstruction task");
-        document_synopsis("Task transformation that reconstructs a plan (sas_plan) for a given problem (output.sas) and factoring (factoring.txt)");
+        document_synopsis("Task transformation that reconstructs a plan (decoupled_plan) for a given problem (output.sas) and factoring (factoring.txt)");
     }
 
     virtual shared_ptr<DecoupledPlanReconstructionTask> create_component(const plugins::Options &options, const utils::Context &) const override {
