@@ -1,8 +1,12 @@
 #include "decoupled_plan_reconstruction_task.h"
 
+#include "../plan_manager.h"
+#include "../state_registry.h"
+
 #include "../task_utils/task_properties.h"
 #include "../plugins/plugin.h"
 #include "../decoupling/manual_factoring.h"
+
 
 #include <iostream>
 #include <fstream>
@@ -32,7 +36,7 @@ static vector<string> read_file_to_string(const string &filename) {
 
 DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::Options & /*options*/)
     : RootTask(), factoring(nullptr) {
-    TaskProxy original_task_proxy(*tasks::g_root_task);
+    TaskProxy original_task_proxy(*g_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
 
@@ -82,8 +86,21 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
 
     factoring->compute_factoring();
 
-    cout << "TODO!!!" << endl;
-    exit(0);
+    StateRegistry registry(original_task_proxy);
+    // Construct plan
+    vector<State> states;
+    states.push_back(registry.get_initial_state());
+    for (OperatorID op_id : plan) {
+        OperatorProxy op = original_task_proxy.get_operators()[op_id];
+        // assert(task_properties::is_applicable(op, states.back()));
+        State succ = registry.get_successor_state(states.back(), op);
+        states.push_back(succ);
+    }
+    factoring->insert_leaf_paths(plan, states, tasks::g_root_task);
+
+    PlanManager plan_mgr;
+    plan_mgr.save_plan(plan, original_task_proxy);
+    utils::exit_with(utils::ExitCode::SUCCESS);
 }
 
 class DecoupledPlanReconstructionTaskFeature : public plugins::TypedFeature<AbstractTask, DecoupledPlanReconstructionTask> {
