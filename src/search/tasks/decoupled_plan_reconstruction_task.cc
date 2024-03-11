@@ -90,7 +90,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
         op_name = op_name.substr(1, op_name.length() - 2);
         for (auto const &op : dec_task_proxy.get_operators()) {
             if (op_name == op.get_name()) {
-                plan.push_back(OperatorID(op.get_id()));
+                plan.emplace_back(op.get_id());
                 break;
             }
         }
