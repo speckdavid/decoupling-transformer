@@ -108,7 +108,8 @@ void dump_domain_operator(const AbstractTask &task, std::ostream &os, int op_no)
     assert(all_effects.size() == all_effects_cond.size());
 
     string name = task.get_operator_name(op_no, false);
-    name = name.substr(0, name.find(" "));
+    // name = name.substr(0, name.find(" "));
+    replace(name.begin(), name.end(), ' ', '+');
 
     os << IND << "(:action " << name << endl;
     os << IND << IND << ":parameters  ()" << endl;

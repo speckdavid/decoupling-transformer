@@ -90,6 +90,8 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
                                     [](const std::string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
     for (string &op_name : plan_steps) {
         op_name = op_name.substr(1, op_name.length() - 2);
+        replace(op_name.begin(), op_name.end(), '+', ' ');
+        utils::strip(op_name);
         for (auto const &op : dec_task_proxy.get_operators()) {
             if (op_name == op.get_name()) {
                 plan.emplace_back(op.get_id());
