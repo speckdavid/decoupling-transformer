@@ -116,7 +116,12 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
         states.push_back(succ);
     }
 
+    reverse(plan.begin(), plan.end());
+    reverse(states.begin(), states.end());
+
     dec_task.reconstruct_plan_if_necessary(plan, states);
+
+    reverse(plan.begin(), plan.end());
 
     PlanManager plan_mgr;
     plan_mgr.save_plan(plan, original_task_proxy);
