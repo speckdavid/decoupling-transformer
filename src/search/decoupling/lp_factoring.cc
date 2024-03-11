@@ -1162,7 +1162,7 @@ void LPFactoring::add_options_to_parser(plugins::Feature &feature) {
             "This option determines the property of the factoring that is being "
                   "optimized by the LP, e.g. the number of mobile leaves, or the sum"
                   "of leaf mobility.",
-            "MML"
+            "MFA"
     );
     feature.add_option<int>(
             "min_mobility",
@@ -1172,7 +1172,7 @@ void LPFactoring::add_options_to_parser(plugins::Feature &feature) {
     feature.add_option<double>(
             "min_flexibility",
             "Minimum flexibility (ratio between the number of leaf-only vs. all actions affecting a leaf.",
-            "0"
+            "0.2"
     );
     feature.add_option<double>(
             "min_fact_flexibility",
@@ -1183,7 +1183,7 @@ void LPFactoring::add_options_to_parser(plugins::Feature &feature) {
     feature.add_option<bool>(
             "add_cg_sccs",
             "If true, every SCC of the causal graph is considered a leaf candidate.",
-            "false"
+            "true"
     );
 }
 

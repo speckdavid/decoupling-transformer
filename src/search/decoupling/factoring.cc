@@ -688,11 +688,11 @@ void Factoring::add_options_to_feature(plugins::Feature &feature) {
                             );
     feature.add_option<int>("max_leaf_size",
                             "Maximum domain-size product of variables in a leaf.",
-                            "infinity"
+                            "1000000"
                             );
     feature.add_option<int>("factoring_time_limit",
                             "Time limit for computing the factoring.",
-                            "infinity"
+                            "30"
                             );
     feature.add_option<bool>("prune_fork_leaf_state_spaces",
                              "Run simulation-based pruning in fork leaves to reduce their state space, not supported, yet.",
