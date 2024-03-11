@@ -71,7 +71,9 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     dec_opts.set("factoring", factoring);
     dec_opts.set("conclusive_leaf_encoding", ConclusiveLeafEncoding::MULTIVALUED);
 
-    for (const string &option : vector<string>{"same_leaf_preconditons_single_variable", "skip_unnecessary_leaf_effects"}) {
+    for (const string &option : vector<string>{"conclusive_operators",
+                                               "same_leaf_preconditons_single_variable",
+                                               "skip_unnecessary_leaf_effects"}) {
         dec_opts.set(option, true);
     }
     for (const string &option : vector<string>{"dump_task", "write_sas", "write_pddl", "write_factoring"}) {
