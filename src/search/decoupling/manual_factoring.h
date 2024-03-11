@@ -10,8 +10,6 @@ namespace decoupling {
 class ManualFactoring : public decoupling::Factoring {
     void compute_factoring_() override;
 
-    bool is_valid_factoring(const std::vector<std::vector<int>> &leaves) const;
-
 public:
 
     explicit ManualFactoring(const plugins::Options &opts);
