@@ -1,5 +1,7 @@
 #include "decoupled_plan_reconstruction_task.h"
 
+#include "decoupled_root_task.h"
+
 #include "../plan_manager.h"
 #include "../state_registry.h"
 
@@ -10,6 +12,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <numeric>
 #include <regex>
 #include <string>
 
@@ -84,19 +87,32 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
 
     factoring = make_shared<decoupling::ManualFactoring>(opts);
 
-    factoring->compute_factoring();
+    plugins::Options dec_opts;
+    dec_opts.set("factoring", factoring);
+    dec_opts.set("conclusive_leaf_encoding", ConclusiveLeafEncoding::MULTIVALUED);
 
-    StateRegistry registry(original_task_proxy);
+    for (const string &option : vector<string>{"same_leaf_preconditons_single_variable", "skip_unnecessary_leaf_effects"}) {
+        dec_opts.set(option, true);
+    }
+    for (const string &option : vector<string>{"dump_task", "write_sas", "write_pddl", "write_factoring"}) {
+        dec_opts.set(option, false);
+    }
+
+    DecoupledRootTask dec_task(dec_opts);
+    TaskProxy dec_task_proxy(dec_task);
+
     // Construct plan
+    StateRegistry registry(dec_task_proxy);
     vector<State> states;
     states.push_back(registry.get_initial_state());
     for (OperatorID op_id : plan) {
-        OperatorProxy op = original_task_proxy.get_operators()[op_id];
+        OperatorProxy op = dec_task_proxy.get_operators()[op_id];
         // assert(task_properties::is_applicable(op, states.back()));
         State succ = registry.get_successor_state(states.back(), op);
         states.push_back(succ);
     }
-    factoring->insert_leaf_paths(plan, states, tasks::g_root_task);
+
+    dec_task.reconstruct_plan_if_necessary(plan, states);
 
     PlanManager plan_mgr;
     plan_mgr.save_plan(plan, original_task_proxy);
