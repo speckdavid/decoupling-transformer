@@ -29,6 +29,7 @@ class DecoupledRootTask : public RootTask {
 
     bool skip_unnecessary_leaf_effects;
     bool same_leaf_preconditons_single_variable;
+    bool conclusive_operators;
     ConclusiveLeafEncoding conclusive_leaf_encoding;
     mutable std::unordered_map<int, std::unordered_set<int>> original_operator_tr_eff_vars;
 

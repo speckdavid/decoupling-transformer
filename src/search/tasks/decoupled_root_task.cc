@@ -23,6 +23,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
       skip_unnecessary_leaf_effects(options.get<bool>("skip_unnecessary_leaf_effects")),
       same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
+      conclusive_operators(options.get<bool>("conclusive_operators")),
       conclusive_leaf_encoding(options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
@@ -562,7 +563,7 @@ void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator
                 set_general_leaf_effects_of_operator(op_id, op, leaf);
             } else {
                 if (factoring->has_pre_or_eff_on_leaf(op_id, leaf) || factoring->does_op_restrict_leaf(op_id, leaf)) {
-                    if (is_conclusive_operator(op_id, leaf)) {
+                    if (conclusive_operators && is_conclusive_operator(op_id, leaf)) {
                         set_conclusive_leaf_effects_of_operator(op_id, op, leaf, ConclusiveLeafEncoding::BINARY);
                     } else {
                         set_general_leaf_effects_of_operator(op_id, op, leaf);
@@ -796,7 +797,8 @@ public:
         add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.");
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaves have a single secondary variable.", "true");
         add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conclusive leaf encoding.", "multivalued");
-        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence or are conclusive on the leaf.", "true");
+        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
+        add_option<bool>("conclusive_operators", "Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.", "true");
         add_option<bool>("dump_task", "Dumps the task to the console.", "false");
         add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
         add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
