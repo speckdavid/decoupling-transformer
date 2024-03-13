@@ -56,6 +56,8 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     create_goal();
     utils::g_log << "Creating new axioms..." << endl;
     create_axioms();
+    utils::g_log << "Normalizing task..." << endl;
+    normalize();
 
     TaskProxy task_proxy(*this);
 
@@ -410,9 +412,6 @@ void DecoupledRootTask::create_goal() {
         goals.emplace_back(svar, 1);
     }
 
-    // We sort the vector of goals in increasing variable order
-    sort(goals.begin(), goals.end());
-
     assert(adjacent_find(goals.begin(), goals.end(),
                          [](const auto &a, const auto &b) {return a.var == b.var;}) == goals.end()
            && "Multiple goals for the same variable!");
@@ -442,9 +441,6 @@ void DecoupledRootTask::set_preconditions_of_operator(int op_id, ExplicitOperato
             new_op.preconditions.emplace_back(svar, 1);
         }
     }
-
-    // We sort the vector of preconditions in increasing variable order
-    // sort(new_op.preconditions.begin(), new_op.preconditions.end());
 
     assert(op.preconditions.size() >= new_op.preconditions.size());
     assert(adjacent_find(new_op.preconditions.begin(), new_op.preconditions.end(),
@@ -492,7 +488,6 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
                 int svar_pred = leaf_lstate_to_svar[leaf][pred];
                 eff.conditions.emplace_back(svar_pred, 0);
             }
-            // sort(eff.conditions.begin(), eff.conditions.end());
 
             assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
                                  [](const auto &a, const auto &b) {return a.var == b.var;}) == eff.conditions.end()
@@ -749,6 +744,28 @@ void DecoupledRootTask::create_axioms() {
                           {return axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var;}));
     assert(ranges::all_of(axioms, [](const auto &axiom)
                           {return axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value;}));
+}
+
+void DecoupledRootTask::normalize() {
+    sort(goals.begin(), goals.end());
+    for (auto &op : operators) {
+        sort(op.preconditions.begin(), op.preconditions.end());
+        sort(op.effects.begin(), op.effects.end(), [](const ExplicitEffect &a, const ExplicitEffect &b) {
+                 return a.fact < b.fact;
+             });
+        for (auto &eff : op.effects) {
+            sort(eff.conditions.begin(), eff.conditions.end());
+        }
+    }
+    for (auto &ax : axioms) {
+        sort(ax.preconditions.begin(), ax.preconditions.end());
+        sort(ax.effects.begin(), ax.effects.end(), [](const ExplicitEffect &a, const ExplicitEffect &b) {
+                 return a.fact < b.fact;
+             });
+        for (auto &eff : ax.effects) {
+            sort(eff.conditions.begin(), eff.conditions.end());
+        }
+    }
 }
 
 // TODO: release more memory

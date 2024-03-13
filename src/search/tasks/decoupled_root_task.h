@@ -101,6 +101,8 @@ protected:
     void create_leaf_only_operator_axioms();
     void create_axioms();
 
+    void normalize();
+
     void release_memory();
 
     void dump() const;
