@@ -6,12 +6,14 @@
 #include <ostream>
 
 /*
-* We encode each fact as a binary variable. 
+* We encode each fact as a binary variable.
 * TODO: For all binary variables, use a single variable.
 */
 
 namespace dump_pddl_task {
 std::string get_var_val_name(const AbstractTask &task, const FactPair &fact);
+
+std::vector<FactPair> get_fact_with_other_values(const AbstractTask &task, const FactPair &fact);
 
 void extract_all_preconditions(const AbstractTask &task, int op_no, std::vector<FactPair> &all_preconditions);
 

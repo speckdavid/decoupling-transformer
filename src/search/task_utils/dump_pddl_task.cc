@@ -15,6 +15,16 @@ string get_var_val_name(const AbstractTask & /*task*/, const FactPair &fact) {
     return "(var" + to_string(fact.var) + "_val" + to_string(fact.value) + ")";
 }
 
+vector<FactPair> get_fact_with_other_values(const AbstractTask &task, const FactPair &fact) {
+    vector<FactPair> res;
+    for (int val = 0; val < task.get_variable_domain_size(fact.var); ++val) {
+        if (fact.value != val) {
+            res.emplace_back(fact.var, val);
+        }
+    }
+    return res;
+}
+
 void extract_all_preconditions(const AbstractTask &task, int op_no, vector<FactPair> &all_preconditions) {
     for (int pre_ind = 0; pre_ind < task.get_num_operator_preconditions(op_no, false); ++pre_ind) {
         FactPair fact = task.get_operator_precondition(op_no, pre_ind, false);
@@ -128,10 +138,18 @@ void dump_domain_operator(const AbstractTask &task, std::ostream &os, int op_no)
             for (const FactPair &fact : all_effects_cond[eff_id]) {
                 os << " " << get_var_val_name(task, fact) << flush;
             }
-            os << ") " << flush;
-            os << get_var_val_name(task, all_effects[eff_id]) << ")" << endl;
+            os << ") (and " << flush;
+            os << get_var_val_name(task, all_effects[eff_id]);
+            for (const FactPair &neg : get_fact_with_other_values(task, all_effects[eff_id])) {
+                os << " (not " << get_var_val_name(task, neg) << ")";
+            }
+            os << "))" << endl;
         } else {
-            os << get_var_val_name(task, all_effects[eff_id]) << endl;
+            os << get_var_val_name(task, all_effects[eff_id]);
+            for (const FactPair &neg : get_fact_with_other_values(task, all_effects[eff_id])) {
+                os << " (not " << get_var_val_name(task, neg) << ")";
+            }
+            os << endl;
         }
     }
     os << IND << IND << IND << "(increase (total-cost) " << task.get_operator_cost(op_no, false) << ")" << endl;
