@@ -6,7 +6,7 @@
 #include "../structural_symmetries/group.h"
 #include "../structural_symmetries/permutation.h"
 #include "../task_utils/successor_generator.h"
-#include "../task_utils/task_dump.h"
+#include "../task_utils/dump_sas_task.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/rng.h"
 
@@ -181,7 +181,7 @@ void SymmetricRootTask::write_sas_file(const std::string &file_name) const {
     utils::g_log << "Writing to dec_output.sas..." << flush;
     std::ofstream output_file;
     output_file.open(file_name);
-    task_dump::dump_as_SAS(*this, output_file);
+    dump_sas_task::dump_as_SAS(*this, output_file);
     utils::g_log << "done!" << endl;
     utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
 }

@@ -119,7 +119,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     reverse(plan.begin(), plan.end());
     reverse(states.begin(), states.end());
 
-    dec_task.reconstruct_plan_if_necessary(plan, states);
+    dec_task.reconstruct_plan_if_necessary(plan, states, registry);
 
     reverse(plan.begin(), plan.end());
 
