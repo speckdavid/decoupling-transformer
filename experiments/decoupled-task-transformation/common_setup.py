@@ -120,56 +120,7 @@ ATTRIBUTES = [
     Attribute('exhausted_search_space', absolute=True, min_wins=False),
 
 ]
-
-class NonDecoupledTaskFilter:
-    def __init__(self, reference_configs=None):
-        self.decoupled_tasks = defaultdict(set)
-        self.factoring_not_possible_tasks = defaultdict(set)
-        self.maybe_not_possible_tasks = defaultdict(set)
-
-        self.unsupported_tasks = defaultdict(set)
-        self.translate_oom_tasks = defaultdict(set)
-
-        self.reference_configs = reference_configs
-
-    def add_runs(self, run):
-        domain = run["domain"]
-        problem = run["problem"]
-        if run["error"] == "search-unsupported":
-            self.unsupported_tasks[domain].add(problem)
-        if run["error"] == "translate-out-of-memory":
-            self.translate_oom_tasks[domain].add(problem)
-        if self.reference_configs and run["algorithm"] not in self.reference_configs:
-            return run
-        if "number_leaf_factors" in run and run["number_leaf_factors"] > 0:
-            self.decoupled_tasks[domain].add(problem)
-        elif ("is_lp_factoring" in run and run["is_lp_factoring"] == 1) or ("is_miura_factoring" in run and run["is_miura_factoring"] == 1):
-            self.maybe_not_possible_tasks[domain].add(problem)
-        if "factoring_possible" in run and run["factoring_possible"] == 0:
-            self.factoring_not_possible_tasks[domain].add(problem) 
-        return run
-
-    def filter_non_decoupled_runs(self, run):
-        problem = run["problem"]
-        domain = run["domain"]
-        if problem in self.unsupported_tasks[domain]:
-            return False 
-        if problem in self.translate_oom_tasks[domain]:
-            return False
-        if problem in self.factoring_not_possible_tasks[domain]:
-            return False
-        if problem in self.maybe_not_possible_tasks[domain] and problem not in self.decoupled_tasks[domain]:
-            return False
-        return run
-
-    def print_statistics(self):
-        print(f"Number instances where factoring is not possible: {sum(len(tasks) for tasks in self.factoring_not_possible_tasks.values())}")
-        print(f"Number instances where factoring was found: {sum(len(tasks) for tasks in self.decoupled_tasks.values())}")
-        print(f"Number instances where factoring may not be possible: {sum(len(tasks) for tasks in self.maybe_not_possible_tasks.values())}")
-        print(f"Number unsupported instances: {sum(len(tasks) for tasks in self.unsupported_tasks.values())}")
-
-
-        
+   
 
 def get_script():
     """Get file name of main script."""

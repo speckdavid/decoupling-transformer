@@ -11,7 +11,6 @@ using namespace std;
 namespace decoupling {
 
 Factoring::Factoring(const plugins::Options &opts) :
-        optimize_leaf_unique_lstate(opts.get<bool>("optimize_leaf_unique_lstate")),
         prune_fork_leaf_state_spaces(opts.get<bool>("prune_fork_leaf_state_spaces")),
         num_global_operators(0),
         log(utils::get_log_from_options(opts)),
@@ -208,32 +207,32 @@ bool Factoring::does_op_restrict_leaf(int op_id, int leaf) const {
     return does_op_restrict_leaf(task_proxy.get_operators()[op_id], FactorID(leaf));
 }
 
-void Factoring::check_can_optimize_leaf_unique_lstate() {
-    can_optimize_leaf_unique_lstate.resize(leaves.size(), true);
+void Factoring::do_conclusive_leaf_check() {
+    is_leaf_conclusive_.resize(leaves.size(), true);
     size_t num_optimizable_leaves = leaves.size();
     for (auto op : task_proxy.get_operators()){
         if (is_global_operator(op.get_id())){
             for (FactorID leaf(0); leaf < leaves.size(); ++leaf) {
-                if (!can_optimize_leaf_unique_lstate[leaf]){
+                if (!is_leaf_conclusive_[leaf]){
                     continue;
                 }
                 if (has_pre_or_eff_on_leaf(op.get_id(), leaf)) {
                     // if does_op_uniquely_fix_lstate holds, then after applying op,
                     // there is a unique leaf state reached, which is what we need
                     if (!does_op_uniquely_fix_lstate(op, leaf)){
-                        can_optimize_leaf_unique_lstate[leaf] = false;
+                        is_leaf_conclusive_[leaf] = false;
                         num_optimizable_leaves--;
                     }
                 } else {
                     if (is_fork_leaf(leaf) && !is_ifork_leaf(leaf)){
                         // proper fork leafs, i.e. fork leaves with connection to the center, cannot be optimized
                         // this is subsumed by the next check, but cheaper to compute
-                        can_optimize_leaf_unique_lstate[leaf] = false;
+                        is_leaf_conclusive_[leaf] = false;
                         num_optimizable_leaves--;
                     } else if (does_op_restrict_leaf(op, leaf)){
                         // the operator restricts the set of reachable leaf states by
                         // en/disabling center preconditions of leaf-only operators
-                        can_optimize_leaf_unique_lstate[leaf] = false;
+                        is_leaf_conclusive_[leaf] = false;
                         num_optimizable_leaves--;
                     }
                 }
@@ -374,9 +373,7 @@ void Factoring::compute_factoring() {
     check_factoring();
     log << "Number leaf factors: " << leaves.size() << endl;
     apply_factoring();
-    if (optimize_leaf_unique_lstate) {
-        check_can_optimize_leaf_unique_lstate();
-    }
+
     print_factoring();
     leaf_state_space = make_unique<LeafStateSpace>(shared_from_this(),
                                                    task,
@@ -574,7 +571,7 @@ int Factoring::get_initial_leaf_state(int /*leaf*/) const {
 
 vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) const {
     assert(leaf_ >= 0 && leaf_ != FactorID::CENTER && leaf_ < static_cast<int>(leaves.size()));
-    assert(leaf_state >= 0 && leaf_state < LeafStateHash::MAX);
+    assert(leaf_state >= 0 && (size_t)leaf_state < LeafStateHash::MAX);
 
     FactorID leaf(leaf_);
     LeafState lstate(leaf_state_space->get_leaf_state(LeafStateHash(leaf_state), leaf));
@@ -617,13 +614,16 @@ const vector<LeafStateHash> &Factoring::get_goal_leaf_states(int leaf_) const {
     return leaf_state_space->get_leaf_goal_states(leaf);
 }
 
-bool Factoring::is_conclusive_leaf(FactorID leaf) const {
+bool Factoring::is_conclusive_leaf(FactorID leaf) {
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
-    assert(leaf < can_optimize_leaf_unique_lstate.size());
-    return optimize_leaf_unique_lstate && can_optimize_leaf_unique_lstate[leaf];
+    if (is_leaf_conclusive_.empty()) {
+        do_conclusive_leaf_check();
+    }
+    assert(leaf < is_leaf_conclusive_.size());
+    return is_leaf_conclusive_[leaf];
 }
 
-bool Factoring::is_conclusive_leaf(int leaf) const {
+bool Factoring::is_conclusive_leaf(int leaf) {
     assert(leaf >= 0);
     return is_conclusive_leaf(FactorID(leaf));
 }
@@ -683,21 +683,19 @@ void Factoring::insert_leaf_paths(vector<OperatorID> &path,
 void Factoring::add_options_to_feature(plugins::Feature &feature) {
     utils::add_log_options_to_feature(feature);
     feature.add_option<int>("min_number_leaves",
-                            "maximum number of leaves",
-                            "2");
-    feature.add_option<int>("max_leaf_size",
-                            "maximum domain size product of variables in a leaf",
-                            "infinity");
-    feature.add_option<int>("factoring_time_limit",
-                            "timeout for computing the factoring",
-                            "infinity"
+                            "The minimum number of leaf factors.",
+                            "2"
                             );
-    feature.add_option<bool>("optimize_leaf_unique_lstate",
-                             "leaves for which every global operator induces a unique leaf state are optimized",
-                             "true"
-                             );
+    feature.add_option<int>("max_leaf_size",
+                            "Maximum domain-size product of variables in a leaf.",
+                            "1000000"
+                            );
+    feature.add_option<int>("factoring_time_limit",
+                            "Time limit for computing the factoring.",
+                            "30"
+                            );
     feature.add_option<bool>("prune_fork_leaf_state_spaces",
-                             "run simulation-based pruning in fork leaves to reduce their state space",
+                             "Run simulation-based pruning in fork leaves to reduce their state space, not supported, yet.",
                              "false"
                              );
 }

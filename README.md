@@ -1,3 +1,138 @@
+# Decoupled Search for the Masses: A Novel Task Transformation for Classical Planning
+
+This repository contains the code for the ICAPS 2024 paper ([[pdf]](https://mrlab.ai/papers/speck-gnad-icaps2024.pdf) [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)). 
+It extends [Fast Downward 23.06](https://github.com/aibasel/downward/) by the possibility of running the search on a decoupled representation of the planning problem.
+
+## Build instructions
+
+See [BUILD.md](BUILD.md). To use the decoupled representation, it is necessary to install CPLEX as described in the file.
+
+## Recommended Search Configurations
+
+We recommend the following search configuration which we defined as aliases.
+
+```
+./fast-downward.py --alias "decoupled-lama-first" domain.pddl problem.pddl
+```
+
+See [driver/aliases.py](driver/aliases.py) for more aliases.
+
+## Other Search Configuration
+
+You can also create your own search configuration on the decoupled task as follows.
+
+```
+./fast-downward.py --root-task-transform "decoupled(factoring=lp())" --search "XXX"
+```
+
+Here, the search "XXX" can be selected as in normal Fast Downward, e.g., `"lazy_greedy([ff()])"`. For more information, see the [Fast Downward website](https://www.fast-downward.org).
+
+### Parameters
+
+```
+--root-task-transform decoupled(factoring, same_leaf_preconditons_single_variable=true, conclusive_leaf_encoding=multivalued, skip_unnecessary_leaf_effects=true, conclusive_operators=true, dump_task=false, write_sas=false, write_pddl=false, write_factoring=false)
+```
+
+- `factoring` (Factoring): method that computes the factoring (see below)
+- `same_leaf_preconditons_single_variable` (bool): The same preconditions of leaves have a single secondary variable.
+- `conclusive_leaf_encoding` ({basic, binary, multivalued}): Conclusive leaf encoding.
+  - basic`: no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves.
+  - binary`: primary conclusive leaf variables are represented by binary variables. Operators do not have conditional effects regarding a conclusive leaf; instead, they set the primary variable corresponding to the unique reached leaf state to true and all others to false.
+  - multivalued`: primary conclusive leaf variables are represented using the original variables in a factored manner. Operators do not have conditional effects regarding a conclusive leaf; they simply set the primary leaf variables to the corresponding values of the reached leaf state.
+- `skip_unnecessary_leaf_effects` (bool): Skip unnecessary leaf effects for operators that have no influence on the leaf.
+- `conclusive_operators` (bool): Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.
+- `dump_task` (bool): Dumps the task to the console.
+- `write_sas` (bool): Writes the decoupled task to dec_output.sas.
+- `write_pddl` (bool): Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.
+- `write_factoring` (bool): Writes the factoring of the decoupled task to factoring.txt.
+
+#### LP Factoring
+
+```
+lp(verbosity=normal, min_number_leaves=2, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_leaf_state_spaces=false, strategy=MFA, min_mobility=1, min_flexibility=0.2, min_fact_flexibility=0, add_cg_sccs=true)
+```
+- `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
+  - `silent`: only the most basic output
+  - `normal`: relevant information to monitor progress
+  - `verbose`: full output
+  - `debug`: like verbose with additional debug output
+- `min_number_leaves` (int): The minimum number of leaf factors.
+- `max_leaf_size` (int): Maximum domain-size product of variables in a leaf.
+- `factoring_time_limit` (int): Time limit for computing the factoring.
+- `prune_fork_leaf_state_spaces` (bool): Run simulation-based pruning in fork leaves to reduce their state space, not supported, yet.
+- `strategy` ({mml, mmas, mm_opt, mm_approx, mfa, mm, mcl, mcm}): This option determines the property of the factoring that is being optimized by the LP, e.g. the number of mobile leaves, or the sumof leaf mobility.
+  - `MML`: maximize mobile leaves
+  - `MMAS`: maximize mobile action schemas
+  - `MM_OPT`: maximize mobility
+  - `MM_APPROX`: maximize mobility (approximation)
+  - `MFA`: maximize mobile facts
+  - `MM`: maximize mobility (sum)
+  - `MCL`: maximize number of mobile conclusive leaves
+  - `MCM`: maximize conclusive mobility, i.e. number of conclusive actions (sum)
+- `min_mobility` (int): Minimum number of leaf-only actions per leaf factor.
+- `min_flexibility` (double): Minimum flexibility (ratio between the number of leaf-only vs. all actions affecting a leaf.
+- `min_fact_flexibility` (double): Fact flexibility is measured as the mean ratio across all facts in a leaf of the number ofleaf-only vs. all actions affecting that leaf. This option imposes a minimum on that metric.
+- `add_cg_sccs` (bool): If true, every SCC of the causal graph is considered a leaf candidate.
+
+#### Miura & Fukunaga factoring
+
+```
+mf(verbosity=normal, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_leaf_state_spaces=false)
+```
+
+- `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
+  - `silent`: only the most basic output
+  - `normal`: relevant information to monitor progress
+  - `verbose`: full output
+  - `debug`: like verbose with additional debug output
+- `min_number_leaves` (int): maximum number of leaves
+- `max_leaf_size` (int): Maximum domain-size product of variables in a leaf.
+- `factoring_time_limit` (int): Time limit for computing the factoring.
+- `prune_fork_leaf_state_spaces` (bool): Run simulation-based pruning in fork leaves to reduce their state space, not supported, yet.
+
+## Decoupled task to SAS or PDDL
+
+It is possible to use our tool as both a pre-processor and a post-processor to decouple a planning problem, write it to PDDL files or the Fast Downward-specific SAS file, and then transform a decoupled plan into an original one. The following three steps are required.
+
+### Write the decoupled task to a file
+
+The following will write three files: `original.sas`, which represents the original problem; `factoring.txt`, which specifies the factoring; and `dec_output.sas`, which represents the decoupled problem.
+
+```
+./fast-downward.py --sas-file original.sas --keep-sas-file domain.pddl problem.pddl --root-task-transform "decoupled(factoring=lp(),write_factoring=true,write_sas=true)" --search "astar(blind(),bound=0)"
+```
+
+Or we can write the problem in `dec_domain.pddl` and `dec_problem.pddl`.
+
+```
+./fast-downward.py --sas-file original.sas --keep-sas-file domain.pddl problem.pddl --root-task-transform "decoupled(factoring=lp(),write_factoring=true,write_pddl=true)" --search "astar(blind(),bound=0)"
+```
+
+### Solve the decoupled task with your own solver
+
+You can now solve the problem using your own solver. Below is an example using Fast Downward on the written decoupled task in `dec_output.sas`.
+
+```
+./fast-downward.py --keep-sas-file --plan-file decoupled_plan --alias "lama-first" dec_output.sas
+```
+
+### Post-process your plan
+
+Finally, we have a decoupled plan written to `decoupled_plan` which we need to post-process by adding leave actions. This can be done as follows. Note that it is important to input the original `original.sas`.
+
+```
+./fast-downward.py original.sas --root-task-transform "decoupled_plan_reconstruction()" --search "astar(blind(),bound=0)"
+```
+
+## Citation
+David Speck and Daniel Gnad:
+Decoupled Search for the Masses: A Novel Task Transformation for Classical Planning.
+ICAPS 2024.
+[[pdf]](https://mrlab.ai/papers/speck-gnad-icaps2024.pdf) [[bib]](https://mrlab.ai/papers/speck-gnad-icaps2024.html)
+
+---
+
+
 <img src="misc/images/fast-downward.svg" width="800" alt="Fast Downward">
 
 Fast Downward is a domain-independent classical planning system.

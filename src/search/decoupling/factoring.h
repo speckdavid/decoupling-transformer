@@ -15,7 +15,6 @@
 #include <set>
 
 namespace decoupling {
-
 class InteractionGraph;
 
 class Factoring : public std::enable_shared_from_this<Factoring> {
@@ -26,7 +25,6 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     bool is_two_leaf_factoring_possible() const;
     void check_factoring() const;
 
-    bool optimize_leaf_unique_lstate;
     bool prune_fork_leaf_state_spaces;
 
     std::unique_ptr<LeafStateSpace> leaf_state_space;
@@ -44,13 +42,13 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     std::vector<std::vector<bool>> has_op_leaf_eff;
     std::vector<std::vector<OperatorID>> leaf_operators;
 
-    std::vector<bool> can_optimize_leaf_unique_lstate;
+    std::vector<bool> is_leaf_conclusive_;
 
     void remove_never_applicable_global_ops(FactorID leaf);
 
     bool does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const;
 
-    void check_can_optimize_leaf_unique_lstate();
+    void do_conclusive_leaf_check();
 
     const std::vector<OperatorID> &get_leaf_operators(FactorID leaf) const;
 
@@ -143,8 +141,8 @@ public:
     int get_initial_leaf_state(int leaf) const;
     const std::vector<LeafStateHash> &get_goal_leaf_states(int leaf) const;
 
-    bool is_conclusive_leaf(FactorID leaf) const;
-    bool is_conclusive_leaf(int leaf) const;
+    bool is_conclusive_leaf(FactorID leaf);
+    bool is_conclusive_leaf(int leaf);
 
     bool does_op_restrict_leaf(OperatorProxy op, FactorID leaf) const;
     bool does_op_restrict_leaf(int op_id, int leaf) const;
@@ -152,7 +150,7 @@ public:
     std::vector<FactPair> get_leaf_state_values(int leaf, int leaf_state) const;
 
     // NOTE: this function is not very efficiently implemented and should be called sparsely
-    std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair>& partial_state);
+    std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair> &partial_state);
 
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;
 

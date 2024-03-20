@@ -690,6 +690,7 @@ create_fast_downward_library(
     NAME extra_tasks
     HELP "Non-core task transformations"
     SOURCES
+        tasks/decoupled_plan_reconstruction_task
         tasks/decoupled_root_task
         tasks/domain_abstracted_task
         tasks/domain_abstracted_task_factory
@@ -712,6 +713,7 @@ create_fast_downward_library(
         decoupling/leaf_state_registry
         decoupling/leaf_state_space
         decoupling/lp_factoring
+        decoupling/manual_factoring
         decoupling/mf_factoring
         decoupling/plan_reconstruction
     DEPENDENCY_ONLY
@@ -752,7 +754,8 @@ create_fast_downward_library(
     NAME task_properties
     HELP "Task properties"
     SOURCES
-        task_utils/task_dump
+        task_utils/dump_sas_task
+        task_utils/dump_pddl_task
         task_utils/task_properties
     DEPENDENCY_ONLY
 )

@@ -4,7 +4,8 @@
 #include "../decoupling/factoring.h"
 #include "../operator_id.h"
 #include "../plugins/plugin.h"
-#include "../task_utils/task_dump.h"
+#include "../task_utils/dump_sas_task.h"
+#include "../task_utils/dump_pddl_task.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/rng_options.h"
 
@@ -22,6 +23,7 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
       factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
       skip_unnecessary_leaf_effects(options.get<bool>("skip_unnecessary_leaf_effects")),
       same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
+      conclusive_operators(options.get<bool>("conclusive_operators")),
       conclusive_leaf_encoding(options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
@@ -55,10 +57,6 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     utils::g_log << "Creating new axioms..." << endl;
     create_axioms();
 
-    if (options.get<bool>("dump_task")) {
-        dump();
-    }
-
     TaskProxy task_proxy(*this);
 
     // This is also done in the root task which is honestly quite hacky!
@@ -77,9 +75,14 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 
     release_memory();
 
-    if (options.get<bool>("write_sas_file")) {
+    if (options.get<bool>("write_sas")) {
         write_sas_file("dec_output.sas");
-        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
+    }
+    if (options.get<bool>("write_pddl")) {
+        write_pddl_files("dec_domain.pddl", "dec_problem.pddl");
+    }
+    if (options.get<bool>("write_factoring")) {
+        write_factoring_file("factoring.txt");
     }
 }
 
@@ -124,14 +127,65 @@ void DecoupledRootTask::print_statistics() const {
     utils::g_log << "Number of axioms: " << get_num_axioms() << endl;
 }
 
-void DecoupledRootTask::write_sas_file(const std::string file_name) const {
+void DecoupledRootTask::write_sas_file(const string &file_name) const {
     utils::Timer write_sas_file_timer;
-    utils::g_log << "Writing to dec_output.sas..." << flush;
-    std::ofstream output_file;
+    utils::g_log << "Writing to " << file_name << "..." << flush;
+    ofstream output_file;
     output_file.open(file_name);
-    task_dump::dump_as_SAS(*this, output_file);
+    dump_sas_task::dump_as_SAS(*this, output_file);
+    output_file.close();
     utils::g_log << "done!" << endl;
     utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
+}
+
+void DecoupledRootTask::write_pddl_files(const string &domain_file_name,
+                                         const string &problem_file_name) const {
+    utils::Timer write_pddl_files_timer;
+
+    utils::g_log << "Writing to " << domain_file_name << "..." << flush;
+    ofstream domain_output_file;
+    domain_output_file.open(domain_file_name);
+    dump_pddl_task::dump_domain_as_PDDL(*this, domain_output_file);
+    domain_output_file.close();
+    utils::g_log << "done!" << endl;
+
+    utils::g_log << "Writing to " << problem_file_name << "..." << flush;
+    ofstream problem_output_file;
+    problem_output_file.open(problem_file_name);
+    dump_pddl_task::dump_problem_as_PDDL(*this, problem_output_file);
+    problem_output_file.close();
+    utils::g_log << "done!" << endl;
+
+    utils::g_log << "Time for writing pddl files: " << write_pddl_files_timer << endl;
+}
+
+void DecoupledRootTask::write_factoring_file(const string &file_name) const {
+    utils::Timer write_sas_file_timer;
+    utils::g_log << "Writing to " << file_name << "..." << flush;
+    ofstream output_file;
+    output_file.open(file_name);
+
+    // We only write the leaves. The center is induces but it.
+    const auto &leaves = factoring->get_leaves();
+    output_file << "[";
+    for (size_t leaf = 0; leaf < leaves.size(); ++leaf) {
+        output_file << "[";
+        for (size_t var = 0; var < leaves[leaf].size(); ++var) {
+            output_file << leaves[leaf][var];
+            if (var < leaves[leaf].size() - 1) {
+                output_file << ",";
+            }
+        }
+        output_file << "]";
+        if (leaf < leaves.size() - 1) {
+            output_file << ",";
+        }
+    }
+    output_file << "]";
+
+    output_file.close();
+    utils::g_log << "done!" << endl;
+    utils::g_log << "Time for writing factoring file: " << write_sas_file_timer << endl;
 }
 
 bool DecoupledRootTask::are_initial_states_consistent() const {
@@ -144,6 +198,24 @@ bool DecoupledRootTask::are_initial_states_consistent() const {
         }
     }
     return true;
+}
+
+bool DecoupledRootTask::is_conclusive_operator(int op_id, int leaf) const {
+    if (original_operator_tr_eff_vars.count(op_id) == 0) {
+        for (auto const &pre : original_root_task->operators[op_id].preconditions) {
+            original_operator_tr_eff_vars[op_id].insert(pre.var);
+        }
+        for (const auto &eff: original_root_task->operators[op_id].effects) {
+            original_operator_tr_eff_vars[op_id].insert(eff.fact.var);
+        }
+    }
+
+    const vector<int> &leaf_vars = factoring->get_leaf(leaf);
+    const unordered_set<int> &op_tr_vars = original_operator_tr_eff_vars[op_id];
+
+    return all_of(leaf_vars.begin(), leaf_vars.end(),
+                  [&op_tr_vars](int element) {return op_tr_vars.find(element) != op_tr_vars.end();}
+                  );
 }
 
 bool DecoupledRootTask::is_conclusive_leaf(int leaf) const {
@@ -338,13 +410,6 @@ void DecoupledRootTask::create_goal() {
     for (const auto & [leaf, svar] : leaf_to_goal_svar) {
         goals.emplace_back(svar, 1);
     }
-
-    // We sort the vector of goals in increasing variable order
-    sort(goals.begin(), goals.end());
-
-    assert(adjacent_find(goals.begin(), goals.end(),
-                         [](const auto &a, const auto &b) {return a.var == b.var;}) == goals.end()
-           && "Multiple goals for the same variable!");
 }
 
 void DecoupledRootTask::set_preconditions_of_operator(int op_id, ExplicitOperator &new_op) {
@@ -372,13 +437,7 @@ void DecoupledRootTask::set_preconditions_of_operator(int op_id, ExplicitOperato
         }
     }
 
-    // We sort the vector of preconditions in increasing variable order
-    // sort(new_op.preconditions.begin(), new_op.preconditions.end());
-
     assert(op.preconditions.size() >= new_op.preconditions.size());
-    assert(adjacent_find(new_op.preconditions.begin(), new_op.preconditions.end(),
-                         [](const auto &a, const auto &b) {return a.var == b.var;}) == new_op.preconditions.end()
-           && "Multiple preconditions for the same variable!");
 }
 
 void DecoupledRootTask::set_center_effects_of_operator(int op_id, ExplicitOperator &new_op) {
@@ -421,23 +480,16 @@ void DecoupledRootTask::set_general_leaf_effects_of_operator(int op_id, Explicit
                 int svar_pred = leaf_lstate_to_svar[leaf][pred];
                 eff.conditions.emplace_back(svar_pred, 0);
             }
-            // sort(eff.conditions.begin(), eff.conditions.end());
-
-            assert(adjacent_find(eff.conditions.begin(), eff.conditions.end(),
-                                 [](const auto &a, const auto &b) { return a.var == b.var; }) == eff.conditions.end()
-                   && "Multiple effect conditions for the same variable!");
 
             new_op.effects.push_back(eff);
         }
     }
 }
 
-void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf) {
+void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf,
+                                                                ConclusiveLeafEncoding encoding) {
     if (!factoring->has_pre_or_eff_on_leaf(op_id, leaf))
         return;
-
-
-    vector<int> leaf_variables = factoring->get_leaf(leaf);
 
     unordered_map<int, int> relevant_effects;
     for (auto const &pre : original_root_task->operators[op_id].preconditions) {
@@ -454,7 +506,7 @@ void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, Expli
 
     assert((int)relevant_effects.size() == factoring->get_num_leaf_variables(leaf));
 
-    if (conclusive_leaf_encoding == ConclusiveLeafEncoding::MULTIVALUED) {
+    if (encoding == ConclusiveLeafEncoding::MULTIVALUED) {
         for (auto const & [var, val] : relevant_effects) {
             int mapped_pvar = conclusive_leaf_var_to_pvar[var];
             op.effects.emplace_back(mapped_pvar, val, vector<FactPair>());
@@ -488,12 +540,18 @@ void DecoupledRootTask::set_conclusive_leaf_effects_of_operator(int op_id, Expli
 void DecoupledRootTask::set_leaf_effects_of_operator(int op_id, ExplicitOperator &op) {
     for (int leaf = 0; leaf < factoring->get_num_leaves(); ++leaf) {
         if (conclusive_leaf_encoding && is_conclusive_leaf(leaf)) {
-            set_conclusive_leaf_effects_of_operator(op_id, op, leaf);
+            set_conclusive_leaf_effects_of_operator(op_id, op, leaf, conclusive_leaf_encoding);
         } else {
-            if (!skip_unnecessary_leaf_effects ||
-                factoring->has_pre_or_eff_on_leaf(op_id, leaf) ||
-                factoring->does_op_restrict_leaf(op_id, leaf)) {
+            if (!skip_unnecessary_leaf_effects) {
                 set_general_leaf_effects_of_operator(op_id, op, leaf);
+            } else {
+                if (factoring->has_pre_or_eff_on_leaf(op_id, leaf) || factoring->does_op_restrict_leaf(op_id, leaf)) {
+                    if (conclusive_operators && is_conclusive_operator(op_id, leaf)) {
+                        set_conclusive_leaf_effects_of_operator(op_id, op, leaf, ConclusiveLeafEncoding::BINARY);
+                    } else {
+                        set_general_leaf_effects_of_operator(op_id, op, leaf);
+                    }
+                }
             }
         }
     }
@@ -534,7 +592,7 @@ void DecoupledRootTask::create_frame_axioms() {
                 ExplicitOperator new_op(0, name, true);
                 new_op.preconditions.emplace_back(svar, 0);
 
-                std::vector<FactPair> conds;
+                vector<FactPair> conds;
                 for (const FactPair &fact : factoring->get_leaf_state_values(leaf, lstate)) {
                     assert(conclusive_leaf_var_to_pvar.count(fact.var));
                     int mapped_leaf_var = conclusive_leaf_var_to_pvar[fact.var];
@@ -559,7 +617,7 @@ void DecoupledRootTask::create_frame_axioms() {
             ExplicitOperator new_op(0, name, true);
             new_op.preconditions.emplace_back(svar, 0);
             FactPair cond(pvar, 1);
-            new_op.effects.emplace_back(ExplicitEffect(svar, 1, std::vector<FactPair> {cond}));
+            new_op.effects.emplace_back(ExplicitEffect(svar, 1, vector<FactPair> {cond}));
 
             axioms.push_back(new_op);
         }
@@ -575,7 +633,7 @@ void DecoupledRootTask::create_goal_axioms() {
             ExplicitOperator new_op(0, name, true);
             new_op.preconditions.emplace_back(goal_svar, 0);
             FactPair cond(state_svar, 1);
-            new_op.effects.emplace_back(ExplicitEffect(goal_svar, 1, std::vector<FactPair> {cond}));
+            new_op.effects.emplace_back(ExplicitEffect(goal_svar, 1, vector<FactPair> {cond}));
 
             axioms.push_back(new_op);
         }
@@ -601,7 +659,7 @@ void DecoupledRootTask::create_precondition_axioms() {
                 ExplicitOperator new_op(0, name, true);
                 new_op.preconditions.emplace_back(pre_svar, 0);
                 FactPair cond(state_svar, 1);
-                new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, std::vector<FactPair> {cond}));
+                new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, vector<FactPair> {cond}));
 
                 axioms.push_back(new_op);
             }
@@ -683,6 +741,7 @@ void DecoupledRootTask::release_memory() {
     leaf_lstate_to_svar.clear();
     precondition_to_svar.clear();
     leaf_op_to_svar.clear();
+    original_operator_tr_eff_vars.clear();
     #endif
 }
 
@@ -718,13 +777,15 @@ public:
         document_synopsis(
             "A decoupled transformation of the root task.");
 
-        add_option<shared_ptr<decoupling::Factoring>>("factoring",
-                                                      "method that computes the factoring");
-        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaf have a single secondary variables.", "true");
-        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Optimization for inverted forks with a single variable", "multivalued");
+        add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.");
+        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaves have a single secondary variable.", "true");
+        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conclusive leaf encoding.", "multivalued");
         add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
-        add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
-        add_option<bool>("dump_task", "Dumps the task to the console", "false");
+        add_option<bool>("conclusive_operators", "Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.", "true");
+        add_option<bool>("dump_task", "Dumps the task to the console.", "false");
+        add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
+        add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
+        add_option<bool>("write_factoring", "Writes the factoring of the decoupled task to factoring.txt.", "false");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
@@ -736,8 +797,8 @@ static plugins::FeaturePlugin<DecoupledRootTaskFeature> _plugin;
 
 
 static plugins::TypedEnumPlugin<ConclusiveLeafEncoding> _enum_plugin({
-        {"basic", "basic encoding"},
-        {"binary", "primary conclusive leaf variables are represented with binary variables"},
-        {"multivalued", "primary conclusive leaf varibales are represented using the original variables"}
+        {"basic", "no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves."},
+        {"binary", "primary conclusive leaf variables are represented by binary variables. Operators do not have conditional effects regarding a conclusive leaf; instead, they set the primary variable corresponding to the unique reached leaf state to true and all others to false."},
+        {"multivalued", "primary conclusive leaf variables are represented using the original variables in a factored manner. Operators do not have conditional effects regarding a conclusive leaf; they simply set the primary leaf variables to the corresponding values of the reached leaf state."}
     });
 }
