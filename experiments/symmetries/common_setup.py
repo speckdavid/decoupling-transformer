@@ -110,24 +110,24 @@ ATTRIBUTES = [
 
 class NoSymmetryTaskFilter:
     def __init__(self):
-        self.symmetry_tasks = defaultdict(set)
+        self.non_symmetry_tasks = defaultdict(set)
 
     def add_runs(self, run):
         domain = run["domain"]
         problem = run["problem"]
-        if "no_symmetries" in run and run["no_symmetries"] == 0:
-            self.symmetry_tasks[domain].add(problem)
+        if "no_symmetries" in run and run["no_symmetries"] == 1:
+            self.non_symmetry_tasks[domain].add(problem)
         return run
 
     def filter_non_symmetry_runs(self, run):
         problem = run["problem"]
         domain = run["domain"]
-        if problem not in self.symmetry_tasks[domain]:
+        if problem in self.non_symmetry_tasks[domain]:
             return False
         return run
 
     def print_statistics(self):
-        print(f"Number instances with symmetries: {sum(len(tasks) for tasks in self.symmetry_tasks.values())}")
+        print(f"Number instances without symmetries: {sum(len(tasks) for tasks in self.non_symmetry_tasks.values())}")
 
 
         
