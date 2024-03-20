@@ -252,7 +252,7 @@ vector<int> Group::get_canonical_representative(const State &state) const {
     return canonical_state;
 }
 
-vector<int> Group::get_canonical_representative_in_place(vector<int> &state) const {
+Permutation Group::do_canonical_inplace_and_get_permutation(vector<int> &partial_state) const {
     assert(has_symmetries());
 
     vector<int> permutation_trace;
@@ -260,27 +260,7 @@ vector<int> Group::get_canonical_representative_in_place(vector<int> &state) con
     while (changed) {
         changed = false;
         for (int i = 0; i < get_num_generators(); i++) {
-            if (generators[i].replace_if_less(state)) {
-                permutation_trace.push_back(i);
-                changed = true;
-            }
-        }
-    }
-
-    return permutation_trace;
-}
-
-Permutation Group::get_best_permutation_partial_state(const vector<int> &partial_state) const {
-    assert(has_symmetries());
-    vector<int> canonical_state = partial_state;
-
-    // TODO find minimum partial state
-    vector<int> permutation_trace;
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        for (int i = 0; i < get_num_generators(); i++) {
-            if (generators[i].replace_if_less_partial(canonical_state)) {
+            if (generators[i].replace_if_less_partial_state(partial_state)) {
                 permutation_trace.push_back(i);
                 changed = true;
             }
@@ -288,6 +268,53 @@ Permutation Group::get_best_permutation_partial_state(const vector<int> &partial
     }
 
     return {*this, compute_permutation_from_trace(permutation_trace)};
+}
+
+Permutation Group::get_canonical_permutation(const vector<int> &partial_state) const {
+    assert(has_symmetries());
+    vector<int> canonical_state(partial_state);
+    return do_canonical_inplace_and_get_permutation(canonical_state);
+}
+
+Permutation Group::do_perfect_canonical_inplace_and_get_permutation(vector<int> &partial_state) const {
+    assert(has_symmetries());
+
+    utils::HashSet<vector<int>> closed;
+    queue<vector<int>> open;
+    utils::HashMap<vector<int>, vector<int>> traces;
+
+    open.push(partial_state);
+    traces[partial_state] = vector<int>();
+    vector<int> trace;
+
+    while (!open.empty()) {
+        vector<int> cur = open.front();
+        open.pop();
+
+        closed.insert(cur);
+
+        if (cur < partial_state) {
+            partial_state = cur;
+            trace = traces[cur];
+        }
+        for (int i = 0; i < get_num_generators(); ++i) {
+            vector<int> succ(cur);
+            generators[i].replace_partial_state(succ);
+            if (closed.count(succ) == 0) {
+                traces[succ] = traces[cur];
+                traces[succ].push_back(i);
+                open.push(succ);
+            }
+        }
+    }
+
+    return {*this, compute_permutation_from_trace(trace)};
+}
+
+Permutation Group::get_perfect_canonical_permutation(const vector<int> &partial_state) const {
+    assert(has_symmetries());
+    vector<int> canonical_state(partial_state);
+    return do_perfect_canonical_inplace_and_get_permutation(canonical_state);
 }
 
 vector<int> Group::compute_permutation_trace_to_canonical_representative(const State &state) const {

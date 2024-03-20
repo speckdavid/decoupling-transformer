@@ -20,7 +20,8 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
       group(options.get<shared_ptr<Group>>("symmetries")),
-      empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")) {
+      empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
+      compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
@@ -36,6 +37,7 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     utils::Timer transformation_timer;
 
     // copy everything from original root task
+    // TODO avoid the copies
     variables = original_root_task->variables;
     goals = original_root_task->goals;
     mutexes = original_root_task->mutexes;
@@ -98,16 +100,22 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
         RawPermutation p;
         if (new_state.get_id() != states[i].get_id()){
             const ExplicitOperator &original_op = original_root_task->get_operator_or_axiom(op_id.get_index(), false);
-            Permutation perm(group->get_best_permutation_partial_state(get_state_for_operator_permutation(original_op)), true);
-            p = perm.value;
+            if (compute_perfect_canonical) {
+                Permutation perm(group->get_perfect_canonical_permutation(get_state_for_operator_permutation(original_op)),
+                                 true);
+                p = perm.value;
+            } else {
+                Permutation perm(group->get_canonical_permutation(get_state_for_operator_permutation(original_op)),
+                                 true);
+                p = perm.value;
+            }
         } else {
             p = group->new_identity_raw_permutation();
         }
-        permutations.push_back(move(p));
+        permutations.push_back(std::move(p));
     }
     // invert initial-state permutation to obtain original initial state
-    RawPermutation init_state_permutation = group->compute_permutation_from_trace(initial_state_permutation_trace);
-    Permutation rev_init_state_p(Permutation(*group, init_state_permutation), true);
+    Permutation rev_init_state_p(Permutation(*initial_state_permutation), true);
     permutations.push_back(rev_init_state_p.value);
 
     assert(states.size() == permutations.size());
@@ -180,7 +188,13 @@ void SymmetricRootTask::write_sas_file(const std::string &file_name) const {
 
 void SymmetricRootTask::create_initial_state() {
     initial_state_values = original_root_task->initial_state_values;
-    initial_state_permutation_trace = group->get_canonical_representative_in_place(initial_state_values);
+    if (compute_perfect_canonical) {
+        initial_state_permutation = make_unique<Permutation>(
+                group->do_perfect_canonical_inplace_and_get_permutation(initial_state_values));
+    } else {
+        initial_state_permutation = make_unique<Permutation>(
+                group->do_canonical_inplace_and_get_permutation(initial_state_values));
+    }
 }
 
 inline void add_conditional_permuted_effects(tasks::ExplicitOperator &new_op,
@@ -221,9 +235,14 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(int op_id, tasks::Expli
 
     vector<int> pre_eff_state(get_state_for_operator_permutation(op));
 
-    const Permutation perm(group->get_best_permutation_partial_state(pre_eff_state));
+    unique_ptr<Permutation> perm;
+    if (compute_perfect_canonical) {
+        perm = make_unique<Permutation>(group->get_perfect_canonical_permutation(pre_eff_state));
+    } else {
+        perm = make_unique<Permutation>(group->get_canonical_permutation(pre_eff_state));
+    }
 
-    if (perm.identity()){
+    if (perm->identity()){
         // no symmetries
         new_op.effects = op.effects;
         return;
@@ -234,20 +253,20 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(int op_id, tasks::Expli
     pre_eff_state = vector<int>(variables.size(), -1);
     set_partial_state_from_action(pre_eff_state, op);
 
-    auto &affected_vars_cycles = perm.affected_vars_cycles;
+    auto &affected_vars_cycles = perm->affected_vars_cycles;
     for (size_t i = 0; i < affected_vars_cycles.size(); i++) {
         if (affected_vars_cycles[i].size() == 1) {
             int from_var = affected_vars_cycles[i][0];
             int from_val = pre_eff_state[from_var];
             if (from_val != -1){
-                auto [to_var, to_val] = perm.get_new_var_val_by_old_var_val(from_var, from_val);
+                auto [to_var, to_val] = perm->get_new_var_val_by_old_var_val(from_var, from_val);
                 // effect is fixed by original precondition or effect
                 new_op.effects.push_back({to_var, to_val, {}});
                 handled_var[to_var] = true;
                 continue;
             }
-            add_conditional_permuted_effects(new_op, perm, from_var, variables[from_var].domain_size);
-            auto [to_var, _] = perm.get_new_var_val_by_old_var_val(from_var, 0);
+            add_conditional_permuted_effects(new_op, *perm, from_var, variables[from_var].domain_size);
+            auto [to_var, _] = perm->get_new_var_val_by_old_var_val(from_var, 0);
             handled_var[to_var] = true;
             continue;
         }
@@ -260,27 +279,27 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(int op_id, tasks::Expli
             int from_var = affected_vars_cycles[i][j - 1];
             int from_val = pre_eff_state[from_var];
             if (from_val != -1) {
-                auto [to_var, to_val] = perm.get_new_var_val_by_old_var_val(from_var, from_val);
+                auto [to_var, to_val] = perm->get_new_var_val_by_old_var_val(from_var, from_val);
                 assert(to_var == affected_vars_cycles[i][j]);
                 // effect is fixed by original precondition or effect
                 new_op.effects.push_back({to_var, to_val, {}});
                 handled_var[to_var] = true;
                 continue;
             }
-            add_conditional_permuted_effects(new_op, perm, from_var, variables[from_var].domain_size);
-            auto [to_var, _] = perm.get_new_var_val_by_old_var_val(from_var, 0);
+            add_conditional_permuted_effects(new_op, *perm, from_var, variables[from_var].domain_size);
+            auto [to_var, _] = perm->get_new_var_val_by_old_var_val(from_var, 0);
             handled_var[to_var] = true;
         }
         // writing the last one
         if (last_val != -1) {
-            auto [to_var, to_val] = perm.get_new_var_val_by_old_var_val(last_var, last_val);
+            auto [to_var, to_val] = perm->get_new_var_val_by_old_var_val(last_var, last_val);
             // effect is fixed by original precondition or effect
             new_op.effects.push_back({to_var, to_val, {}});
             handled_var[to_var] = true;
             continue;
         }
-        add_conditional_permuted_effects(new_op, perm, last_var, variables[last_var].domain_size);
-        auto [to_var, _] = perm.get_new_var_val_by_old_var_val(last_var, 0);
+        add_conditional_permuted_effects(new_op, *perm, last_var, variables[last_var].domain_size);
+        auto [to_var, _] = perm->get_new_var_val_by_old_var_val(last_var, 0);
         handled_var[to_var] = true;
     }
 
@@ -330,6 +349,7 @@ public:
 
         add_option<shared_ptr<Group>>("symmetries", "method that computes symmetries");
         add_option<EmptyValueStrategy>("empty_value_strategy", "How to treat variables not mentioned in operator precondition and effect", "none");
+        add_option<bool>("compute_perfect_canonical", "Computes the perfect canonical for each orbit.", "true");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }

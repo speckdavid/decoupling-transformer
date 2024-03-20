@@ -277,7 +277,7 @@ bool Permutation::replace_if_less(vector<int> &state) const {
     return true;
 }
 
-bool Permutation::replace_if_less_partial(vector<int> &state) const {
+bool Permutation::is_less_partial_state(const vector<int> &state) const {
     if (identity())
         return false;
 
@@ -289,7 +289,7 @@ bool Permutation::replace_if_less_partial(vector<int> &state) const {
         int to_var = vars_affected[i];
         int from_var = from_vars[to_var];
 
-        if (state[from_var] == -1){
+        if (state[from_var] == -1) {
             continue;
         }
 
@@ -308,6 +308,10 @@ bool Permutation::replace_if_less_partial(vector<int> &state) const {
     if (from_here == static_cast<int>(vars_affected.size()))
         return false;
 
+    return true;
+}
+
+void Permutation::replace_partial_state(vector<int> &state) const {
     for (size_t i = 0; i < affected_vars_cycles.size(); i++) {
         if (affected_vars_cycles[i].size() == 1) {
             int var = affected_vars_cycles[i][0];
@@ -341,7 +345,13 @@ bool Permutation::replace_if_less_partial(vector<int> &state) const {
             state[affected_vars_cycles[i][0]] = -1;
         }
     }
+}
 
-    return true;
+bool Permutation::replace_if_less_partial_state(vector<int> &state) const {
+    if (is_less_partial_state(state)){
+        replace_partial_state(state);
+        return true;
+    }
+    return false;
 }
 }

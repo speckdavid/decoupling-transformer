@@ -134,10 +134,17 @@ public:
     // Used for OSS
     std::vector<int> get_canonical_representative(const State &state) const;
 
-    // Next two methods: used for symmetry task transformation
-    std::vector<int> get_canonical_representative_in_place(std::vector<int> &state) const;
+    // used for symmetry task transformation
+    Permutation do_canonical_inplace_and_get_permutation(std::vector<int> &state) const;
 
-    Permutation get_best_permutation_partial_state(const std::vector<int> &partial_state) const;
+    // used for symmetry task transformation
+    Permutation get_canonical_permutation(const std::vector<int> &state) const;
+
+    // used for symmetry task transformation
+    Permutation do_perfect_canonical_inplace_and_get_permutation(std::vector<int> &state) const;
+
+    // used for symmetry task transformation
+    Permutation get_perfect_canonical_permutation(const std::vector<int> &state) const;
 
     // Following methods: used for path tracing (OSS and DKS)
     RawPermutation new_identity_raw_permutation() const;

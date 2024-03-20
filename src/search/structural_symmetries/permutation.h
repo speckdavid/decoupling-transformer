@@ -50,7 +50,9 @@ public:
 
     bool replace_if_less(std::vector<int> &state) const;
 
-    bool replace_if_less_partial(std::vector<int> &state) const;
+    void replace_partial_state(std::vector<int> &state) const;
+
+    bool replace_if_less_partial_state(std::vector<int> &state) const;
 
     const std::vector<int> &get_affected_vars() const {
         return vars_affected;
@@ -73,6 +75,8 @@ private:
     void _copy_value_from_permutation(const Permutation &perm);
 
     void _inverse_value_from_permutation(const Permutation &perm);
+
+    bool is_less_partial_state(const std::vector<int> &state) const;
 };
 }
 #endif

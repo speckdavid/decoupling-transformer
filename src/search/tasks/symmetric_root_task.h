@@ -14,6 +14,7 @@ class Options;
 
 namespace structural_symmetries {
 class Group;
+class Permutation;
 }
 
 namespace tasks {
@@ -27,8 +28,9 @@ class SymmetricRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task; // TODO check if this is needed
     std::shared_ptr<structural_symmetries::Group> group;
     EmptyValueStrategy empty_value_strategy;
+    bool compute_perfect_canonical;
 
-    std::vector<int> initial_state_permutation_trace;
+    std::unique_ptr<structural_symmetries::Permutation> initial_state_permutation;
     std::vector<int> base_state_for_op_permutation;
 
     std::vector<int> get_state_for_operator_permutation(const ExplicitOperator &op) const;
