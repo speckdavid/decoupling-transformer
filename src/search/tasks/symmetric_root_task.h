@@ -19,7 +19,7 @@ class Permutation;
 
 namespace tasks {
 
-enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2};
+enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4};
 
 /*
   Task transformation that encodes symmetry pruning into condition effects
