@@ -359,7 +359,7 @@ public:
 
         add_option<shared_ptr<Group>>("symmetries", "method that computes symmetries");
         add_option<EmptyValueStrategy>("empty_value_strategy", "How to treat variables not mentioned in operator precondition and effect", "none");
-        add_option<bool>("compute_perfect_canonical", "Computes the perfect canonical for each orbit.", "true");
+        add_option<bool>("compute_perfect_canonical", "Computes the perfect canonical for each orbit.", "false");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
