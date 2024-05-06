@@ -694,6 +694,7 @@ create_fast_downward_library(
         tasks/decoupled_root_task
         tasks/domain_abstracted_task
         tasks/domain_abstracted_task_factory
+        tasks/permutation_group_task
         tasks/modified_goals_task
         tasks/modified_operator_costs_task
         tasks/symmetric_root_task

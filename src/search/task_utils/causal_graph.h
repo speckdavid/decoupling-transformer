@@ -51,6 +51,7 @@
 */
 
 #include <vector>
+#include <string>
 
 typedef std::vector<std::vector<int>> IntRelation;
 
@@ -110,6 +111,8 @@ public:
     const std::vector<int> &get_predecessors(int var) const {
         return predecessors[var];
     }
+
+    void to_dot(const TaskProxy &task_proxy, const std::string& file_name) const;
 };
 
 /* Create or retrieve a causal graph from cache. If causal graphs are created

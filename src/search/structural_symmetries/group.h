@@ -14,17 +14,18 @@ class Options;
 }
 
 namespace tasks {
+class PermutationGroupTask;
 class SymmetricRootTask;
 }
 
 namespace structural_symmetries {
-
 class Permutation;
 
 // Permutation of bliss graph vertices.
 using RawPermutation = std::vector<int>;
 
 class Group {
+    friend class tasks::PermutationGroupTask;
     friend class tasks::SymmetricRootTask;
 
     // Options for Bliss and the type of symmetries used
@@ -50,7 +51,6 @@ class Group {
     std::vector<Permutation> generators;
     std::vector<std::unordered_map<int, int>> to_be_written_generators;
 
-    const Permutation &get_permutation(int index) const;
 
     // Path tracing
     std::vector<int> compute_permutation_trace_to_canonical_representative(const State &state) const;
@@ -68,6 +68,8 @@ public:
 
     ~Group() = default;
 
+    const Permutation &get_permutation(int index) const;
+    
     // Graph creator
     void add_to_dom_sum_by_var(int summed_dom);
 
@@ -150,10 +152,10 @@ public:
     RawPermutation new_identity_raw_permutation() const;
 
     RawPermutation compose_permutations(
-            const RawPermutation &permutation1, const RawPermutation &permutation2) const;
+        const RawPermutation &permutation1, const RawPermutation &permutation2) const;
 
     RawPermutation create_permutation_from_state_to_state(
-            const State &from_state, const State &to_state) const;
+        const State &from_state, const State &to_state) const;
 };
 }
 #endif

@@ -1,12 +1,15 @@
 #include "symmetric_root_task.h"
 
+#include "permutation_group_task.h"
+
 #include "../state_registry.h"
 
 #include "../plugins/plugin.h"
 #include "../structural_symmetries/group.h"
 #include "../structural_symmetries/permutation.h"
-#include "../task_utils/successor_generator.h"
+#include "../task_utils/causal_graph.h"
 #include "../task_utils/dump_sas_task.h"
+#include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/rng.h"
 
@@ -33,6 +36,11 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
             utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
         }
     }
+    extra_tasks::PermutationGroupTask pg_task(original_root_task, group);
+
+    auto pg_cg = causal_graph::get_causal_graph(&pg_task);
+    pg_cg.to_dot(TaskProxy(pg_task), "cg.dot");
+    exit(0);
 
     utils::Timer transformation_timer;
 

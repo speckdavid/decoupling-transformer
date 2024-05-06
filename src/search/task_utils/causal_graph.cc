@@ -8,7 +8,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -186,7 +188,7 @@ CausalGraph::CausalGraph(const TaskProxy &task_proxy) {
     cg_builder.pred_builder.compute_relation(predecessors);
     cg_builder.succ_builder.compute_relation(successors);
 
-    // dump(task_proxy);
+    dump(task_proxy);
     utils::g_log << "done! [t=" << timer << "]" << endl;
 }
 
@@ -201,6 +203,32 @@ void CausalGraph::dump(const TaskProxy &task_proxy) const {
                      << "    successors: " << successors[var_id] << endl
                      << "    predecessors: " << predecessors[var_id] << endl;
     }
+}
+
+void CausalGraph::to_dot(const TaskProxy &task_proxy, const string &file_name) const {
+    ofstream dot_file(file_name);
+    if (!dot_file.is_open()) {
+        cerr << "Error: Unable to open file " << file_name << endl;
+        return;
+    }
+
+    dot_file << "digraph CausalGraph {\n";
+
+    // Write vertices
+    for (VariableProxy var : task_proxy.get_variables()) {
+        int var_id = var.get_id();
+        dot_file << var_id << ";\n";
+    }
+
+    for (VariableProxy var : task_proxy.get_variables()) {
+        int var_id = var.get_id();
+        for (int succ : get_successors(var_id)) {
+            dot_file << var_id << " -> " << succ << ";\n";
+        }
+    }
+
+    dot_file << "}\n";
+    dot_file.close();
 }
 
 const CausalGraph &get_causal_graph(const AbstractTask *task) {
