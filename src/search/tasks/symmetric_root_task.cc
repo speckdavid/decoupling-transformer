@@ -7,7 +7,6 @@
 #include "../plugins/plugin.h"
 #include "../structural_symmetries/group.h"
 #include "../structural_symmetries/permutation.h"
-#include "../task_utils/causal_graph.h"
 #include "../task_utils/dump_sas_task.h"
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
@@ -36,11 +35,22 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
             utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
         }
     }
-    extra_tasks::PermutationGroupTask pg_task(original_root_task, group);
 
-    auto pg_cg = causal_graph::get_causal_graph(&pg_task);
-    pg_cg.to_dot(TaskProxy(pg_task), "cg.dot");
-    exit(0);
+    /***** Causal graph stuff *****/
+    // extra_tasks::PermutationGroupTask pg_task(original_root_task, group);
+    // pg_task.write_causal_graph("cg.dot");
+    // task_properties::dump_task(TaskProxy(pg_task), true, true);
+    // utils::g_log << "Eff: " << vector<int>(pg_task.get_effect_variables().begin(), pg_task.get_effect_variables().end()) << endl;
+    // utils::g_log << "Cond: " << vector<int>(pg_task.get_condition_variables().begin(), pg_task.get_condition_variables().end()) << endl;
+    // utils::g_log << "Rel: " << vector<int>(pg_task.get_relevant_variables().begin(), pg_task.get_relevant_variables().end()) << endl;
+
+    // vector<vector<int>> relevant_variable_components;
+    // pg_task.get_relevant_components(relevant_variable_components, false);
+    // utils::g_log << "Components: " << relevant_variable_components << endl;
+    // relevant_variable_components.clear();
+    // pg_task.get_relevant_components(relevant_variable_components, true);
+    // utils::g_log << "Components (sorted by degree): " << relevant_variable_components << endl;
+    // exit(0);
 
     utils::Timer transformation_timer;
 
