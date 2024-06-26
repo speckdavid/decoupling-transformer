@@ -39,7 +39,7 @@ static void out_of_memory_handler() {
 }
 
 // Function that is called from the graph automorphism tool.
-void add_permutation_to_group(void *group, unsigned int, const unsigned int *permutation) {
+static void add_permutation_to_group(void *group, unsigned int, const unsigned int *permutation) {
     static_cast<Group *>(group)->add_raw_generator(permutation);
 }
 
