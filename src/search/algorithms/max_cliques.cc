@@ -268,7 +268,7 @@ int compute_max_weighted_clique(
     return computer.find_max_weight_clique(max_clique);
 }
 
-extern int compute_max_weighted_independent_set(
+int compute_max_weighted_independent_set(
     const vector<vector<int>> &graph,
     const vector<int> &weights,
     vector<int> &independent_set) {
