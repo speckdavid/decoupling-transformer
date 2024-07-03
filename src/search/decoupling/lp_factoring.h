@@ -18,7 +18,6 @@ class Feature;
 }
 
 namespace decoupling {
-
 enum class STRATEGY {
     MML, // maximize mobile leaves
     MMAS, // maximize mobile action schemas
@@ -31,7 +30,6 @@ enum class STRATEGY {
 };
 
 class LPFactoring : public decoupling::Factoring {
-
     struct PotentialLeaf {
         const LPFactoring *factoring;
         size_t id;
@@ -43,7 +41,7 @@ class LPFactoring : public decoupling::Factoring {
         std::vector<double> as_flexibility;
 
         PotentialLeaf(const LPFactoring *factoring, size_t id, const std::vector<int> &vars)
-        : factoring(factoring), id(id), num_actions(0), max_flexibility(0.0), vars(vars) {}
+            : factoring(factoring), id(id), num_actions(0), max_flexibility(0.0), vars(vars) {}
 
         void add_leaf_only_schema(size_t action_schema);
     };
@@ -112,7 +110,6 @@ public:
     explicit LPFactoring(const plugins::Options &opts);
 
     static void add_options_to_parser(plugins::Feature &feature);
-
 };
 }
 

@@ -105,8 +105,8 @@ public:
         std::vector<int> &values,
         const AbstractTask *ancestor_task) const = 0;
 
-    virtual void reconstruct_plan_if_necessary(std::vector<OperatorID> &/*path*/,
-                                               std::vector<State> &/*states*/) const {
+    virtual void reconstruct_plan_if_necessary(std::vector<OperatorID> & /*path*/,
+                                               std::vector<State> & /*states*/) const {
         // If we run decoupled search, the decoupled root task needs to reconstruct the
         // solution to get a proper plan. By default, we do nothing.
     }

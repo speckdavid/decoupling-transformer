@@ -87,7 +87,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     vector<OperatorID> plan;
     vector<string> plan_steps = read_file_to_string("decoupled_plan");
     plan_steps.erase(remove_if(plan_steps.begin(), plan_steps.end(),
-                                    [](const string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
+                               [](const string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
     for (string &op_name : plan_steps) {
         op_name = op_name.substr(1, op_name.length() - 2);
         replace(op_name.begin(), op_name.end(), '+', ' ');

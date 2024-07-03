@@ -13,7 +13,6 @@
 
 
 namespace decoupling {
-
 class Factoring;
 class LeafState;
 class LeafStateRegistry;
@@ -75,7 +74,7 @@ public:
         return is_a_leaf_goal_state[factor][id];
     }
 
-    const std::vector<LeafStateHash>& get_leaf_goal_states(FactorID factor) const {
+    const std::vector<LeafStateHash> &get_leaf_goal_states(FactorID factor) const {
         assert(leaf_goal_states.size() > factor);
         return leaf_goal_states[factor];
     }
@@ -86,8 +85,8 @@ public:
 
     std::vector<int> get_predecessors(FactorID leaf, LeafStateHash lstate, OperatorID op_id) const {
         std::vector<int> predecessors;
-        for (auto [p_op_id, predecessor] : leaf_state_predecessors[leaf][lstate]){
-            if (op_id == p_op_id){
+        for (auto [p_op_id, predecessor] : leaf_state_predecessors[leaf][lstate]) {
+            if (op_id == p_op_id) {
                 predecessors.push_back(predecessor);
             }
         }

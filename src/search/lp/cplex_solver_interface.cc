@@ -538,35 +538,35 @@ bool CplexSolverInterface::has_solution() const {
     }
     int status = CPXgetstat(env, problem);
     switch (status) {
-        case CPX_STAT_OPTIMAL:
-        case CPXMIP_OPTIMAL:
-            /*
-              The following status was returned in some cases, for example when
-              computing h^+ for childsnack-opt14-strips/child-snack_pfile03-2.pddl.
-              It means that the solution is optimal within the tolerances defined by
-              the relative or absolute MIP gap.
-              TODO: is it safe to treat this as an optimal solution (OSI did)?
-            */
-        case CPXMIP_OPTIMAL_TOL:
-            /*
-              The following status was returned in some cases, for example when
-              computing diverse potential heuristics for Airport/p29.
-              It means that there is an optimal solution of the LP but there are
-              "infeasibilities after unscaling".
-              TODO: is it safe to treat this as an optimal solution (OSI did)?
-            */
-        case CPX_STAT_OPTIMAL_INFEAS:
-        case CPX_STAT_FEASIBLE:
-        case CPXMIP_TIME_LIM_FEAS:
-            return true;
-        case CPX_STAT_UNBOUNDED:
-        case CPX_STAT_INFEASIBLE:
-        case CPXMIP_INFEASIBLE:
-        case CPXMIP_TIME_LIM_INFEAS:
-            return false;
-        default:
-            cerr << "Unexpected status after solving LP/MIP: " << status << endl;
-            utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
+    case CPX_STAT_OPTIMAL:
+    case CPXMIP_OPTIMAL:
+    /*
+          The following status was returned in some cases, for example when
+          computing h^+ for childsnack-opt14-strips/child-snack_pfile03-2.pddl.
+          It means that the solution is optimal within the tolerances defined by
+          the relative or absolute MIP gap.
+          TODO: is it safe to treat this as an optimal solution (OSI did)?
+        */
+    case CPXMIP_OPTIMAL_TOL:
+    /*
+          The following status was returned in some cases, for example when
+          computing diverse potential heuristics for Airport/p29.
+          It means that there is an optimal solution of the LP but there are
+          "infeasibilities after unscaling".
+          TODO: is it safe to treat this as an optimal solution (OSI did)?
+        */
+    case CPX_STAT_OPTIMAL_INFEAS:
+    case CPX_STAT_FEASIBLE:
+    case CPXMIP_TIME_LIM_FEAS:
+        return true;
+    case CPX_STAT_UNBOUNDED:
+    case CPX_STAT_INFEASIBLE:
+    case CPXMIP_INFEASIBLE:
+    case CPXMIP_TIME_LIM_INFEAS:
+        return false;
+    default:
+        cerr << "Unexpected status after solving LP/MIP: " << status << endl;
+        utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
     }
 }
 

@@ -12,7 +12,6 @@ using namespace std;
 
 
 namespace decoupling {
-
 MFFactoring::MFFactoring(const plugins::Options &opts) : Factoring(opts) {
     min_number_leaves = 1;
     if (log.is_at_least_normal()) {
@@ -21,21 +20,21 @@ MFFactoring::MFFactoring(const plugins::Options &opts) : Factoring(opts) {
 }
 
 inline bool subseteq(const vector<int> &a, const vector<int> &b) {
-    if (a.size() > b.size()){
+    if (a.size() > b.size()) {
         return false;
     }
     size_t i = 0, j = 0;
-    while (i < a.size() && j < b.size()){
-        if (a[i] < b[j]){
+    while (i < a.size() && j < b.size()) {
+        if (a[i] < b[j]) {
             return false;
-        } else if (a[i] > b[j]){
+        } else if (a[i] > b[j]) {
             ++j;
-        } else if (a[i] == b[j]){
+        } else if (a[i] == b[j]) {
             ++i;
             ++j;
         }
     }
-    if (i < a.size()){
+    if (i < a.size()) {
         return false;
     }
     return true;
@@ -44,12 +43,12 @@ inline bool subseteq(const vector<int> &a, const vector<int> &b) {
 inline vector<int> intersection(const vector<int> &a, const vector<int> &b) {
     vector<int> inters;
     size_t i = 0, j = 0;
-    while (i < a.size() && j < b.size()){
-        if (a[i] < b[j]){
+    while (i < a.size() && j < b.size()) {
+        if (a[i] < b[j]) {
             ++i;
-        } else if (a[i] > b[j]){
+        } else if (a[i] > b[j]) {
             ++j;
-        } else if (a[i] == b[j]){
+        } else if (a[i] == b[j]) {
             inters.push_back(a[i]);
             ++i;
             ++j;
@@ -59,10 +58,9 @@ inline vector<int> intersection(const vector<int> &a, const vector<int> &b) {
 }
 
 void MFFactoring::compute_factoring_() {
-
     compute_action_schemas();
 
-    if (action_schemas.empty()){
+    if (action_schemas.empty()) {
         // mostly for trivially unsolvable task from translator?
         log << "ERROR: No action schemas." << endl;
         return;
@@ -71,7 +69,7 @@ void MFFactoring::compute_factoring_() {
     priority_queue<vector<int>> candidates;
 
     // initial candidates are the precondition variables of all actions
-    for (const auto &as : action_schemas){
+    for (const auto &as : action_schemas) {
         candidates.push(as.pre_vars);
     }
 
@@ -80,7 +78,7 @@ void MFFactoring::compute_factoring_() {
     vector<int> best_candidate;
     while (!candidates.empty()) {
         auto &c = candidates.top();
-        if (closed_candidates.count(c) > 0){
+        if (closed_candidates.count(c) > 0) {
             candidates.pop();
             continue;
         }
@@ -102,13 +100,13 @@ void MFFactoring::compute_factoring_() {
                 break;
             }
         }
-        if (is_valid && c.size() > best_candidate.size()){
+        if (is_valid && c.size() > best_candidate.size()) {
             best_candidate = c;
         }
         candidates.pop();
     }
 
-    if (best_candidate.empty()){
+    if (best_candidate.empty()) {
         log << "No valid decomposition possible." << endl;
         return;
     }

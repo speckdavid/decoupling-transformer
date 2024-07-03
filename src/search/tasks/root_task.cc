@@ -169,7 +169,7 @@ static void read_and_verify_version(istream &in) {
 
 int ExplicitOperator::get_encoding_size() const {
     int size = 1 + preconditions.size();
-    for (const auto& eff : effects)
+    for (const auto &eff : effects)
         size += eff.get_encoding_size();
     return size;
 }
@@ -437,7 +437,7 @@ void RootTask::convert_ancestor_state_values(
 
 int RootTask::get_encoding_size(bool with_mutexes) const {
     int task_size = 0;
-    for (const auto& var : variables)
+    for (const auto &var : variables)
         task_size += var.get_encoding_size();
     task_size += initial_state_values.size();
     task_size += goals.size();

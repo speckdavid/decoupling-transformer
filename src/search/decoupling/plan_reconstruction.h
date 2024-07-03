@@ -13,7 +13,6 @@ class State;
 class TaskProxy;
 
 namespace decoupling {
-
 class Factoring;
 class LeafStateSpace;
 
@@ -29,7 +28,7 @@ struct PathPriceInfo {
                       is_new(false) {}
 
     PathPriceInfo(int price, OperatorID op, LeafStateHash predecessor, bool is_new = false)
-            : price(price), generating_op(op), predecessor(predecessor), is_new(is_new) {}
+        : price(price), generating_op(op), predecessor(predecessor), is_new(is_new) {}
 
     void reset_generating_op() {
         is_new = false;
@@ -41,7 +40,6 @@ struct PathPriceInfo {
 
 
 class PathPrices {
-
     std::vector<int> number_states;
 
     std::vector<int> goal_costs;
@@ -89,7 +87,6 @@ public:
                                     const LeafStateSpace &leaf_state_space,
                                     std::vector<OperatorID> &ops,
                                     std::vector<State> &states);
-
 };
 }
 #endif

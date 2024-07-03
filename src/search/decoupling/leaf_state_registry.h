@@ -13,7 +13,6 @@
 
 
 namespace decoupling {
-
 class LeafStateRegistry {
     friend class LeafState;
 
