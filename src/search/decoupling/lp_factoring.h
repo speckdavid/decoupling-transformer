@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_LP_FACTORING
-#define DECOUPLING_LP_FACTORING
+#ifndef DECOUPLING_LP_FACTORING_H
+#define DECOUPLING_LP_FACTORING_H
 
 #include "factoring.h"
 

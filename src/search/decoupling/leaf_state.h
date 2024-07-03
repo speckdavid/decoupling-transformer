@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_LEAF_STATE
-#define DECOUPLING_LEAF_STATE
+#ifndef DECOUPLING_LEAF_STATE_H
+#define DECOUPLING_LEAF_STATE_H
 
 #include "leaf_state_id.h"
 

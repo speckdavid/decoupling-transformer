@@ -276,7 +276,7 @@ int Factoring::get_num_effects_on_leaf(OperatorProxy op, FactorID leaf) const {
     return num_effs;
 }
 
-const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
+const vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
     return goals_by_leaf[leaf];
 }

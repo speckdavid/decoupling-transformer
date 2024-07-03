@@ -25,7 +25,7 @@ static vector<string> read_file_to_string(const string &filename) {
     string line;
 
     if (file.is_open()) {
-        while (std::getline(file, line)) {
+        while (getline(file, line)) {
             lines.push_back(line);
         }
         file.close();
@@ -86,8 +86,8 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     // Plan file to vector of operator ids
     vector<OperatorID> plan;
     vector<string> plan_steps = read_file_to_string("decoupled_plan");
-    plan_steps.erase(std::remove_if(plan_steps.begin(), plan_steps.end(),
-                                    [](const std::string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
+    plan_steps.erase(remove_if(plan_steps.begin(), plan_steps.end(),
+                                    [](const string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
     for (string &op_name : plan_steps) {
         op_name = op_name.substr(1, op_name.length() - 2);
         replace(op_name.begin(), op_name.end(), '+', ' ');

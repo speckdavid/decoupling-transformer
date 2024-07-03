@@ -84,8 +84,8 @@ ExplicitVariable::ExplicitVariable(istream &in) {
     check_magic(in, "end_variable");
 }
 
-ExplicitVariable::ExplicitVariable(const std::string &name,
-                                   std::vector<std::string> &&fact_names,
+ExplicitVariable::ExplicitVariable(const string &name,
+                                   vector<string> &&fact_names,
                                    int axiom_layer,
                                    int axiom_default_value) :
     domain_size(fact_names.size()),
@@ -148,7 +148,7 @@ ExplicitOperator::ExplicitOperator(istream &in, bool is_an_axiom, bool use_metri
 }
 
 ExplicitOperator::ExplicitOperator(int cost,
-                                   const std::string &name,
+                                   const string &name,
                                    bool is_an_axiom) :
     cost(cost),
     name(name),

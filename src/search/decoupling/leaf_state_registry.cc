@@ -5,8 +5,8 @@
 using namespace std;
 
 namespace decoupling {
-LeafStateRegistry::LeafStateRegistry(const std::shared_ptr<AbstractTask> &task,
-                                     const std::shared_ptr<Factoring> &factoring) :
+LeafStateRegistry::LeafStateRegistry(const shared_ptr<AbstractTask> &task,
+                                     const shared_ptr<Factoring> &factoring) :
             task(task),
             factoring(factoring) {
     registered_leaf_states.resize(factoring->get_num_leaves());

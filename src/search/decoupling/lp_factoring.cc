@@ -24,14 +24,14 @@ using namespace std;
 
 namespace decoupling {
 void LPFactoring::PotentialLeaf::add_leaf_only_schema(size_t action_schema) {
-    if (std::find(action_schemes.begin(),
+    if (find(action_schemes.begin(),
             action_schemes.end(),
             action_schema) == action_schemes.end()){
         action_schemes.push_back(action_schema);
         num_actions += factoring->action_schemas[action_schema].num_actions;
         bool all_in = true;
         for (int pre_var : factoring->action_schemas[action_schema].pre_vars){
-            if (!std::binary_search(vars.begin(), vars.end(), pre_var)){
+            if (!binary_search(vars.begin(), vars.end(), pre_var)){
                 all_in = false;
                 break;
             }
@@ -527,7 +527,7 @@ void LPFactoring::construct_lp_all(named_vector::NamedVector<lp::LPVariable> &va
         }
 
         OperatorsProxy operators = task_proxy.get_operators();
-        utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t> > scheme_loockup;
+        utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t> > scheme_loockup;
         for (OperatorProxy op : operators) {
             vector<int> pre_vars;
             for (FactProxy pre : op.get_preconditions()) {
@@ -853,8 +853,8 @@ void LPFactoring::compute_factoring_() {
         log << "No constraints, all candidates become leaf factors." << endl;
     } else {
         solver.load_problem(lp::LinearProgram(lp::LPObjectiveSense::MAXIMIZE,
-                                               std::move(variables),
-                                              std::move(constraints),
+                                               move(variables),
+                                              move(constraints),
                                                  infty));
 
         solver.set_time_limit(factoring_timer.get_remaining_time());
@@ -992,7 +992,7 @@ void LPFactoring::compute_potential_leaves() {
 
     {
         VariablesProxy vars_proxy = task_proxy.get_variables();
-        utils::HashMap<std::vector<int>, size_t> leaf_lookup;
+        utils::HashMap<vector<int>, size_t> leaf_lookup;
         for (size_t as = 0; as < action_schemas.size(); ++as) {
             const ActionSchema &action_schema = action_schemas[as];
             int64_t size = 1;
@@ -1087,7 +1087,7 @@ void LPFactoring::add_cg_sccs() {
         return;
     }
 
-    utils::HashSet<std::vector<int>> leaf_lookup;
+    utils::HashSet<vector<int>> leaf_lookup;
 
     for (const PotentialLeaf &pleaf : potential_leaves){
         leaf_lookup.insert(pleaf.vars);

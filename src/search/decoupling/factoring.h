@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_FACTORING
-#define DECOUPLING_FACTORING
+#ifndef DECOUPLING_FACTORING_H
+#define DECOUPLING_FACTORING_H
 
 #include "leaf_state_id.h"
 #include "leaf_state_space.h"

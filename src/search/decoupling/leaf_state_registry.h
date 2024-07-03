@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_LEAF_STATE_REGISTRY
-#define DECOUPLING_LEAF_STATE_REGISTRY
+#ifndef DECOUPLING_LEAF_STATE_REGISTRY_H
+#define DECOUPLING_LEAF_STATE_REGISTRY_H
 
 #include "leaf_state.h"
 #include "leaf_state_id.h"
