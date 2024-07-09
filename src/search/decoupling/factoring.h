@@ -76,6 +76,8 @@ protected:
 
         ActionSchema(int num_actions, const std::vector<int> &pre_vars, const std::vector<int> &eff_vars)
             : num_actions(num_actions), pre_vars(pre_vars), eff_vars(eff_vars) {
+            assert(std::is_sorted(pre_vars.begin(), pre_vars.end()));
+            assert(std::is_sorted(eff_vars.begin(), eff_vars.end()));
         }
 
         void inc_num_actions() {
