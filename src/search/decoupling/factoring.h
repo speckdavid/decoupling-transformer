@@ -87,7 +87,7 @@ protected:
 
     std::vector<ActionSchema> action_schemas;
 
-    std::vector<std::set<int>> var_to_affecting_op;
+    std::vector<std::vector<int>> var_to_affecting_op;
 
     int min_number_leaves;
     int max_leaf_size;

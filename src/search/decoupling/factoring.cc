@@ -31,6 +31,13 @@ void Factoring::apply_factoring() {
     // initialize center/leaves
     var_to_factor.resize(task->get_num_variables(), FactorID::CENTER);
     var_to_id_in_factor.resize(task->get_num_variables(), -1);
+
+    // normalize the factoring, to be able to compare different factoring methods
+    for (auto &leaf : leaves) {
+        std::sort(leaf.begin(), leaf.end());
+    }
+    std::sort(leaves.begin(), leaves.end());
+
     FactorID factor(0);
     for (const auto &leaf : leaves) {
         int i = 0;
@@ -384,7 +391,7 @@ void Factoring::compute_factoring() {
 void Factoring::save_memory() {
     // TODO save more memory, what about the leaf state space?
     vector<ActionSchema>().swap(action_schemas);
-    vector<set<int>>().swap(var_to_affecting_op);
+    vector<vector<int>>().swap(var_to_affecting_op);
 }
 
 bool Factoring::check_timeout() const {
@@ -425,10 +432,10 @@ void Factoring::compute_action_schemas() {
 
 void Factoring::compute_var_to_ops_map() {
     if (var_to_affecting_op.empty()) {
-        var_to_affecting_op = vector<set<int>>(task_proxy.get_variables().size(), set<int>());
+        var_to_affecting_op.resize(task->get_num_variables());
         for (OperatorProxy op : task_proxy.get_operators()) {
             for (EffectProxy eff : op.get_effects()) {
-                var_to_affecting_op[eff.get_fact().get_variable().get_id()].insert(op.get_id());
+                var_to_affecting_op[eff.get_fact().get_variable().get_id()].push_back(op.get_id());
             }
         }
     }

@@ -49,6 +49,7 @@ class MWISFactoring : public decoupling::Factoring {
     };
 
     struct PotentialLeaf {
+        mutable size_t num_affecting_actions; // number of action have any effect on vars
         size_t num_actions; // number of actions with the effect schema
         std::vector<int> vars; // sorted
         std::vector<size_t> action_schemes;
@@ -72,7 +73,11 @@ class MWISFactoring : public decoupling::Factoring {
 
     bool add_cg_sccs_;
 
+    std::vector<std::vector<size_t>> variables_to_action_schemas;
+
     std::vector<PotentialLeafNode> potential_leaf_nodes; // final leaf candidates
+
+    void compute_variables_to_action_schemas_map();
 
     static std::vector<size_t> get_superset_pleaf_ids(const PotentialLeaf &pleaf,
                                                       const std::vector<PotentialLeaf> &potential_leaves,
@@ -80,7 +85,7 @@ class MWISFactoring : public decoupling::Factoring {
 
     void compute_fact_flexibility(
             std::vector<std::vector<std::unordered_map<size_t, size_t>>> &facts_to_mobility,
-            std::vector<std::vector<size_t>> &sum_fact_mobility) const;
+            std::vector<std::vector<size_t>> &sum_fact_mobility);
 
     void compute_potential_leaves();
 
