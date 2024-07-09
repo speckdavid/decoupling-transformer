@@ -46,14 +46,14 @@ extern void compute_max_independent_sets(
    [2] Warren, Jeffrey S, Hicks, Illya V.: Combinatorial Branch-and-Bound for the Maximum Weight
        Independent Set Problem. Technical Report, Texas A&M University (2016).
  */
-extern int compute_max_weighted_clique(
+extern double compute_max_weighted_clique(
     const std::vector<std::vector<int>> &graph,
-    const std::vector<int> &weights,
+    const std::vector<double> &weights,
     std::vector<int> &max_clique);
 
-extern int compute_max_weighted_independent_set(
+extern double compute_max_weighted_independent_set(
     const std::vector<std::vector<int>> &graph,
-    const std::vector<int> &weights,
+    const std::vector<double> &weights,
     std::vector<int> &independent_set);
 }
 #endif

@@ -148,11 +148,11 @@ void compute_max_independent_sets(
 class MaxWeightCliqueComputer {
 private:
     const vector<vector<int>> &graph;
-    const vector<int> &node_weights;
+    const vector<double> &node_weights;
     vector<int> incumbent_nodes;
-    int incumbent_weight;
+    double incumbent_weight;
 
-    void update_incumbent_if_improved(const vector<int> &C, int C_weight) {
+    void update_incumbent_if_improved(const vector<int> &C, double C_weight) {
         if (C_weight > incumbent_weight) {
             incumbent_nodes = C;
             incumbent_weight = C_weight;
@@ -172,20 +172,21 @@ private:
         return independent_set;
     }
 
-    vector<int> find_branching_nodes(vector<int> P, int target) {
-        unordered_map<int, int> residual_wt;
+    vector<int> find_branching_nodes(vector<int> P, double target) {
+        // TODO: this method seems to be a bottleneck; probably worth switching to faster data structure
+        unordered_map<int, double> residual_wt;
         for (int v : P) {
             residual_wt[v] = node_weights[v];
         }
 
-        int total_wt = 0;
+        double total_wt = 0;
         while (!P.empty()) {
             vector<int> independent_set = greedily_find_independent_set(P);
             int min_element_in_class = *min_element(independent_set.begin(), independent_set.end(),
                                                     [&residual_wt](int a, int b) {
                                                         return residual_wt[a] < residual_wt[b];
                                                     });
-            int min_wt_in_class = residual_wt[min_element_in_class];
+            double min_wt_in_class = residual_wt[min_element_in_class];
 
             total_wt += min_wt_in_class;
             if (total_wt > target)
@@ -202,7 +203,7 @@ private:
         return P;
     }
 
-    void expand(vector<int> C, int C_weight, vector<int> P) {
+    void expand(const vector<int> &C, double C_weight, vector<int> P) {
         update_incumbent_if_improved(C, C_weight);
         vector<int> branching_nodes = find_branching_nodes(P, incumbent_weight - C_weight);
 
@@ -214,7 +215,7 @@ private:
             vector<int> new_C = C;
             new_C.push_back(v);
 
-            int new_C_weight = C_weight + node_weights[v];
+            double new_C_weight = C_weight + node_weights[v];
             vector<int> new_P;
             for (int w : P) {
                 if (find(graph.at(v).begin(), graph.at(v).end(), w) != graph.at(v).end()) {
@@ -226,20 +227,20 @@ private:
     }
 
 public:
-    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<int> &weights)
+    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights)
         : graph(graph), node_weights(weights), incumbent_weight(0) {
         if (graph.size() != weights.size()) {
             cerr << "Number of nodes does not match number of weights!" << endl;
             utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
         }
-        if (graph.size() == 0) {
+        if (graph.empty()) {
             cerr << "Graph is empty!" << endl;
             utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
         }
     }
 
-    int find_max_weight_clique(vector<int> &max_clique) {
-        if (graph.size() == 0) {
+    double find_max_weight_clique(vector<int> &max_clique) {
+        if (graph.empty()) {
             return 0;
         }
 
@@ -260,17 +261,17 @@ public:
     }
 };
 
-int compute_max_weighted_clique(
+double compute_max_weighted_clique(
     const vector<vector<int>> &graph,
-    const vector<int> &weights,
+    const vector<double> &weights,
     vector<int> &max_clique) {
     MaxWeightCliqueComputer computer(graph, weights);
     return computer.find_max_weight_clique(max_clique);
 }
 
-int compute_max_weighted_independent_set(
+double compute_max_weighted_independent_set(
     const vector<vector<int>> &graph,
-    const vector<int> &weights,
+    const vector<double> &weights,
     vector<int> &independent_set) {
     auto complement_graph = create_complement(graph);
     MaxWeightCliqueComputer computer(complement_graph, weights);
