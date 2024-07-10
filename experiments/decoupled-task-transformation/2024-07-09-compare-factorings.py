@@ -28,24 +28,31 @@ REVISIONS = [REVISION]
 
 CONFIGS = []
 factorings = {
-    'WMIS-F0.2s1M-inf':     'wmis(factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-F0.2s1M-inf':     'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'WMIS-L0.2s1M-inf':     'wmis(factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'WMIS-AS0.2s1M-inf':    'wmis(factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'WMIS-M0.2s1M-inf':     'wmis(factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-F0.2s1M':           'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-L0.2s1M':           'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-AS0.2s1M':          'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-M0.2s1M':           'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-
+    'WMIS-AS0.2s1M-inf':    'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-M0.2s1M-inf':     'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-F0.2s1M-30':      'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-L0.2s1M-30':      'wmis(factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-AS0.2s1M-30':     'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-M0.2s1M-30':      'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-F0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-L0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-AS0.2s1M-inf':      'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-M0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-F0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-L0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-AS0.2s1M-30':       'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'LP-M0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
 }
-heuristics = {"blind" : "[blind]",
+heuristics = {"inf" : "const(value=infinity)",
 }
 
 DRIVER_OPTS = ["--overall-time-limit", "5m"]
 
 for h_name, heuristic_option in heuristics.items():
     for dec_name, dec in factorings.items():
-        CONFIGS.append(IssueConfig(f'{h_name}-{dec_name}', ['--root-task-transform', f"decoupled(factoring={dec})", '--search',  f'lazy_greedy({heuristic_option})'], driver_options=DRIVER_OPTS))
+        CONFIGS.append(IssueConfig(f'{h_name}-{dec_name}', ['--root-task-transform', f"decoupled(factoring={dec})", '--search',  f'astar({heuristic_option})'], driver_options=DRIVER_OPTS))
 
 
 SUITE = common_setup.DEFAULT_SATISFICING_SUITE
@@ -79,12 +86,6 @@ exp.add_step("parse", exp.parse)
 exp.add_fetcher(name='fetch', filter=[filters.remove_revision])
 
 
-DEC_REVISION = "243a4d6c4a49e61bb4f442d677891d38b83fc9a8"
-exp.add_fetcher("/proj/parground/users/x_dangn/decoupled-fd/experiments/decoupling-transformer/data/2024-03-11-baselines-eval", name="fetch-dec-base", merge=True, filter=[filters.remove_revision, filters.rename_ds_base])
-
-MS_REVISION = "8c2bbe375222e0ba6cdb83b4c79ee4ade6e884ad"
-exp.add_fetcher("/proj/parground/users/x_dangn/torralba-sievers-ijcai2019-fast-downward/experiments/decoupling-transformer/data/2024-03-11-ff-po-als-eval", name="fetch-ms", merge=True, filter=[filters.remove_revision])
-
 FORMAT = "html"
 
 # REPORT TABLES
@@ -93,7 +94,7 @@ attributes = common_setup.ATTRIBUTES
 exp.add_report(AbsoluteReport(attributes=attributes), outfile=f"{SCRIPT_NAME}-all.html")
 
 configs = ["AS0.2s1M", "F0.2s1M", "L0.2s1M", "M0.2s1M"]
-exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"blind-LP-{x}", f"blind-WMIS-{x}-inf") for x in configs]), outfile=f"{SCRIPT_NAME}-compare.html")
+exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"inf-LP-{x}", f"inf-WMIS-{x}") for x in configs]), outfile=f"{SCRIPT_NAME}-compare.html")
 
 
 # SCATTER PLOTS
@@ -130,35 +131,6 @@ exp.add_report(
     name="scatterplot-task-size-optimization",
 )
 
-
-
-
-# OTHER STATISTICS
-dec_filter3 = filters.NonDecoupledTaskFilter() # remove instances that are not decoupleable
-trans_time_check = filters.TranformationTimeChecker("ff-F0.2s1M")
-exp.add_report( # dummy report, only collecting statistics
-    ScatterPlotReport(
-        attributes=["task_size"],
-        filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1M"],
-        filter=[dec_filter3.add_runs, dec_filter3.filter_non_decoupled_runs, trans_time_check.get_time],
-        #get_category=domain_as_category,
-        format="png",  # Use "tex" for pgfplots output.
-    ),
-    name="get-transformation-time-statistics",
-)
-
-mf_time_check = filters.MFTimeChecker()
-exp.add_report( # dummy report, only collecting statistics
-    ScatterPlotReport(
-        attributes=["task_size"],
-        filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1M"],
-        filter=[mf_time_check.get_time],
-        #get_category=domain_as_category,
-        format="png",  # Use "tex" for pgfplots output.
-    ),
-    name="get-mf-runtime-statistics",
-)
- 
 
 exp.run_steps()
 
