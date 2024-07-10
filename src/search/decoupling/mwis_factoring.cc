@@ -414,12 +414,14 @@ void MWISFactoring::construct_graph(Graph &graph) {
 
 vector<int> MWISFactoring::solve_wmis(const Graph &graph,
                                       const vector<double> &weights,
-                                      const utils::CountdownTimer &/*timer*/) {
+                                      const utils::CountdownTimer &timer) {
 
     // TODO include timer in computation
     vector<int> independent_set;
 
-    double weight = max_cliques::compute_max_weighted_independent_set(graph, weights, independent_set);
+    utils::g_log << "Computing max weighted independent set..." << flush;
+    double weight = max_cliques::compute_max_weighted_independent_set(graph, weights, independent_set, timer.get_remaining_time());
+    utils::g_log << "done!" << endl;
 
     cout << "final weight = " << weight << endl;
 

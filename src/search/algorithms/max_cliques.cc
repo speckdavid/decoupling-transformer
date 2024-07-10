@@ -1,6 +1,7 @@
 #include "max_cliques.h"
 
 #include "../utils/collections.h"
+#include "../utils/countdown_timer.h"
 #include "../utils/logging.h"
 
 #include <algorithm>
@@ -149,13 +150,23 @@ class MaxWeightCliqueComputer {
 private:
     const vector<vector<int>> &graph;
     const vector<double> &node_weights;
+    utils::CountdownTimer timer;
+
+    // Result
     vector<int> incumbent_nodes;
     double incumbent_weight;
 
     void update_incumbent_if_improved(const vector<int> &C, double C_weight) {
+        assert(utils::all_values_unique(C));
         if (C_weight > incumbent_weight) {
             incumbent_nodes = C;
             incumbent_weight = C_weight;
+
+            #ifndef NDEBUG
+            sort(incumbent_nodes.begin(), incumbent_nodes.end());
+            utils::g_log << "New weight: " << incumbent_weight << " for "
+                         << incumbent_nodes << endl;
+            #endif
         }
     }
 
@@ -206,6 +217,7 @@ private:
     void expand(const vector<int> &C, double C_weight, vector<int> P) {
         update_incumbent_if_improved(C, C_weight);
         vector<int> branching_nodes = find_branching_nodes(P, incumbent_weight - C_weight);
+        assert(utils::all_values_unique(branching_nodes));
 
         while (!branching_nodes.empty()) {
             int v = branching_nodes.back();
@@ -222,13 +234,16 @@ private:
                     new_P.push_back(w);
                 }
             }
+            if (timer.is_expired()) {
+                return;
+            }
             expand(new_C, new_C_weight, new_P);
         }
     }
 
 public:
-    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights)
-        : graph(graph), node_weights(weights), incumbent_weight(0) {
+    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights, double max_time)
+        : graph(graph), node_weights(weights), timer(max_time), incumbent_weight(0) {
         if (graph.size() != weights.size()) {
             cerr << "Number of nodes does not match number of weights!" << endl;
             utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -250,13 +265,13 @@ public:
         sort(nodes.begin(), nodes.end(), [this](int a, int b) {
                  return graph.at(a).size() > graph.at(b).size();
              });
-
         nodes.erase(remove_if(nodes.begin(), nodes.end(), [this](int v) {
                                   return node_weights[v] <= 0;
                               }), nodes.end());
-
+        assert(utils::all_values_unique(nodes));
         expand({}, 0, nodes);
         max_clique = incumbent_nodes;
+        sort(max_clique.begin(), max_clique.end());
         return incumbent_weight;
     }
 };
@@ -264,17 +279,19 @@ public:
 double compute_max_weighted_clique(
     const vector<vector<int>> &graph,
     const vector<double> &weights,
-    vector<int> &max_clique) {
-    MaxWeightCliqueComputer computer(graph, weights);
+    vector<int> &max_clique,
+    double max_time) {
+    MaxWeightCliqueComputer computer(graph, weights, max_time);
     return computer.find_max_weight_clique(max_clique);
 }
 
 double compute_max_weighted_independent_set(
     const vector<vector<int>> &graph,
     const vector<double> &weights,
-    vector<int> &independent_set) {
+    vector<int> &independent_set,
+    double max_time) {
     auto complement_graph = create_complement(graph);
-    MaxWeightCliqueComputer computer(complement_graph, weights);
+    MaxWeightCliqueComputer computer(complement_graph, weights, max_time);
     return computer.find_max_weight_clique(independent_set);
 }
 }

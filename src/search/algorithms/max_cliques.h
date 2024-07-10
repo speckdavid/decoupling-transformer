@@ -1,6 +1,7 @@
 #ifndef ALGORITHMS_MAX_CLIQUES_H
 #define ALGORITHMS_MAX_CLIQUES_H
 
+#include <limits>
 #include <vector>
 
 namespace max_cliques {
@@ -45,15 +46,19 @@ extern void compute_max_independent_sets(
        bound para o problema da clique máxima ponderada. Proceedings of XLVII SBPO 1 (2015).
    [2] Warren, Jeffrey S, Hicks, Illya V.: Combinatorial Branch-and-Bound for the Maximum Weight
        Independent Set Problem. Technical Report, Texas A&M University (2016).
+
+    We stop after max_time seconds.
  */
 extern double compute_max_weighted_clique(
     const std::vector<std::vector<int>> &graph,
     const std::vector<double> &weights,
-    std::vector<int> &max_clique);
+    std::vector<int> &max_clique,
+    double max_time = std::numeric_limits<double>::infinity());
 
 extern double compute_max_weighted_independent_set(
     const std::vector<std::vector<int>> &graph,
     const std::vector<double> &weights,
-    std::vector<int> &independent_set);
+    std::vector<int> &independent_set,
+    double max_time = std::numeric_limits<double>::infinity());
 }
 #endif
