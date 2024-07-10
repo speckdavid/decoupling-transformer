@@ -38,7 +38,7 @@ factorings = {
     'LP-M0.2s1M':           'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
 
 }
-heuristics = {"blind" : ["[blind]"],
+heuristics = {"blind" : "[blind]",
 }
 
 DRIVER_OPTS = ["--overall-time-limit", "5m"]
@@ -55,7 +55,7 @@ ENVIRONMENT = TetralithEnvironment(
 #    time_limit_per_task="24:00:00",
 #    memory_per_cpu="8300M",
 #    extra_options="#SBATCH -A naiss2023-5-236", # parground
-    extra_options="#SBATCH -A naiss2023-5-341", # dfsplan
+    extra_options="#SBATCH -A naiss2023-5-314", # dfsplan
 )
 
 exp = IssueExperiment(
@@ -88,19 +88,12 @@ exp.add_fetcher("/proj/parground/users/x_dangn/torralba-sievers-ijcai2019-fast-d
 FORMAT = "html"
 
 # REPORT TABLES
-attributes = common_setup.ATTRIBUTES + [Attribute("compact_coverage", absolute=True, min_wins=False)]
+attributes = common_setup.ATTRIBUTES
 
-dec_filter = filters.NonDecoupledTaskFilter() # remove instances that are not decoupleable
-exp.add_report(AbsoluteReport(attributes=attributes, filter=[dec_filter.add_runs, dec_filter.filter_non_decoupled_runs]), outfile=f"{SCRIPT_NAME}-all.html")
+exp.add_report(AbsoluteReport(attributes=attributes), outfile=f"{SCRIPT_NAME}-all.html")
 
-cov_filter = filters.CompactCoverageFilter(["ff-F0.2s1Mnopt", "ff-F0.2s1M", "ff", "DS-ff-F0.2s1M", "RS-a-ls", "decoupled-lama-first", "lama-first"])
-dec_filter2 = filters.NonDecoupledTaskFilter(["ff-F0.2s1M"]) # remove instances that are not decoupleable
-exp.add_report(AbsoluteReport(attributes=attributes, filter_algorithm=["ff-F0.2s1Mnopt", "ff-F0.2s1M", "ff", "DS-ff-F0.2s1M", "RS-a-ls", "decoupled-lama-first", "lama-first"], filter=[dec_filter2.add_runs, dec_filter2.filter_non_decoupled_runs, cov_filter.add_run, cov_filter.set_compact_coverage], format=FORMAT), outfile=f"{SCRIPT_NAME}-no-mf.{FORMAT}")
-
-dec_filter4 = filters.NonDecoupledTaskFilter(["ff-MF"]) # remove instances that are not decoupleable
-exp.add_report(AbsoluteReport(attributes=attributes, filter_algorithm=["ff-MF", "ff", "miura-lama-first", "lama-first"], filter=[dec_filter4.add_runs, dec_filter4.filter_non_decoupled_runs]), outfile=f"{SCRIPT_NAME}-mf.html")
-
-
+configs = ["AS0.2s1M", "F0.2s1M", "L0.2s1M", "M0.2s1M"]
+exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"blind-LP-{x}", f"blind-WMIS-{x}-inf") for x in configs]), outfile=f"{SCRIPT_NAME}-compare.html")
 
 
 # SCATTER PLOTS
@@ -168,12 +161,5 @@ exp.add_report( # dummy report, only collecting statistics
  
 
 exp.run_steps()
-
-dec_filter.print_statistics()
-
-trans_time_check.print_histogram()
-
-mf_time_check.print_statistics()
-
 
 
