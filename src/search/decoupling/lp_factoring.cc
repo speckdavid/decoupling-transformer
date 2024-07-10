@@ -14,8 +14,8 @@
 #include "../tasks/root_task.h"
 
 #include <algorithm>
-#include <iostream>
 #include <cmath>
+#include <iostream>
 #include <queue>
 
 
@@ -894,8 +894,9 @@ void LPFactoring::compute_factoring_() {
 
     bool leaves_overlap = false;
     vector<bool> is_leaf_var(task->get_num_variables(), false);
+    double epsilon = 0.01;
     for (size_t p_leaf = 0; p_leaf < potential_leaves.size(); ++p_leaf) {
-        if (solution[p_leaf] == 1) {
+        if (static_cast<int>(ceil(solution[p_leaf] - epsilon)) == 1) {
             set<int> leaf;
             for (int var : potential_leaves[p_leaf].vars) {
                 if (is_leaf_var[var]) {
