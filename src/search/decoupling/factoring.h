@@ -151,7 +151,10 @@ public:
 
     std::vector<FactPair> get_leaf_state_values(int leaf, int leaf_state) const;
 
-    // NOTE: this function is not very efficiently implemented and should be called sparsely
+    // NOTE: both following functions are not very efficiently implemented and should be called sparsely
+    // Checks if this condition can be reached based on the reachable leaf state space
+    bool is_reachable_condition(const std::vector<FactPair> &partial_state);
+    // Returns all leaf states of leaf that are a model for the partial state
     std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair> &partial_state);
 
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;

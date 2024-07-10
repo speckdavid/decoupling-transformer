@@ -44,6 +44,8 @@ class DecoupledRootTask : public RootTask {
     std::unordered_map<int, int> global_op_id_to_original_op_id;
     std::unordered_map<int, int> original_op_id_to_global_op_id;
 
+    std::unordered_set<int> prunable_operators;
+
 public:
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
@@ -85,6 +87,8 @@ protected:
     void create_goal();
 
     // operators
+    void compute_prunable_operators();
+    bool is_prunable_operator(int op_id) const;
     void set_preconditions_of_operator(int op_id, ExplicitOperator &op);
     void set_center_effects_of_operator(int op_id, ExplicitOperator &op);
     void set_general_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);

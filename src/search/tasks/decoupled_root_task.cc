@@ -31,6 +31,9 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
 
     factoring->compute_factoring();
 
+    compute_prunable_operators();
+    utils::g_log << "Number of pruned operators: " << prunable_operators.size() << endl;
+
     utils::g_log << "Number of leaves: " << factoring->get_num_leaves() << endl;
     if (conclusive_leaf_encoding) {
         int num_conclusive_leaves = 0;
@@ -287,6 +290,9 @@ void DecoupledRootTask::create_precondition_variables() {
         if (!factoring->is_global_operator(op_id))
             continue;
 
+        if (is_prunable_operator(op_id))
+            continue;
+
         const auto &op = original_root_task->operators[op_id];
 
         // If we want to use the op name in the variable name, we need to have no white spaces!
@@ -409,6 +415,39 @@ void DecoupledRootTask::create_goal() {
     for (const auto & [leaf, svar] : leaf_to_goal_svar) {
         goals.emplace_back(svar, 1);
     }
+}
+
+void DecoupledRootTask::compute_prunable_operators() {
+    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+        // Check if precondition is a reachable condition
+        if (!factoring->is_reachable_condition(original_root_task->operators[op_id].preconditions)) {
+            prunable_operators.insert(op_id);
+            continue;
+        }
+
+        // Check if postconditon is a reachable condition
+        unordered_map<int, int> relevant_effects;
+        for (auto const &pre : original_root_task->operators[op_id].preconditions) {
+            relevant_effects[pre.var] = pre.value;
+        }
+        for (const auto &expl_eff: original_root_task->operators[op_id].effects) {
+            FactPair eff = expl_eff.fact;
+            relevant_effects[eff.var] = eff.value;
+        }
+
+        vector<FactPair> postcondition;
+        for (const auto & [var, val] : relevant_effects) {
+            postcondition.emplace_back(var, val);
+        }
+
+        if (!factoring->is_reachable_condition(postcondition)) {
+            prunable_operators.insert(op_id);
+        }
+    }
+}
+
+bool DecoupledRootTask::is_prunable_operator(int op_id) const {
+    return prunable_operators.find(op_id) != prunable_operators.end();
 }
 
 void DecoupledRootTask::set_preconditions_of_operator(int op_id, ExplicitOperator &new_op) {
@@ -572,13 +611,17 @@ void DecoupledRootTask::create_operator(int op_id) {
 
 void DecoupledRootTask::create_operators() {
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+        if (is_prunable_operator(op_id)) {
+            continue;
+        }
+
         if (factoring->is_global_operator(op_id)) {
             create_operator(op_id);
             global_op_id_to_original_op_id[operators.size() - 1] = op_id;
             original_op_id_to_global_op_id[op_id] = operators.size() - 1;
         }
     }
-    assert((int)operators.size() == factoring->get_num_global_operators());
+    assert((int)operators.size() <= factoring->get_num_global_operators());
 }
 
 void DecoupledRootTask::create_frame_axioms() {
@@ -646,6 +689,7 @@ void DecoupledRootTask::create_precondition_axioms() {
             assert(leaf_op_to_svar[leaf].count(op_id));
             assert(factoring->is_global_operator(op_id));
             assert(op_id < (int)original_root_task->operators.size());
+            assert(!is_prunable_operator(op_id));
 
             vector<int> leaf_states_with_valid_precondition =
                 factoring->get_valid_leaf_states(leaf, original_root_task->operators[op_id].preconditions);
@@ -670,6 +714,10 @@ void DecoupledRootTask::create_leaf_only_operator_axioms() {
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
         if (!factoring->is_leaf_only_operator(op_id))
             continue;
+
+        if (is_prunable_operator(op_id)) {
+            continue;
+        }
 
         const auto &op = original_root_task->operators[op_id];
         assert(!op.effects.empty());

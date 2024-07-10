@@ -591,6 +591,41 @@ vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) con
     return res;
 }
 
+bool Factoring::is_reachable_condition(const std::vector<FactPair>& partial_state) {
+    unordered_map<int, vector<FactPair>> leaf_to_partial_state;
+    for (const FactPair &fact : partial_state) {
+        if (is_center_variable(fact.var)) {
+            continue;
+        }
+        int leaf = get_factor(fact.var);
+        leaf_to_partial_state[leaf].push_back(fact);
+    }
+
+    for (const auto& [l, facts] : leaf_to_partial_state) {
+        FactorID leaf(l);
+        bool found_state = false;
+        for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
+            LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
+            bool is_model = true;
+            for (const FactPair &fact : facts) {
+                if (lstate[fact.var] != fact.value) {
+                    is_model = false;
+                    break;
+                }
+            }
+            if (is_model) {
+                found_state = true;
+                break;
+            }
+        }
+        if (!found_state) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 vector<int> Factoring::get_valid_leaf_states(int leaf_, const vector<FactPair> &partial_state) {
     assert(leaf_ >= 0 && leaf_ != FactorID::CENTER && leaf_ < static_cast<int>(leaves.size()));
 
