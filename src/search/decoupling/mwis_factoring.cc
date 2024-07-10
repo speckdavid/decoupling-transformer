@@ -688,6 +688,9 @@ void MWISFactoring::multiply_out_action_schemas(
                     }
                 }
                 pleaf.num_affecting_actions = num_ops;
+                assert(pleaf.num_actions > 0);
+                assert(pleaf.num_affecting_actions > 0);
+                assert(pleaf.num_affecting_actions >= pleaf.num_actions);
                 if (min_flexibility > pleaf.num_actions / num_ops) {
                     // this is the maximum this leaf can possibly get and it is not enough
                     continue;
@@ -948,6 +951,10 @@ void MWISFactoring::add_cg_sccs(vector<PotentialLeaf> &potential_leaves,
                         subset_schemes.insert(index);
                     }
                 }
+            }
+            if (subset_schemes.empty()){
+                // this can happen when an SCC is not affected by any action
+                continue;
             }
 
             size_t s = potential_leaves.size();
