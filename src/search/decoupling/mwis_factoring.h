@@ -10,7 +10,6 @@ class Feature;
 }
 
 namespace decoupling {
-
 enum class WMIS_STRATEGY {
     MML, // maximize mobile leaves
     MMAS, // maximize mobile action schemas
@@ -22,7 +21,6 @@ enum class WMIS_STRATEGY {
 };
 
 class MWISFactoring : public decoupling::Factoring {
-
     typedef std::vector<std::vector<int>> Graph;
 
     struct PotentialLeafNode {
@@ -33,12 +31,12 @@ class MWISFactoring : public decoupling::Factoring {
         void dump(TaskProxy task_proxy) const {
             std::cout << " --------" << std::endl;
             std::cout << "outside pre vars:" << std::endl;
-            for (int var : outside_pre_vars){
+            for (int var : outside_pre_vars) {
                 std::cout << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << std::endl;
             }
             std::cout << "vars:" << std::endl;
-            for (int var : vars){
-                std::cout << "\t"  << task_proxy.get_variables()[var].get_fact(0).get_name() << std::endl;
+            for (int var : vars) {
+                std::cout << "\t" << task_proxy.get_variables()[var].get_fact(0).get_name() << std::endl;
             }
             std::cout << "-------------------------" << std::endl;
         }
@@ -56,7 +54,7 @@ class MWISFactoring : public decoupling::Factoring {
         std::vector<size_t> self_mobile_as; // subset of action_schemes whose pre_vars are in vars
 
         explicit PotentialLeaf(const std::vector<int> &vars)
-                : num_affecting_actions(0), num_actions(0), vars(vars) {
+            : num_affecting_actions(0), num_actions(0), vars(vars) {
             assert(std::is_sorted(vars.begin(), vars.end()));
         }
 
@@ -84,8 +82,8 @@ class MWISFactoring : public decoupling::Factoring {
                                                       const std::vector<std::vector<size_t>> &var_to_p_leaves);
 
     void compute_fact_flexibility(
-            std::vector<std::vector<std::unordered_map<size_t, int>>> &facts_to_mobility,
-            std::vector<std::vector<int>> &sum_fact_mobility);
+        std::vector<std::vector<std::unordered_map<size_t, int>>> &facts_to_mobility,
+        std::vector<std::vector<int>> &sum_fact_mobility);
 
     void compute_potential_leaves();
 
@@ -99,10 +97,10 @@ class MWISFactoring : public decoupling::Factoring {
                                    const std::vector<std::vector<size_t>> &var_to_p_leaves) const;
 
     bool fulfills_min_flexibility_and_mobility(
-            const PotentialLeaf &pleaf,
-            const std::vector<size_t> &included_as,
-            const std::vector<std::vector<std::unordered_map<size_t, int>>> &facts_to_mobility,
-            const std::vector<std::vector<int>> &sum_fact_mobility) const;
+        const PotentialLeaf &pleaf,
+        const std::vector<size_t> &included_as,
+        const std::vector<std::vector<std::unordered_map<size_t, int>>> &facts_to_mobility,
+        const std::vector<std::vector<int>> &sum_fact_mobility) const;
 
     void multiply_out_potential_leaf(const std::vector<std::pair<std::vector<int>, std::vector<size_t>>> &outside_pre_and_ases,
                                      const PotentialLeaf &pleaf,
@@ -119,9 +117,9 @@ class MWISFactoring : public decoupling::Factoring {
 
     bool is_as_leaf_irrelevant(const ActionSchema &as, const PotentialLeaf &leaf) const;
 
-    static bool is_as_leaf_conclusive(const ActionSchema &as, const PotentialLeaf &leaf) ;
+    static bool is_as_leaf_conclusive(const ActionSchema &as, const PotentialLeaf &leaf);
 
-    static bool has_as_pre_or_eff_on_leaf(const ActionSchema &as, const PotentialLeaf &leaf) ;
+    static bool has_as_pre_or_eff_on_leaf(const ActionSchema &as, const PotentialLeaf &leaf);
 
     void construct_graph_conclusive_leaves(Graph &graph);
 
@@ -140,7 +138,6 @@ public:
     explicit MWISFactoring(const plugins::Options &opts);
 
     static void add_options_to_parser(plugins::Feature &feature);
-
 };
 }
 
