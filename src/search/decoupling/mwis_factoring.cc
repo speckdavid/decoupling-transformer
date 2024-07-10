@@ -23,14 +23,14 @@ using namespace std;
 
 namespace decoupling {
 void MWISFactoring::PotentialLeaf::add_leaf_only_schema(size_t as_id, const ActionSchema &action_schema) {
-    if (std::find(action_schemes.begin(),
+    if (find(action_schemes.begin(),
                   action_schemes.end(),
                   as_id) == action_schemes.end()){
         action_schemes.push_back(as_id);
         num_actions += action_schema.num_actions;
         bool all_pre_vars_in_vars = true;
         for (int pre_var : action_schema.pre_vars){
-            if (!std::binary_search(vars.begin(), vars.end(), pre_var)){
+            if (!binary_search(vars.begin(), vars.end(), pre_var)){
                 all_pre_vars_in_vars = false;
                 break;
             }
@@ -601,7 +601,7 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
         }
 
         if (fulfills_min_flexibility_and_mobility(pleaf, included_as, facts_to_mobility, sum_fact_mobility)) {
-            assert(std::find(potential_leaf_nodes.begin(),
+            assert(find(potential_leaf_nodes.begin(),
                              potential_leaf_nodes.end(),
                              PotentialLeafNode(outside_pre_vars, pleaf.vars, weight)) == potential_leaf_nodes.end());
             potential_leaf_nodes.emplace_back(outside_pre_vars, pleaf.vars, weight);
@@ -612,7 +612,7 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
     }
 
     const auto &[outside_pre, ases] = outside_pre_and_ases[depth];
-    assert(std::all_of(ases.begin(), ases.end(), [&](size_t as) {
+    assert(all_of(ases.begin(), ases.end(), [&](size_t as) {
         return find(pleaf.self_mobile_as.begin(), pleaf.self_mobile_as.end(), as) == pleaf.self_mobile_as.end();}));
     size_t num_outside_pre_before = outside_pre_vars.size();
     size_t num_included_as_before = included_as.size();

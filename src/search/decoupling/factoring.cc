@@ -34,9 +34,9 @@ void Factoring::apply_factoring() {
 
     // normalize the factoring, to be able to compare different factoring methods
     for (auto &leaf : leaves) {
-        std::sort(leaf.begin(), leaf.end());
+        sort(leaf.begin(), leaf.end());
     }
-    std::sort(leaves.begin(), leaves.end());
+    sort(leaves.begin(), leaves.end());
 
     FactorID factor(0);
     for (const auto &leaf : leaves) {
@@ -591,7 +591,7 @@ vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) con
     return res;
 }
 
-bool Factoring::is_reachable_condition(const std::vector<FactPair>& partial_state) {
+bool Factoring::is_reachable_condition(const vector<FactPair>& partial_state) {
     unordered_map<int, vector<FactPair>> leaf_to_partial_state;
     for (const FactPair &fact : partial_state) {
         if (is_center_variable(fact.var)) {
