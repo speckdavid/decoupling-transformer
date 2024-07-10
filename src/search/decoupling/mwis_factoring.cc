@@ -491,8 +491,8 @@ void MWISFactoring::save_memory() {
 inline double compute_leaf_fact_flexibility(const vector<int> &vars,
                                             const AbstractTask &task,
                                             const vector<size_t> &included_as,
-                                            const vector<vector<unordered_map<size_t, size_t>>> &facts_to_mobility,
-                                            const vector<vector<size_t>> &sum_fact_mobility) {
+                                            const vector<vector<unordered_map<size_t, int>>> &facts_to_mobility,
+                                            const vector<vector<int>> &sum_fact_mobility) {
     double sum_fact_flexibility = 0;
     for (int var: vars) {
         int dom_size = task.get_variable_domain_size(var);
@@ -515,11 +515,11 @@ inline double compute_leaf_fact_flexibility(const vector<int> &vars,
 bool MWISFactoring::fulfills_min_flexibility_and_mobility(
         const PotentialLeaf &pleaf,
         const vector<size_t> &included_as,
-        const vector<vector<unordered_map<size_t, size_t>>> &facts_to_mobility,
-        const vector<vector<size_t>> &sum_fact_mobility) const {
+        const vector<vector<unordered_map<size_t, int>>> &facts_to_mobility,
+        const vector<vector<int>> &sum_fact_mobility) const {
 
     if (min_flexibility > 0.0 || min_mobility > 1){
-        size_t num_leaf_only_actions = 0;
+        double num_leaf_only_actions = 0;
         for (size_t as : included_as){
             num_leaf_only_actions += action_schemas[as].num_actions;
         }
@@ -560,8 +560,8 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
                                                 vector<size_t> &included_as,
                                                 size_t depth,
                                                 int &ignored_leaf_candidates,
-                                                const vector<vector<unordered_map<size_t, size_t>>> &facts_to_mobility,
-                                                const vector<vector<size_t>> &sum_fact_mobility) {
+                                                const vector<vector<unordered_map<size_t, int>>> &facts_to_mobility,
+                                                const vector<vector<int>> &sum_fact_mobility) {
     if (depth == outside_pre_and_ases.size()){
         if (included_as.empty()){
             // no self-mobile AS + no AS included
@@ -634,8 +634,8 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
 
 void MWISFactoring::multiply_out_action_schemas(
         const vector<PotentialLeaf> &potential_leaves,
-        const vector<vector<unordered_map<size_t, size_t>>> &facts_to_mobility,
-        const vector<vector<size_t>> &sum_fact_mobility) {
+        const vector<vector<unordered_map<size_t, int>>> &facts_to_mobility,
+        const vector<vector<int>> &sum_fact_mobility) {
     assert(potential_leaf_nodes.empty());
 
     if (min_flexibility > 0) {
@@ -677,7 +677,7 @@ void MWISFactoring::multiply_out_action_schemas(
             }
 
             if (min_flexibility > 0){
-                size_t num_ops = 0;
+                int num_ops = 0;
                 vector<bool> handled_as(action_schemas.size(), false);
                 for (int var : pleaf.vars) {
                     for (size_t as : variables_to_action_schemas[var]) {
@@ -691,7 +691,7 @@ void MWISFactoring::multiply_out_action_schemas(
                 assert(pleaf.num_actions > 0);
                 assert(pleaf.num_affecting_actions > 0);
                 assert(pleaf.num_affecting_actions >= pleaf.num_actions);
-                if (min_flexibility > pleaf.num_actions / num_ops) {
+                if (min_flexibility > pleaf.num_actions / (double) num_ops) {
                     // this is the maximum this leaf can possibly get and it is not enough
                     continue;
                 }
@@ -773,8 +773,8 @@ void MWISFactoring::compute_variables_to_action_schemas_map() {
 }
 
 void MWISFactoring::compute_fact_flexibility(
-        vector<vector<unordered_map<size_t, size_t>>> &facts_to_mobility,
-        vector<vector<size_t>> &sum_fact_mobility) {
+        vector<vector<unordered_map<size_t, int>>> &facts_to_mobility,
+        vector<vector<int>> &sum_fact_mobility) {
     assert(facts_to_mobility.empty());
     assert(sum_fact_mobility.empty());
 
@@ -869,8 +869,8 @@ void MWISFactoring::compute_potential_leaves() {
         add_cg_sccs(potential_leaves, var_to_p_leaves);
     }
 
-    vector<vector<unordered_map<size_t, size_t>>> facts_to_mobility;
-    vector<vector<size_t>> sum_fact_mobility;
+    vector<vector<unordered_map<size_t, int>>> facts_to_mobility;
+    vector<vector<int>> sum_fact_mobility;
     if (strategy == WMIS_STRATEGY::MFA || min_fact_flexibility > 0) {
         compute_fact_flexibility(facts_to_mobility, sum_fact_mobility);
     }
