@@ -418,9 +418,16 @@ void DecoupledRootTask::create_goal() {
 }
 
 void DecoupledRootTask::compute_prunable_operators() {
+    // We sort op vectors by indicies to first encounter operators with lowest costs
+    vector<int> cost_sorted_op_indices(original_root_task->operators.size());
+    iota(cost_sorted_op_indices.begin(), cost_sorted_op_indices.end(), 0);
+    sort(cost_sorted_op_indices.begin(), cost_sorted_op_indices.end(), [this](int a, int b) {
+        return original_root_task->operators[a].cost < original_root_task->operators[b].cost;
+    });
+
     set<ExplicitOperator> seen_ops;
 
-    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+    for (int op_id : cost_sorted_op_indices) {
         if (seen_ops.find(original_root_task->operators[op_id]) != seen_ops.end()) {
             prunable_operators.insert(op_id);
             continue;

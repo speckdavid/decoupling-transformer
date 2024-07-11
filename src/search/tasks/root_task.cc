@@ -169,20 +169,17 @@ ExplicitOperator::ExplicitOperator(int cost,
     name(name),
     is_an_axiom(is_an_axiom) {}
 
+// We ignore costs!
 bool ExplicitOperator::operator==(const ExplicitOperator &other) const {
-    return cost == other.cost
-           && is_an_axiom == other.is_an_axiom
+    return is_an_axiom == other.is_an_axiom
            && set<FactPair>(preconditions.begin(), preconditions.end())
            == set<FactPair>(other.preconditions.begin(), other.preconditions.end())
            && set<ExplicitEffect>(effects.begin(), effects.end())
            == set<ExplicitEffect>(other.effects.begin(), other.effects.end());
 }
 
+// We ignore costs!
 bool ExplicitOperator::operator<(const ExplicitOperator &other) const {
-    if (cost < other.cost)
-        return true;
-    if (other.cost < cost)
-        return false;
     if (is_an_axiom < other.is_an_axiom)
         return true;
     if (other.is_an_axiom < is_an_axiom)
