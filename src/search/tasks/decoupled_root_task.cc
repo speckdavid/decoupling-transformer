@@ -418,22 +418,7 @@ void DecoupledRootTask::create_goal() {
 }
 
 void DecoupledRootTask::compute_prunable_operators() {
-    // We sort op vectors by indicies to first encounter operators with lowest costs
-    vector<int> cost_sorted_op_indices(original_root_task->operators.size());
-    iota(cost_sorted_op_indices.begin(), cost_sorted_op_indices.end(), 0);
-    sort(cost_sorted_op_indices.begin(), cost_sorted_op_indices.end(), [this](int a, int b) {
-        return original_root_task->operators[a].cost < original_root_task->operators[b].cost;
-    });
-
-    set<ExplicitOperator> seen_ops;
-
-    for (int op_id : cost_sorted_op_indices) {
-        if (seen_ops.find(original_root_task->operators[op_id]) != seen_ops.end()) {
-            prunable_operators.insert(op_id);
-            continue;
-        }
-        seen_ops.insert(original_root_task->operators[op_id]);
-
+    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
         // Check if precondition is a reachable condition
         if (!factoring->is_reachable_condition(original_root_task->operators[op_id].preconditions)) {
             prunable_operators.insert(op_id);
@@ -640,7 +625,8 @@ void DecoupledRootTask::create_operators() {
         }
     }
     assert((int)operators.size() <= factoring->get_num_global_operators());
-    assert(set<ExplicitOperator>(operators.begin(), operators.end()).size() == operators.size());
+    // We can have duplicated actions (not pruned by FD translator)
+    // assert(set<ExplicitOperator>(operators.begin(), operators.end()).size() == operators.size());
 }
 
 void DecoupledRootTask::create_frame_axioms() {
@@ -786,6 +772,9 @@ void DecoupledRootTask::create_axioms() {
 
     create_precondition_axioms();
 
+    // We can have duplicated actions (not pruned by FD translator)
+    assert(set<ExplicitOperator>(axioms.begin(), axioms.end()).size() == axioms.size());
+
     create_leaf_only_operator_axioms();
 
     assert(ranges::all_of(axioms, [](const auto &axiom)
@@ -796,8 +785,6 @@ void DecoupledRootTask::create_axioms() {
                           {return axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var;}));
     assert(ranges::all_of(axioms, [](const auto &axiom)
                           {return axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value;}));
-
-    assert(set<ExplicitOperator>(axioms.begin(), axioms.end()).size() == axioms.size());
 }
 
 // TODO: release more memory

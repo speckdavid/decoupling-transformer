@@ -54,7 +54,6 @@ struct ExplicitOperator {
     ExplicitOperator(std::istream &in, bool is_an_axiom, bool use_metric);
     ExplicitOperator(int cost, const std::string &name, bool is_an_axiom);
 
-    // We ignore costs!
     bool operator==(const ExplicitOperator &other) const;
     bool operator<(const ExplicitOperator &other) const;
 
