@@ -418,7 +418,15 @@ void DecoupledRootTask::create_goal() {
 }
 
 void DecoupledRootTask::compute_prunable_operators() {
+    set<ExplicitOperator> seen_ops;
+
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+        if (seen_ops.find(original_root_task->operators[op_id]) != seen_ops.end()) {
+            prunable_operators.insert(op_id);
+            continue;
+        }
+        seen_ops.insert(original_root_task->operators[op_id]);
+
         // Check if precondition is a reachable condition
         if (!factoring->is_reachable_condition(original_root_task->operators[op_id].preconditions)) {
             prunable_operators.insert(op_id);
