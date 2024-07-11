@@ -605,9 +605,6 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
         }
 
         if (fulfills_min_flexibility_and_mobility(pleaf, included_as, facts_to_mobility, sum_fact_mobility)) {
-            assert(find(potential_leaf_nodes.begin(),
-                        potential_leaf_nodes.end(),
-                        PotentialLeafNode(outside_pre_vars, pleaf.vars, weight)) == potential_leaf_nodes.end());
             potential_leaf_nodes.emplace_back(outside_pre_vars, pleaf.vars, weight);
         } else {
             ignored_leaf_candidates++;
@@ -718,6 +715,11 @@ void MWISFactoring::multiply_out_action_schemas(
                 }
             }
         }
+        // NOTE: it could make sense to filter duplicate leaf node candidates here.
+        // even with the grouping of outside precondition vars to action schemas, it can happen
+        // that identical candidates are generated. It seems like it only happens in very few instances (2/2000),
+        // and even in these instances, only very few duplicates were generated. Hence, we do not prune duplicates
+        // to avoid the overhead of, e.g. sort_unique, sorting.
 
         vector<int> outside_pre_vars;
         vector<size_t> included_as(pleaf.self_mobile_as);

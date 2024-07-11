@@ -40,10 +40,6 @@ class MWISFactoring : public decoupling::Factoring {
             }
             std::cout << "-------------------------" << std::endl;
         }
-
-        bool operator==(const PotentialLeafNode &other) const {
-            return vars == other.vars && outside_pre_vars == other.outside_pre_vars;
-        }
     };
 
     struct PotentialLeaf {
