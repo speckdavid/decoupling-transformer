@@ -23,7 +23,7 @@ import decoupling_parser
 DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_NAME = os.path.splitext(os.path.basename(__file__))[0]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
-REVISION = "522b8c8fcec473366c2f82b8a529fbb466a25f9f"
+REVISION = "59b0b37eaedaf1243feb4f2f62a68226d994fd82"
 REVISIONS = [REVISION]
 
 CONFIGS = []
@@ -36,14 +36,14 @@ factorings = {
     'WMIS-L0.2s1M-30':      'wmis(factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'WMIS-AS0.2s1M-30':     'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'WMIS-M0.2s1M-30':      'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-F0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-L0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-AS0.2s1M-inf':      'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-M0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-F0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-L0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-AS0.2s1M-30':       'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-M0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-F0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-L0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-AS0.2s1M-inf':      'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-M0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-F0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-L0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-AS0.2s1M-30':       'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-M0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
 }
 heuristics = {"inf" : "const(value=infinity)",
 }
@@ -85,6 +85,12 @@ exp.add_step("parse", exp.parse)
 
 exp.add_fetcher(name='fetch', filter=[filters.remove_revision])
 
+def only_lp_configs(run):
+    if "LP" in run["algorithm"]:
+        return run
+    return False
+
+exp.add_fetcher("data/2024-07-09-compare-factorings-eval/", name='fetch-lp', filter=[only_lp_configs], merge=True)
 
 FORMAT = "html"
 

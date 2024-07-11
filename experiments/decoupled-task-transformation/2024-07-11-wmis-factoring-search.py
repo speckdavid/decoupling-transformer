@@ -23,34 +23,35 @@ import decoupling_parser
 DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_NAME = os.path.splitext(os.path.basename(__file__))[0]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
-REVISION = "522b8c8fcec473366c2f82b8a529fbb466a25f9f"
+REVISION = "cdb75a84f62ac01fc20d4eee3263f1c536add008"
 REVISIONS = [REVISION]
 
 CONFIGS = []
 factorings = {
-    'WMIS-F0.2s1M-inf':     'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'WMIS-L0.2s1M-inf':     'wmis(factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'WMIS-AS0.2s1M-inf':    'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'WMIS-M0.2s1M-inf':     'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'WMIS-F0.2s1M-inf':     'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'WMIS-L0.2s1M-inf':     'wmis(factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'WMIS-AS0.2s1M-inf':    'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'WMIS-M0.2s1M-inf':     'wmis(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'WMIS-F0.2s1M-30':      'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'WMIS-L0.2s1M-30':      'wmis(factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+    'WMIS-L0.2s1M-30':      'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'WMIS-AS0.2s1M-30':     'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'WMIS-M0.2s1M-30':      'wmis(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-F0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-L0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-AS0.2s1M-inf':      'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
-    'LP-M0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-F0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-L0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-AS0.2s1M-inf':      'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
+#    'LP-M0.2s1M-inf':       'lp(min_number_leaves=1, factoring_time_limit=infinity, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'LP-F0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mfa, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'LP-L0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mml, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'LP-AS0.2s1M-30':       'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'LP-M0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
 }
-heuristics = {"inf" : "const(value=infinity)",
+heuristics = {"blind" : "blind()",
 }
 
 DRIVER_OPTS = ["--overall-time-limit", "5m"]
 
 for h_name, heuristic_option in heuristics.items():
+    CONFIGS.append(IssueConfig(f'{h_name}', ['--search',  f'astar({heuristic_option})'], driver_options=DRIVER_OPTS))
     for dec_name, dec in factorings.items():
         CONFIGS.append(IssueConfig(f'{h_name}-{dec_name}', ['--root-task-transform', f"decoupled(factoring={dec})", '--search',  f'astar({heuristic_option})'], driver_options=DRIVER_OPTS))
 
