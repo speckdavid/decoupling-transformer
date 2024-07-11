@@ -602,9 +602,12 @@ void DecoupledRootTask::create_operator(int op_id) {
 
     ExplicitOperator new_op(op.cost, op.name, op.is_an_axiom);
     set_preconditions_of_operator(op_id, new_op);
+    assert(set<FactPair>(new_op.preconditions.begin(), new_op.preconditions.end()).size() == new_op.preconditions.size());
+
     set_center_effects_of_operator(op_id, new_op);
     set_leaf_effects_of_operator(op_id, new_op);
     assert(!new_op.effects.empty());
+    assert(set<ExplicitEffect>(new_op.effects.begin(), new_op.effects.end()).size() == new_op.effects.size());
 
     operators.push_back(new_op);
 }
@@ -622,6 +625,7 @@ void DecoupledRootTask::create_operators() {
         }
     }
     assert((int)operators.size() <= factoring->get_num_global_operators());
+    assert(set<ExplicitOperator>(operators.begin(), operators.end()).size() == operators.size());
 }
 
 void DecoupledRootTask::create_frame_axioms() {
@@ -683,29 +687,27 @@ void DecoupledRootTask::create_goal_axioms() {
 }
 
 void DecoupledRootTask::create_precondition_axioms() {
-    for (const auto & [leaf, inner_map] : leaf_op_to_svar) {
-        for (const auto & [op_id, pre_svar] : inner_map) {
-            assert(leaf_op_to_svar.count(leaf));
-            assert(leaf_op_to_svar[leaf].count(op_id));
-            assert(factoring->is_global_operator(op_id));
-            assert(op_id < (int)original_root_task->operators.size());
-            assert(!is_prunable_operator(op_id));
+    for (const auto & [preconditions, pre_svar] : precondition_to_svar) {
+        assert(!preconditions.empty());
+        int leaf = factoring->get_factor(preconditions[0].var);
 
-            vector<int> leaf_states_with_valid_precondition =
-                factoring->get_valid_leaf_states(leaf, original_root_task->operators[op_id].preconditions);
-            assert(!leaf_states_with_valid_precondition.empty() || factoring->get_leaf(leaf).size() > 1);
-            for (int pre_leaf_state : leaf_states_with_valid_precondition) {
-                string name = "ax-prec-" + original_root_task->operators[op_id].name + "-" +
-                    factoring->get_leaf_state_name(leaf, pre_leaf_state);
-                int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
+        assert(ranges::all_of(preconditions, [leaf, this](const auto &fact)
+                              {return factoring->get_factor(fact.var) == leaf;}));
+        assert(leaf_op_to_svar.count(leaf));
 
-                ExplicitOperator new_op(0, name, true);
-                new_op.preconditions.emplace_back(pre_svar, 0);
-                FactPair cond(state_svar, 1);
-                new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, vector<FactPair> {cond}));
+        vector<int> leaf_states_with_valid_precondition =
+            factoring->get_valid_leaf_states(leaf, preconditions);
+        assert(!leaf_states_with_valid_precondition.empty() || factoring->get_leaf(leaf).size() > 1);
+        for (int pre_leaf_state : leaf_states_with_valid_precondition) {
+            string name = "ax-prec-for-var" + to_string(pre_svar) + "-via-" + factoring->get_leaf_state_name(leaf, pre_leaf_state);
+            int state_svar = leaf_lstate_to_svar[leaf][pre_leaf_state];
 
-                axioms.push_back(new_op);
-            }
+            ExplicitOperator new_op(0, name, true);
+            new_op.preconditions.emplace_back(pre_svar, 0);
+            FactPair cond(state_svar, 1);
+            new_op.effects.emplace_back(ExplicitEffect(pre_svar, 1, vector<FactPair> {cond}));
+
+            axioms.push_back(new_op);
         }
     }
 }
@@ -779,6 +781,8 @@ void DecoupledRootTask::create_axioms() {
                           {return axiom.preconditions.at(0).var == axiom.effects.at(0).fact.var;}));
     assert(ranges::all_of(axioms, [](const auto &axiom)
                           {return axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value;}));
+
+    assert(set<ExplicitOperator>(axioms.begin(), axioms.end()).size() == axioms.size());
 }
 
 // TODO: release more memory
