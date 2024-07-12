@@ -66,6 +66,12 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     AxiomEvaluator &axiom_evaluator = g_axiom_evaluators[task_proxy];
     axiom_evaluator.evaluate(initial_state_values);
 
+    if (options.get<bool>("normalize_variable_names")) {
+        for (size_t var = 0; var < variables.size(); ++var) {
+            variables[var].name = "var" + to_string(var);
+        }
+    }
+
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
 
     if (options.get<bool>("dump_task")) {
@@ -837,6 +843,7 @@ public:
         add_option<bool>("conclusive_operators", "Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.", "true");
         add_option<bool>("dump_task", "Dumps the task to the console.", "false");
         add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
+        add_option<bool>("normalize_variable_names", "Normalizes the variable names by numbering in the format var[x]", "false");
         add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
         add_option<bool>("write_factoring", "Writes the factoring of the decoupled task to factoring.txt.", "false");
     }
