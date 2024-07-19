@@ -79,6 +79,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     for (const string &option : vector<string>{"dump_task", "write_sas", "write_pddl", "write_factoring"}) {
         dec_opts.set(option, false);
     }
+    dec_opts.set("normalize_variable_names", false);
 
     DecoupledRootTask dec_task(dec_opts);
     TaskProxy dec_task_proxy(dec_task);
@@ -90,7 +91,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
                                [](const string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
     for (string &op_name : plan_steps) {
         op_name = op_name.substr(1, op_name.length() - 2);
-        replace(op_name.begin(), op_name.end(), '+', ' ');
+        op_name = regex_replace(op_name, regex("-----"), " ");
         utils::strip(op_name);
         for (auto const &op : dec_task_proxy.get_operators()) {
             if (op_name == op.get_name()) {

@@ -5,6 +5,7 @@
 #include "../tasks/root_task.h"
 #include "../utils/logging.h"
 
+#include <regex>
 
 using namespace std;
 
@@ -118,8 +119,8 @@ void dump_domain_operator(const AbstractTask &task, ostream &os, int op_no) {
     assert(all_effects.size() == all_effects_cond.size());
 
     string name = task.get_operator_name(op_no, false);
-    // name = name.substr(0, name.find(" "));
-    replace(name.begin(), name.end(), ' ', '+');
+    // replace all empty spaces with "-----"
+    name = regex_replace(name, regex("\\s"), "-----");
 
     os << IND << "(:action " << name << endl;
     os << IND << IND << ":parameters  ()" << endl;
