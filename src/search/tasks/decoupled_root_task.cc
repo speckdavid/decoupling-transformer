@@ -67,10 +67,21 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     axiom_evaluator.evaluate(initial_state_values);
 
     if (options.get<bool>("normalize_variable_names")) {
+        /*
+          We rename variables to match the pattern var[int]
+          such that the center variables keep their names
+          and the new variables get an id that is one above
+          the variable ids from the original task.
+        */
+        int current_var_id = original_root_task->get_num_variables();
         for (size_t var = 0; var < variables.size(); ++var) {
-            variables[var].name = "var" + to_string(var);
+            if (!center_var_to_pvar.contains(var)) {
+                variables[var].name = "var" + to_string(current_var_id);
+                ++current_var_id;
+            }
         }
     }
+
 
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
 
@@ -793,14 +804,17 @@ void DecoupledRootTask::create_axioms() {
                           {return axiom.preconditions.at(0).value != axiom.effects.at(0).fact.value;}));
 }
 
-// TODO: release more memory
 void DecoupledRootTask::release_memory() {
     #ifdef NDEBUG
+    center_var_to_pvar.clear();
+    conclusive_leaf_var_to_pvar.clear();
     leaf_lstate_to_pvar.clear();
     leaf_lstate_to_svar.clear();
-    precondition_to_svar.clear();
     leaf_op_to_svar.clear();
+    leaf_to_goal_svar.clear();
     original_operator_tr_eff_vars.clear();
+    precondition_to_svar.clear();
+    prunable_operators.clear();
     #endif
 }
 
