@@ -82,7 +82,6 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
         }
     }
 
-
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
 
     if (options.get<bool>("dump_task")) {
@@ -669,8 +668,8 @@ void DecoupledRootTask::create_frame_axioms() {
         }
     }
 
-    // leaf_lstate_to_pvar describe exactly all variables that are not optimized with
-    // onlcusive_optimization == IForkOptimization::MULTIVALUED
+    /* leaf_lstate_to_pvar describe exactly all variables that are not optimized with
+       conlcusive_optimization == IForkOptimization::MULTIVALUED */
     for (const auto & [leaf, inner_map] : leaf_lstate_to_pvar) {
         for (const auto & [lstate, pvar] : inner_map) {
             assert(leaf_lstate_to_svar[leaf].count(lstate));
@@ -868,7 +867,6 @@ public:
 };
 
 static plugins::FeaturePlugin<DecoupledRootTaskFeature> _plugin;
-
 
 static plugins::TypedEnumPlugin<ConclusiveLeafEncoding> _enum_plugin({
         {"basic", "no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves."},
