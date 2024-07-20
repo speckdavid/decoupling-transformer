@@ -6,14 +6,13 @@
 #include <ostream>
 
 /*
-* We encode each fact as a binary variable.
-* TODO: For all binary variables, use a single variable.
+* We encode each FDR variable v with |D| domain values
+* using ceil(log2(|D|)) binary variables.
+* Those binary variables function as binary counter.
 */
 
 namespace dump_pddl_task {
-std::string get_var_val_name(const AbstractTask &task, const FactPair &fact);
-
-std::vector<FactPair> get_fact_with_other_values(const AbstractTask &task, const FactPair &fact);
+std::vector<std::string> get_binary_encoding(const AbstractTask &task, const FactPair &fact);
 
 void extract_all_preconditions(const AbstractTask &task, int op_no, std::vector<FactPair> &all_preconditions);
 
