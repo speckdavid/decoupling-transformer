@@ -57,6 +57,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
         }
     }
 
+    // TODO: Allow for direct constructor without options
     plugins::Options opts;
     opts.set("verbosity", utils::Verbosity::NORMAL);
     opts.set("min_number_leaves", 1);
@@ -64,24 +65,9 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     opts.set("factoring_time_limit", numeric_limits<int>::max());
     opts.set("prune_fork_leaf_state_spaces", false);
     opts.set("leaves", leaves);
-
     factoring = make_shared<decoupling::ManualFactoring>(opts);
 
-    plugins::Options dec_opts;
-    dec_opts.set("factoring", factoring);
-    dec_opts.set("conclusive_leaf_encoding", ConclusiveLeafEncoding::MULTIVALUED);
-
-    for (const string &option : vector<string>{"conclusive_operators",
-                                               "same_leaf_preconditons_single_variable",
-                                               "skip_unnecessary_leaf_effects"}) {
-        dec_opts.set(option, true);
-    }
-    for (const string &option : vector<string>{"dump_task", "write_sas", "write_pddl", "write_factoring"}) {
-        dec_opts.set(option, false);
-    }
-    dec_opts.set("normalize_variable_names", false);
-
-    DecoupledRootTask dec_task(dec_opts);
+    DecoupledRootTask dec_task(factoring, true, true, true, ConclusiveLeafEncoding::MULTIVALUED);
     TaskProxy dec_task_proxy(dec_task);
 
     // Plan file to vector of operator ids

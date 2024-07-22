@@ -17,14 +17,20 @@
 using namespace std;
 
 namespace tasks {
-DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
+DecoupledRootTask::DecoupledRootTask(shared_ptr<decoupling::Factoring> factoring,
+                                     bool skip_unnecessary_leaf_effects,
+                                     bool same_leaf_preconditons_single_variable,
+                                     bool conclusive_operators,
+                                     const ConclusiveLeafEncoding &conclusive_leaf_encoding
+                                     )
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
-      factoring(options.get<shared_ptr<decoupling::Factoring>>("factoring")),
-      skip_unnecessary_leaf_effects(options.get<bool>("skip_unnecessary_leaf_effects")),
-      same_leaf_preconditons_single_variable(options.get<bool>("same_leaf_preconditons_single_variable")),
-      conclusive_operators(options.get<bool>("conclusive_operators")),
-      conclusive_leaf_encoding(options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")) {
+      factoring(factoring),
+      skip_unnecessary_leaf_effects(skip_unnecessary_leaf_effects),
+      same_leaf_preconditons_single_variable(same_leaf_preconditons_single_variable),
+      conclusive_operators(conclusive_operators),
+      conclusive_leaf_encoding(conclusive_leaf_encoding) {
+    // Validate input task
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
@@ -65,35 +71,29 @@ DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     // This is also done in the root task which is honestly quite hacky!
     AxiomEvaluator &axiom_evaluator = g_axiom_evaluators[task_proxy];
     axiom_evaluator.evaluate(initial_state_values);
-
-    if (options.get<bool>("normalize_variable_names")) {
-        /*
-          We rename variables to match the pattern var[int]
-          such that the center variables keep their names
-          and the new variables get an id that is one above
-          the variable ids from the original task.
-        */
-        int current_var_id = original_root_task->get_num_variables();
-        for (size_t var = 0; var < variables.size(); ++var) {
-            if (!center_var_to_pvar.contains(var)) {
-                variables[var].name = "var" + to_string(current_var_id);
-                ++current_var_id;
-            }
-        }
-    }
+    assert(are_initial_states_consistent());
 
     utils::g_log << "Time for decoupled transformation: " << transformation_timer << endl;
 
+    print_statistics();
+    release_memory();
+}
+
+DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
+    : DecoupledRootTask(
+          options.get<shared_ptr<decoupling::Factoring>>("factoring"),
+          options.get<bool>("skip_unnecessary_leaf_effects"),
+          options.get<bool>("same_leaf_preconditons_single_variable"),
+          options.get<bool>("conclusive_operators"),
+          options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")
+          ) {
+    // Additional input options
+    if (options.get<bool>("normalize_variable_names")) {
+        normalize_variable_names();
+    }
     if (options.get<bool>("dump_task")) {
         dump();
     }
-
-    assert(are_initial_states_consistent());
-
-    print_statistics();
-
-    release_memory();
-
     if (options.get<bool>("write_sas")) {
         write_sas_file("dec_output.sas");
     }
@@ -819,6 +819,22 @@ void DecoupledRootTask::release_memory() {
 
 void DecoupledRootTask::dump() const {
     task_properties::dump_task(TaskProxy(*this), true, true);
+}
+
+/*
+      We rename variables to match the pattern var[int]
+      such that the center variables keep their names
+      and the new variables get an id that is one above
+      the variable ids from the original task.
+*/
+void DecoupledRootTask::normalize_variable_names() {
+    int current_var_id = original_root_task->get_num_variables();
+    for (size_t var = 0; var < variables.size(); ++var) {
+        if (!center_var_to_pvar.contains(var)) {
+            variables[var].name = "var" + to_string(current_var_id);
+            ++current_var_id;
+        }
+    }
 }
 
 

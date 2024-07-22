@@ -47,6 +47,11 @@ class DecoupledRootTask : public RootTask {
     std::unordered_set<int> prunable_operators;
 
 public:
+    DecoupledRootTask(std::shared_ptr<decoupling::Factoring> factoring,
+                      bool skip_unnecessary_leaf_effects,
+                      bool same_leaf_preconditons_single_variable,
+                      bool conclusive_operators,
+                      const ConclusiveLeafEncoding &conclusive_leaf_encoding);
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
 
@@ -107,6 +112,9 @@ protected:
     void release_memory();
 
     void dump() const;
+
+    // Optional task options
+    void normalize_variable_names();
 };
 }
 
