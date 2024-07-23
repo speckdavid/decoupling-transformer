@@ -48,7 +48,8 @@ MWISFactoring::MWISFactoring(const plugins::Options &opts) : Factoring(opts),
                                                              min_fact_flexibility(opts.get<double>("min_fact_flexibility")),
                                                              add_cg_sccs_(opts.get<bool>("add_cg_sccs")) {
     if (log.is_at_least_normal()) {
-        log << "Using LP factoring with strategy: ";
+        log << endl << string(80, '*') << endl;
+        log << "Using MWIS factoring with strategy: ";
         switch (strategy) {
         case WMIS_STRATEGY::MML:
             log << "maximize number of mobile leaves." << endl;
@@ -75,6 +76,10 @@ MWISFactoring::MWISFactoring(const plugins::Options &opts) : Factoring(opts),
             log << "ERROR: unknown LP factoring strategy." << endl;
             exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
         }
+        log << "WARNING: This factoring strategy is PRELIMINARY..." << endl
+            << "In most cases, it is superseded by the LP factoring that is based on CPLEX." << endl
+            << "Please consider using the LP factoring for best results and for comparisons!" << endl
+            << string(80, '*') << endl << endl;
     }
 
     if (min_number_leaves > 1 && strategy != WMIS_STRATEGY::MML) {

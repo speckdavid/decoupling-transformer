@@ -869,8 +869,6 @@ public:
         document_title("Decoupled task");
         document_synopsis(
             "A decoupled transformation of the root task.");
-
-        add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.");
         add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaves have a single secondary variable.", "true");
         add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conclusive leaf encoding.", "multivalued");
         add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
@@ -881,6 +879,14 @@ public:
         add_option<bool>("normalize_variable_names", "Normalizes the variable names by numbering in the format var[x]", "false");
         add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
         add_option<bool>("write_factoring", "Writes the factoring of the decoupled task to factoring.txt.", "false");
+
+        // Adding factoring option which is default the lp-factoring if CPLEX is present otherwise WMIS factoring.
+        #ifdef HAS_CPLEX
+        add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.", "lp()");
+        #else
+        // TODO: Set reasonable defaults for wmis
+        add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.", "wmis(min_number_leaves=1)");
+        #endif
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
