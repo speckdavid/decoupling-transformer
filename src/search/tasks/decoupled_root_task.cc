@@ -7,7 +7,6 @@
 #include "../task_utils/dump_sas_task.h"
 #include "../task_utils/dump_pddl_task.h"
 #include "../task_utils/task_properties.h"
-#include "../utils/rng_options.h"
 
 #include <algorithm>
 #include <fstream>
@@ -18,10 +17,11 @@ using namespace std;
 
 namespace tasks {
 DecoupledRootTask::DecoupledRootTask(shared_ptr<decoupling::Factoring> factoring,
+                                     const ConclusiveLeafEncoding &conclusive_leaf_encoding,
                                      bool skip_unnecessary_leaf_effects,
                                      bool same_leaf_preconditons_single_variable,
                                      bool conclusive_operators,
-                                     const ConclusiveLeafEncoding &conclusive_leaf_encoding
+                                     bool normalize
                                      )
     : RootTask(),
       original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
@@ -66,6 +66,11 @@ DecoupledRootTask::DecoupledRootTask(shared_ptr<decoupling::Factoring> factoring
     utils::g_log << "Creating new axioms..." << endl;
     create_axioms();
 
+    if (normalize) {
+        utils::g_log << "Normalizing task..." << endl;
+        normalize_task();
+    }
+
     TaskProxy task_proxy(*this);
 
     // This is also done in the root task which is honestly quite hacky!
@@ -82,10 +87,11 @@ DecoupledRootTask::DecoupledRootTask(shared_ptr<decoupling::Factoring> factoring
 DecoupledRootTask::DecoupledRootTask(const plugins::Options &options)
     : DecoupledRootTask(
           options.get<shared_ptr<decoupling::Factoring>>("factoring"),
+          options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding"),
           options.get<bool>("skip_unnecessary_leaf_effects"),
           options.get<bool>("same_leaf_preconditons_single_variable"),
           options.get<bool>("conclusive_operators"),
-          options.get<ConclusiveLeafEncoding>("conclusive_leaf_encoding")
+          options.get<bool>("normalize_task")
           ) {
     // Additional input options
     if (options.get<bool>("normalize_variable_names")) {
@@ -822,10 +828,10 @@ void DecoupledRootTask::dump() const {
 }
 
 /*
-      We rename variables to match the pattern var[int]
-      such that the center variables keep their names
-      and the new variables get an id that is one above
-      the variable ids from the original task.
+    We rename variables to match the pattern var[int]
+    such that the center variables keep their names
+    and the new variables get an id that is one above
+    the variable ids from the original task.
 */
 void DecoupledRootTask::normalize_variable_names() {
     int current_var_id = original_root_task->get_num_variables();
@@ -836,7 +842,6 @@ void DecoupledRootTask::normalize_variable_names() {
         }
     }
 }
-
 
 shared_ptr<AbstractTask> DecoupledRootTask::get_original_root_task() const {
     return original_root_task;
@@ -870,6 +875,7 @@ public:
         add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conclusive leaf encoding.", "multivalued");
         add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
         add_option<bool>("conclusive_operators", "Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.", "true");
+        add_option<bool>("normalize_task", "Sort conditions and effects according to variable ids.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console.", "false");
         add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
         add_option<bool>("normalize_variable_names", "Normalizes the variable names by numbering in the format var[x]", "false");

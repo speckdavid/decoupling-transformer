@@ -163,7 +163,7 @@ void dump_domain_operator(const AbstractTask &task, ostream &os, int op_no) {
             os << "))" << endl;
         } else {
             for (const string &binary_var : get_binary_encoding(task, all_effects[eff_id])) {
-                os << " " << binary_var << flush;
+                os << binary_var << " " << flush;
             }
             os << endl;
         }

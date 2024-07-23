@@ -75,6 +75,8 @@ protected:
     virtual const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const;
     const ExplicitOperator &get_operator_or_axiom(int index, bool is_axiom) const;
 
+    void normalize_task();
+
 public:
     explicit RootTask(std::istream &in);
     RootTask() {}

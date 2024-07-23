@@ -48,10 +48,11 @@ class DecoupledRootTask : public RootTask {
 
 public:
     DecoupledRootTask(std::shared_ptr<decoupling::Factoring> factoring,
+                      const ConclusiveLeafEncoding &conclusive_leaf_encoding,
                       bool skip_unnecessary_leaf_effects,
                       bool same_leaf_preconditons_single_variable,
                       bool conclusive_operators,
-                      const ConclusiveLeafEncoding &conclusive_leaf_encoding);
+                      bool normalize);
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
 

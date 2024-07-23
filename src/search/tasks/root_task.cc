@@ -501,6 +501,27 @@ int RootTask::get_encoding_size(bool with_mutexes) const {
     return task_size;
 }
 
+void RootTask::normalize_task() {
+    sort(goals.begin(), goals.end());
+    for (auto &op : operators) {
+        sort(op.preconditions.begin(), op.preconditions.end());
+        for (auto &eff : op.effects) {
+            sort(eff.conditions.begin(), eff.conditions.end());
+        }
+        sort(op.effects.begin(), op.effects.end());
+    }
+    for (auto &ax : axioms) {
+        sort(ax.preconditions.begin(), ax.preconditions.end());
+        for (auto &eff : ax.effects) {
+            sort(eff.conditions.begin(), eff.conditions.end());
+        }
+        sort(ax.effects.begin(), ax.effects.end());
+    }
+    for (auto &mutex_group : mutexes) {
+        sort(mutex_group.begin(), mutex_group.end());
+    }
+}
+
 void read_root_task(istream &in) {
     assert(!g_root_task);
     g_root_task = make_shared<RootTask>(in);

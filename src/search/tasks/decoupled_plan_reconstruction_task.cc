@@ -67,7 +67,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     opts.set("leaves", leaves);
     factoring = make_shared<decoupling::ManualFactoring>(opts);
 
-    DecoupledRootTask dec_task(factoring, true, true, true, ConclusiveLeafEncoding::MULTIVALUED);
+    DecoupledRootTask dec_task(factoring, ConclusiveLeafEncoding::MULTIVALUED, true, true, true, false);
     TaskProxy dec_task_proxy(dec_task);
 
     // Plan file to vector of operator ids
