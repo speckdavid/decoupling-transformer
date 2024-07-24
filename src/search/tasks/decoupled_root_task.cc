@@ -884,8 +884,7 @@ public:
         #ifdef HAS_CPLEX
         add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.", "lp()");
         #else
-        // TODO: Set reasonable defaults for wmis
-        add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.", "wmis(min_number_leaves=1)");
+        add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.", "wmis()");
         #endif
     }
 

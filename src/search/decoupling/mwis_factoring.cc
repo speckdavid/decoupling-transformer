@@ -997,7 +997,7 @@ void MWISFactoring::add_options_to_parser(plugins::Feature &feature) {
         "This option determines the property of the factoring that is being "
         "optimized by the LP, e.g. the number of mobile leaves, or the sum"
         "of leaf mobility.",
-        "MFA"
+        "MML"
         );
     feature.add_option<int>(
         "min_mobility",
