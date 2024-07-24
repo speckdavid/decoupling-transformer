@@ -94,14 +94,9 @@ attributes = common_setup.ATTRIBUTES + ["number_decoupled_tasks"]
 
 exp.add_report(AbsoluteReport(attributes=attributes), outfile=f"{SCRIPT_NAME}-all.html")
 
-def add_number_decoupled_tasks(run):
-    run["number_decoupled_tasks"] = 0
-    if "number_leaf_factors" in run:
-        run["number_decoupled_tasks"] = 1
-    return run
 
 configs = [f"{x}-{y}" for x in ["AS0.2s1M", "F0.2s1M", "L0.2s1M", "M0.2s1M"] for y in ["inf", "30"]]
-exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"blind-LP-{x}", f"blind-WMIS-{x}") for x in configs], filter=[add_number_decoupled_tasks]), outfile=f"{SCRIPT_NAME}-compare.html")
+exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"blind-LP-{x}", f"blind-WMIS-{x}") for x in configs], filter=[filters.add_number_decoupled_tasks]), outfile=f"{SCRIPT_NAME}-compare.html")
 
 
 # SCATTER PLOTS
