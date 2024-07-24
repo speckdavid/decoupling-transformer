@@ -41,7 +41,9 @@ class LPFactoring : public decoupling::Factoring {
         std::vector<double> as_flexibility;
 
         PotentialLeaf(const LPFactoring *factoring, size_t id, const std::vector<int> &vars)
-            : factoring(factoring), id(id), num_actions(0), max_flexibility(0.0), vars(vars) {}
+                : factoring(factoring), id(id), num_actions(0), max_flexibility(0.0), vars(vars) {
+            assert(std::is_sorted(vars.begin(), vars.end()));
+        }
 
         void add_leaf_only_schema(size_t action_schema);
     };

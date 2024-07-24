@@ -516,11 +516,18 @@ void LPFactoring::construct_lp_all(named_vector::NamedVector<lp::LPVariable> &va
 
     VariablesProxy vars_proxy = task_proxy.get_variables();
 
+    compute_action_schemas();
+
     vector<vector<unordered_map<size_t, size_t>>> facts_to_mobility;
     vector<vector<size_t>> sum_fact_mobility;
     if (strategy == STRATEGY::MFA) {
-        // TODO properly fix this without recomputing the action schemas
-        action_schemas.clear(); // these were most probably initialized already
+        vector<vector<size_t>> variables_to_action_schemas(task->get_num_variables());
+
+        for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id) {
+            for (int var: action_schemas[as_id].eff_vars) {
+                variables_to_action_schemas[var].push_back(as_id);
+            }
+        }
 
         // need to store information for effect *facts*, which gets otherwise lost
         facts_to_mobility.resize(task->get_num_variables());
@@ -528,38 +535,16 @@ void LPFactoring::construct_lp_all(named_vector::NamedVector<lp::LPVariable> &va
             facts_to_mobility[var].resize(vars_proxy[var].get_domain_size());
         }
 
-        OperatorsProxy operators = task_proxy.get_operators();
-        utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t>> scheme_loockup;
-        for (OperatorProxy op : operators) {
-            vector<int> pre_vars;
-            for (FactProxy pre : op.get_preconditions()) {
-                pre_vars.push_back(pre.get_variable().get_id());
-            }
-            sort(pre_vars.begin(), pre_vars.end());
-
-            vector<int> eff_vars;
-            vector<pair<int, int>> eff_facts;
+        for (OperatorProxy op : task_proxy.get_operators()) {
             for (EffectProxy eff : op.get_effects()) {
-                FactProxy eff_fact = eff.get_fact();
-                eff_vars.push_back(eff_fact.get_variable().get_id());
-                eff_facts.emplace_back(eff_fact.get_variable().get_id(), eff_fact.get_value());
-            }
-            sort(eff_vars.begin(), eff_vars.end());
-
-            if (scheme_loockup.find(pre_vars) == scheme_loockup.end()) {
-                scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
-                action_schemas.emplace_back(1, pre_vars, eff_vars);
-            } else if (scheme_loockup[pre_vars].find(eff_vars) == scheme_loockup[pre_vars].end()) {
-                scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
-                action_schemas.emplace_back(1, pre_vars, eff_vars);
-            } else {
-                action_schemas[scheme_loockup[pre_vars][eff_vars]].inc_num_actions();
-            }
-            size_t as = scheme_loockup[pre_vars][eff_vars];
-            for (const auto &fact : eff_facts) {
-                facts_to_mobility[fact.first][fact.second][as]++;
+                int eff_var = eff.get_fact().get_variable().get_id();
+                int eff_val = eff.get_fact().get_value();
+                for (size_t as_id : variables_to_action_schemas[eff_var]) {
+                    facts_to_mobility[eff_var][eff_val][as_id]++;
+                }
             }
         }
+
         sum_fact_mobility.resize(task->get_num_variables());
         for (int var = 0; var < task->get_num_variables(); ++var) {
             sum_fact_mobility[var].resize(vars_proxy[var].get_domain_size());
@@ -569,8 +554,6 @@ void LPFactoring::construct_lp_all(named_vector::NamedVector<lp::LPVariable> &va
                 }
             }
         }
-    } else {
-        compute_action_schemas();
     }
 
     if (action_schemas.empty()) {
@@ -1005,13 +988,13 @@ void LPFactoring::compute_potential_leaves() {
     assert(potential_leaves.empty());
 
     {
-        VariablesProxy vars_proxy = task_proxy.get_variables();
+        VariablesProxy variables = task_proxy.get_variables();
         utils::HashMap<vector<int>, size_t> leaf_lookup;
         for (size_t as = 0; as < action_schemas.size(); ++as) {
             const ActionSchema &action_schema = action_schemas[as];
             int64_t size = 1;
             for (int var : action_schema.eff_vars) {
-                size *= vars_proxy[var].get_domain_size();
+                size *= variables[var].get_domain_size();
                 if (size > max_leaf_size) {
                     break;
                 }
@@ -1020,13 +1003,14 @@ void LPFactoring::compute_potential_leaves() {
                 continue;
             }
 
-            if (leaf_lookup.find(action_schema.eff_vars) == leaf_lookup.end()) {
+            auto it = leaf_lookup.find(action_schema.eff_vars);
+            if (it == leaf_lookup.end()) {
                 size_t s = potential_leaves.size();
                 leaf_lookup[action_schema.eff_vars] = s;
                 potential_leaves.emplace_back(this, s, action_schema.eff_vars);
                 potential_leaves[s].add_leaf_only_schema(as);
             } else {
-                potential_leaves[leaf_lookup[action_schema.eff_vars]].add_leaf_only_schema(as);
+                potential_leaves[it->second].add_leaf_only_schema(as);
             }
         }
     }
@@ -1037,31 +1021,30 @@ void LPFactoring::compute_potential_leaves() {
     recompute_var_to_p_leaves();
 
     // set the number of leaf-only actions
-    for (const PotentialLeaf &p_leaf : potential_leaves) {
-        set<size_t> superset_schemes;
-        if (p_leaf.vars.size() == 1) {
-            for (size_t index : var_to_p_leaves[p_leaf.vars[0]]) {
-                superset_schemes.insert(index);
+    for (const PotentialLeaf &pleaf : potential_leaves) {
+        if (pleaf.vars.size() == 1) {
+            // no need to check for supersets here
+            for (size_t index : var_to_p_leaves[pleaf.vars[0]]) {
+                for (size_t leaf_only_schema : pleaf.action_schemes) {
+                    potential_leaves[index].add_leaf_only_schema(leaf_only_schema);
+                }
             }
         } else {
             // since we consider all supersets of p_leaf, we can simply take p_leaf.vars[0],
             // since all supersets must also include that variable
-            for (size_t index : var_to_p_leaves[p_leaf.vars[0]]) {
+            for (size_t check_pleaf_id : var_to_p_leaves[pleaf.vars[0]]) {
                 bool superset_schema = true;
-                for (int var : p_leaf.vars) {
-                    if (!binary_search(potential_leaves[index].vars.begin(), potential_leaves[index].vars.end(), var)) {
+                for (int var : pleaf.vars) {
+                    if (!binary_search(potential_leaves[check_pleaf_id].vars.begin(), potential_leaves[check_pleaf_id].vars.end(), var)) {
                         superset_schema = false;
                         break;
                     }
                 }
                 if (superset_schema) {
-                    superset_schemes.insert(index);
+                    for (size_t leaf_only_schema : pleaf.action_schemes) {
+                        potential_leaves[check_pleaf_id].add_leaf_only_schema(leaf_only_schema);
+                    }
                 }
-            }
-        }
-        for (size_t index : superset_schemes) {
-            for (size_t leaf_only_schema : p_leaf.action_schemes) {
-                potential_leaves[index].add_leaf_only_schema(leaf_only_schema);
             }
         }
         if (!check_timeout()) {
@@ -1074,6 +1057,7 @@ void LPFactoring::compute_potential_leaves() {
     }
 
     filter_potential_leaves();
+
     if (!check_timeout()) {
         return;
     }
@@ -1098,6 +1082,8 @@ void LPFactoring::add_cg_sccs() {
     vector<vector<int>> sccs = get_sccs(task_proxy);
 
     if (sccs.size() == 1) {
+        // we don't want to put all variables into a leaf
+        log << "Causal-graph is strongly connected, no potential leaves have been added." << endl;
         return;
     }
 
@@ -1108,11 +1094,11 @@ void LPFactoring::add_cg_sccs() {
     }
 
     size_t added = 0;
-    VariablesProxy vars_proxy = task_proxy.get_variables();
-    for (const auto &scc : sccs) {
+    VariablesProxy variables = task_proxy.get_variables();
+    for (auto &scc : sccs) {
         int64_t size = 1;
         for (int var : scc) {
-            size *= vars_proxy[var].get_domain_size();
+            size *= variables[var].get_domain_size();
             if (size > max_leaf_size) {
                 break;
             }
@@ -1121,26 +1107,22 @@ void LPFactoring::add_cg_sccs() {
             continue;
         }
 
-        vector<int> vars(scc.begin(), scc.end());
-        sort(vars.begin(), vars.end());
+        sort(scc.begin(), scc.end());
 
-        if (leaf_lookup.find(vars) == leaf_lookup.end()) {
-            size_t s = potential_leaves.size();
-            for (int var : scc) {
-                var_to_p_leaves[var].insert(s);
-            }
-
-            set<size_t> subset_schemes;
-            // since we consider all supersets of p_leaf, we can simply take p_leaf.vars[0],
-            // since all supersets must also include that variable
+        if (leaf_lookup.count(scc) == 0) {
+            unordered_set<size_t> subset_schemes;
             for (int scc_var : scc) {
                 for (size_t index : var_to_p_leaves[scc_var]) {
                     if (index >= potential_leaves.size() - added) {
+                        // potential leaves from other SCCs cannot be subset
+                        continue;
+                    }
+                    if (subset_schemes.count(index) > 0) {
                         continue;
                     }
                     bool subset_schema = true;
                     for (int var : potential_leaves[index].vars) {
-                        if (find(scc.begin(), scc.end(), var) == scc.end()) {
+                        if (!binary_search(scc.begin(), scc.end(), var)) {
                             subset_schema = false;
                             break;
                         }
@@ -1150,17 +1132,24 @@ void LPFactoring::add_cg_sccs() {
                     }
                 }
             }
+            if (subset_schemes.empty()) {
+                // this can happen when an SCC is not affected by any action
+                continue;
+            }
 
-            potential_leaves.push_back(PotentialLeaf(this, s, vars));
+            size_t s = potential_leaves.size();
+            for (int var : scc) {
+                var_to_p_leaves[var].insert(s);
+            }
+            potential_leaves.emplace_back(this, s, scc);
+            ++added;
 
             for (size_t pleaf : subset_schemes) {
                 assert(pleaf < potential_leaves.size() - added);
-                for (const auto &as : potential_leaves[pleaf].action_schemes) {
-                    potential_leaves[s].add_leaf_only_schema(as);
+                for (size_t as_id : potential_leaves[pleaf].action_schemes) {
+                    potential_leaves[s].add_leaf_only_schema(as_id);
                 }
             }
-
-            ++added;
         }
         if (!check_timeout()) {
             return;
