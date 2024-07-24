@@ -23,7 +23,7 @@ import decoupling_parser
 DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPT_NAME = os.path.splitext(os.path.basename(__file__))[0]
 BENCHMARKS_DIR = os.environ["DOWNWARD_BENCHMARKS"]
-REVISION = "cdb75a84f62ac01fc20d4eee3263f1c536add008"
+REVISION = "a25b8726ed52efcdfaaa8bb6d6af424530214cbc"
 REVISIONS = [REVISION]
 
 CONFIGS = []
@@ -45,15 +45,15 @@ factorings = {
     'LP-AS0.2s1M-30':       'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mmas, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
     'LP-M0.2s1M-30':        'lp(min_number_leaves=1, factoring_time_limit=30, strategy=mm, add_cg_sccs=true, min_flexibility=0.2, max_leaf_size=1000000)',
 }
-heuristics = {"blind" : "blind()",
+heuristics = {"inf" : "const(value=infinity)",
 }
 
-DRIVER_OPTS = ["--overall-time-limit", "5m"]
+DRIVER_OPTS = ["--overall-time-limit", "5m", "--build", "debug"]
+BUILD_OPTS = ["debug"]
 
 for h_name, heuristic_option in heuristics.items():
-    CONFIGS.append(IssueConfig(f'{h_name}', ['--search',  f'astar({heuristic_option})'], driver_options=DRIVER_OPTS))
     for dec_name, dec in factorings.items():
-        CONFIGS.append(IssueConfig(f'{h_name}-{dec_name}', ['--root-task-transform', f"decoupled(factoring={dec})", '--search',  f'astar({heuristic_option})'], driver_options=DRIVER_OPTS))
+        CONFIGS.append(IssueConfig(f'{h_name}-{dec_name}', ['--root-task-transform', f"decoupled(factoring={dec})", '--search',  f'astar({heuristic_option})'], driver_options=DRIVER_OPTS, build_options=BUILD_OPTS))
 
 
 SUITE = common_setup.DEFAULT_SATISFICING_SUITE
@@ -90,18 +90,12 @@ exp.add_fetcher(name='fetch', filter=[filters.remove_revision])
 FORMAT = "html"
 
 # REPORT TABLES
-attributes = common_setup.ATTRIBUTES + ["number_decoupled_tasks"]
+attributes = common_setup.ATTRIBUTES
 
 exp.add_report(AbsoluteReport(attributes=attributes), outfile=f"{SCRIPT_NAME}-all.html")
 
-def add_number_decoupled_tasks(run):
-    run["number_decoupled_tasks"] = 0
-    if "number_leaf_factors" in run:
-        run["number_decoupled_tasks"] = 1
-    return run
-
 configs = [f"{x}-{y}" for x in ["AS0.2s1M", "F0.2s1M", "L0.2s1M", "M0.2s1M"] for y in ["inf", "30"]]
-exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"blind-LP-{x}", f"blind-WMIS-{x}") for x in configs], filter=[add_number_decoupled_tasks]), outfile=f"{SCRIPT_NAME}-compare.html")
+exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=[(f"blind-LP-{x}", f"blind-WMIS-{x}") for x in configs]), outfile=f"{SCRIPT_NAME}-compare.html")
 
 
 # SCATTER PLOTS
