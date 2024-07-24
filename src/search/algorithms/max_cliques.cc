@@ -1,5 +1,6 @@
 #include "max_cliques.h"
 
+#include "../algorithms/dynamic_bitset.h"
 #include "../utils/collections.h"
 #include "../utils/countdown_timer.h"
 #include "../utils/logging.h"
@@ -14,19 +15,22 @@
 using namespace std;
 
 namespace max_cliques {
-static bool is_edge(const vector<int> &neighbors, int node) {
-    return find(neighbors.begin(), neighbors.end(), node) != neighbors.end();
-}
-
 static vector<vector<int>> create_complement(const vector<vector<int>> &graph) {
     int n = graph.size();
     vector<vector<int>> complement_graph(n);
 
+    dynamic_bitset::DynamicBitset is_neighbour(n);
+
     // Create the complement graph
     for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            if (i != j && !is_edge(graph[i], j)) {
+        is_neighbour.reset();
+        for (int neighb : graph[i]){
+            is_neighbour.set(neighb);
+        }
+        for (int j = i + 1; j < n; ++j) {
+            if (!is_neighbour[j]) {
                 complement_graph[i].push_back(j);
+                complement_graph[j].push_back(i);
             }
         }
     }
@@ -242,7 +246,7 @@ private:
     }
 
 public:
-    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights, double max_time)
+    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights, const utils::CountdownTimer &max_time)
         : graph(graph), node_weights(weights), timer(max_time), incumbent_weight(0) {
         if (graph.size() != weights.size()) {
             cerr << "Number of nodes does not match number of weights!" << endl;
@@ -281,7 +285,7 @@ double compute_max_weighted_clique(
     const vector<double> &weights,
     vector<int> &max_clique,
     double max_time) {
-    MaxWeightCliqueComputer computer(graph, weights, max_time);
+    MaxWeightCliqueComputer computer(graph, weights, utils::CountdownTimer(max_time));
     return computer.find_max_weight_clique(max_clique);
 }
 
@@ -290,8 +294,9 @@ double compute_max_weighted_independent_set(
     const vector<double> &weights,
     vector<int> &independent_set,
     double max_time) {
+    utils::CountdownTimer max_timer(max_time);
     auto complement_graph = create_complement(graph);
-    MaxWeightCliqueComputer computer(complement_graph, weights, max_time);
+    MaxWeightCliqueComputer computer(complement_graph, weights, max_timer);
     return computer.find_max_weight_clique(independent_set);
 }
 }
