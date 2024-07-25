@@ -83,8 +83,9 @@ MWISFactoring::MWISFactoring(const plugins::Options &opts) : Factoring(opts),
     }
 
     if (min_number_leaves > 1 && strategy != WMIS_STRATEGY::MML) {
-        log << "WARNING: WMIS factoring does not support setting a minimal number of leaf factors." << endl;
-        min_number_leaves = 1;
+        log << "WARNING: WMIS factoring does not support setting a minimal number of leaf factors." << endl
+            << "Thus, there is no guarantee that a factoring with more than " << min_number_leaves << " is computed, "
+            << "even if such a factoring exists." << endl;
     }
 
     if (strategy != WMIS_STRATEGY::MFA && min_fact_flexibility > 0.0) {
@@ -798,14 +799,29 @@ void MWISFactoring::compute_fact_flexibility(
         facts_to_mobility[var].resize(variables[var].get_domain_size());
     }
 
-    compute_variables_to_action_schemas_map();
+    utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t> > scheme_lookup;
+    for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id){
+        const ActionSchema &as = action_schemas[as_id];
+        scheme_lookup[as.pre_vars][as.eff_vars] = as_id;
+    }
 
     for (OperatorProxy op : task_proxy.get_operators()) {
+        vector<int> pre_vars;
+        for (FactProxy pre : op.get_preconditions()) {
+            pre_vars.push_back(pre.get_variable().get_id());
+        }
+        sort(pre_vars.begin(), pre_vars.end());
+
+        vector<int> eff_vars;
         for (EffectProxy eff : op.get_effects()) {
-            int eff_var = eff.get_fact().get_variable().get_id();
-            for (size_t as_id : variables_to_action_schemas[eff_var]) {
-                facts_to_mobility[eff_var][eff.get_fact().get_value()][as_id]++;
-            }
+            eff_vars.push_back(eff.get_fact().get_variable().get_id());
+        }
+        sort(eff_vars.begin(), eff_vars.end());
+
+        assert(scheme_lookup.count(pre_vars) > 0 && scheme_lookup[pre_vars].count(eff_vars) > 0);
+        size_t as = scheme_lookup[pre_vars][eff_vars];
+        for (EffectProxy eff : op.get_effects()){
+            facts_to_mobility[eff.get_fact().get_variable().get_id()][eff.get_fact().get_value()][as]++;
         }
     }
 

@@ -403,7 +403,7 @@ bool Factoring::check_timeout() const {
 
 void Factoring::compute_action_schemas() {
     if (action_schemas.empty()) {
-        OperatorsProxy operators = TaskProxy(*task).get_operators();
+        OperatorsProxy operators = task_proxy.get_operators();
         assert(!operators.empty());
         utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t>> scheme_loockup;
         for (OperatorProxy op : operators) {
@@ -419,12 +419,12 @@ void Factoring::compute_action_schemas() {
             }
             sort(eff_vars.begin(), eff_vars.end());
 
-            if (scheme_loockup.find(pre_vars) == scheme_loockup.end() ||
-                scheme_loockup[pre_vars].find(eff_vars) == scheme_loockup[pre_vars].end()) {
+            auto it = scheme_loockup.find(pre_vars);
+            if (it == scheme_loockup.end() || it->second.find(eff_vars) == it->second.end()) {
                 scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
                 action_schemas.emplace_back(1, pre_vars, eff_vars);
             } else {
-                action_schemas[scheme_loockup[pre_vars][eff_vars]].inc_num_actions();
+                action_schemas[it->second[eff_vars]].inc_num_actions();
             }
         }
     }

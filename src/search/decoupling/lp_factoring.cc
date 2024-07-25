@@ -520,36 +520,45 @@ void LPFactoring::construct_lp_all(named_vector::NamedVector<lp::LPVariable> &va
 
     vector<vector<unordered_map<size_t, size_t>>> facts_to_mobility;
     vector<vector<size_t>> sum_fact_mobility;
-    if (strategy == STRATEGY::MFA) {
-        vector<vector<size_t>> variables_to_action_schemas(task->get_num_variables());
-
-        for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id) {
-            for (int var: action_schemas[as_id].eff_vars) {
-                variables_to_action_schemas[var].push_back(as_id);
-            }
-        }
+    if (strategy == STRATEGY::MFA){
 
         // need to store information for effect *facts*, which gets otherwise lost
         facts_to_mobility.resize(task->get_num_variables());
-        for (int var = 0; var < task->get_num_variables(); ++var) {
+        for (int var = 0; var < task->get_num_variables(); ++var){
             facts_to_mobility[var].resize(vars_proxy[var].get_domain_size());
         }
 
+        utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t> > scheme_lookup;
+        for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id){
+            const ActionSchema &as = action_schemas[as_id];
+            scheme_lookup[as.pre_vars][as.eff_vars] = as_id;
+        }
+
         for (OperatorProxy op : task_proxy.get_operators()) {
+            vector<int> pre_vars;
+            for (FactProxy pre : op.get_preconditions()) {
+                pre_vars.push_back(pre.get_variable().get_id());
+            }
+            sort(pre_vars.begin(), pre_vars.end());
+
+            vector<int> eff_vars;
             for (EffectProxy eff : op.get_effects()) {
-                int eff_var = eff.get_fact().get_variable().get_id();
-                int eff_val = eff.get_fact().get_value();
-                for (size_t as_id : variables_to_action_schemas[eff_var]) {
-                    facts_to_mobility[eff_var][eff_val][as_id]++;
-                }
+                eff_vars.push_back(eff.get_fact().get_variable().get_id());
+            }
+            sort(eff_vars.begin(), eff_vars.end());
+
+            assert(scheme_lookup.count(pre_vars) > 0 && scheme_lookup[pre_vars].count(eff_vars) > 0);
+            size_t as = scheme_lookup[pre_vars][eff_vars];
+            for (EffectProxy eff : op.get_effects()){
+                facts_to_mobility[eff.get_fact().get_variable().get_id()][eff.get_fact().get_value()][as]++;
             }
         }
 
         sum_fact_mobility.resize(task->get_num_variables());
-        for (int var = 0; var < task->get_num_variables(); ++var) {
+        for (int var = 0; var < task->get_num_variables(); ++var){
             sum_fact_mobility[var].resize(vars_proxy[var].get_domain_size());
-            for (int val = 0; val < vars_proxy[var].get_domain_size(); ++val) {
-                for (const auto & [as, num] : facts_to_mobility[var][val]) {
+            for (int val = 0; val < vars_proxy[var].get_domain_size(); ++val){
+                for (const auto& [as, num] : facts_to_mobility[var][val]){
                     sum_fact_mobility[var][val] += num;
                 }
             }
