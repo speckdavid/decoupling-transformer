@@ -799,8 +799,8 @@ void MWISFactoring::compute_fact_flexibility(
         facts_to_mobility[var].resize(variables[var].get_domain_size());
     }
 
-    utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t> > scheme_lookup;
-    for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id){
+    utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t>> scheme_lookup;
+    for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id) {
         const ActionSchema &as = action_schemas[as_id];
         scheme_lookup[as.pre_vars][as.eff_vars] = as_id;
     }
@@ -820,7 +820,7 @@ void MWISFactoring::compute_fact_flexibility(
 
         assert(scheme_lookup.count(pre_vars) > 0 && scheme_lookup[pre_vars].count(eff_vars) > 0);
         size_t as = scheme_lookup[pre_vars][eff_vars];
-        for (EffectProxy eff : op.get_effects()){
+        for (EffectProxy eff : op.get_effects()) {
             facts_to_mobility[eff.get_fact().get_variable().get_id()][eff.get_fact().get_value()][as]++;
         }
     }

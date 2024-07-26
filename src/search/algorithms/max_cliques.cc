@@ -24,7 +24,7 @@ static vector<vector<int>> create_complement(const vector<vector<int>> &graph) {
     // Create the complement graph
     for (int i = 0; i < n; ++i) {
         is_neighbour.reset();
-        for (int neighb : graph[i]){
+        for (int neighb : graph[i]) {
             is_neighbour.set(neighb);
         }
         for (int j = i + 1; j < n; ++j) {

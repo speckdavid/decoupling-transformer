@@ -869,16 +869,6 @@ public:
         document_title("Decoupled task");
         document_synopsis(
             "A decoupled transformation of the root task.");
-        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaves have a single secondary variable.", "true");
-        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conclusive leaf encoding.", "multivalued");
-        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
-        add_option<bool>("conclusive_operators", "Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.", "true");
-        add_option<bool>("normalize_task", "Sort conditions and effects according to variable ids.", "false");
-        add_option<bool>("dump_task", "Dumps the task to the console.", "false");
-        add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
-        add_option<bool>("normalize_variable_names", "Normalizes the variable names by numbering in the format var[x]", "false");
-        add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
-        add_option<bool>("write_factoring", "Writes the factoring of the decoupled task to factoring.txt.", "false");
 
         // Adding factoring option which is default the lp-factoring if CPLEX is present otherwise WMIS factoring.
         #ifdef HAS_CPLEX
@@ -886,6 +876,17 @@ public:
         #else
         add_option<shared_ptr<decoupling::Factoring>>("factoring", "method that computes the factoring.", "wmis()");
         #endif
+
+        add_option<bool>("same_leaf_preconditons_single_variable", "The same preconditions of leaves have a single secondary variable.", "true");
+        add_option<ConclusiveLeafEncoding>("conclusive_leaf_encoding", "Conclusive leaf encoding.", "multivalued");
+        add_option<bool>("skip_unnecessary_leaf_effects", "Skip unnecessary leaf effects for operators that have no influence on the leaf.", "true");
+        add_option<bool>("conclusive_operators", "Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.", "true");
+        add_option<bool>("normalize_task", "Sort conditions and effects according to variable ids.", "false");
+        add_option<bool>("normalize_variable_names", "Normalizes the variable names by numbering in the format var[x]", "false");
+        add_option<bool>("dump_task", "Dumps the task to the console.", "false");
+        add_option<bool>("write_sas", "Writes the decoupled task to dec_output.sas.", "false");
+        add_option<bool>("write_pddl", "Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.", "false");
+        add_option<bool>("write_factoring", "Writes the factoring of the decoupled task to factoring.txt.", "false");
     }
 
     virtual shared_ptr<DecoupledRootTask> create_component(const plugins::Options &options, const utils::Context &) const override {
