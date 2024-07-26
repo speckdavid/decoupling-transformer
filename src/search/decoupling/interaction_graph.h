@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_INTERACTION_GRAPH
-#define DECOUPLING_INTERACTION_GRAPH
+#ifndef DECOUPLING_INTERACTION_GRAPH_H
+#define DECOUPLING_INTERACTION_GRAPH_H
 
 #include "leaf_state_id.h"
 
@@ -14,27 +14,27 @@ class InteractionGraph {
 private:
     bool fork, ifork, strict_star;
     int num_leaves;
-    std::vector<std::vector<FactorID> > successors;
-    std::vector<std::vector<FactorID> > predecessors;
+    std::vector<std::vector<FactorID>> successors;
+    std::vector<std::vector<FactorID>> predecessors;
 
     void add_dependency(FactorID from, FactorID to);
 
 public:
-    explicit InteractionGraph(int num_leaves):
-            fork(true), ifork(true), strict_star(true), num_leaves(num_leaves) {
-        successors.resize(num_leaves+1);
-        predecessors.resize(num_leaves+1);
+    explicit InteractionGraph(int num_leaves) :
+        fork(true), ifork(true), strict_star(true), num_leaves(num_leaves) {
+        successors.resize(num_leaves + 1);
+        predecessors.resize(num_leaves + 1);
     }
 
     const std::vector<FactorID> &get_successors(FactorID factor) const {
-        if (factor == FactorID::CENTER){
+        if (factor == FactorID::CENTER) {
             return successors.back();
         }
         return successors[factor];
     }
 
     const std::vector<FactorID> &get_predecessors(FactorID factor) const {
-        if (factor == FactorID::CENTER){
+        if (factor == FactorID::CENTER) {
             return predecessors.back();
         }
         return predecessors[factor];

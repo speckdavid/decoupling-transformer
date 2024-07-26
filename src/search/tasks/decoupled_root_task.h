@@ -44,7 +44,15 @@ class DecoupledRootTask : public RootTask {
     std::unordered_map<int, int> global_op_id_to_original_op_id;
     std::unordered_map<int, int> original_op_id_to_global_op_id;
 
+    std::unordered_set<int> prunable_operators;
+
 public:
+    DecoupledRootTask(std::shared_ptr<decoupling::Factoring> factoring,
+                      const ConclusiveLeafEncoding &conclusive_leaf_encoding,
+                      bool skip_unnecessary_leaf_effects,
+                      bool same_leaf_preconditons_single_variable,
+                      bool conclusive_operators,
+                      bool normalize);
     DecoupledRootTask(const plugins::Options &options);
     virtual ~DecoupledRootTask() override = default;
 
@@ -85,6 +93,8 @@ protected:
     void create_goal();
 
     // operators
+    void compute_prunable_operators();
+    bool is_prunable_operator(int op_id) const;
     void set_preconditions_of_operator(int op_id, ExplicitOperator &op);
     void set_center_effects_of_operator(int op_id, ExplicitOperator &op);
     void set_general_leaf_effects_of_operator(int op_id, ExplicitOperator &op, int leaf);
@@ -103,6 +113,9 @@ protected:
     void release_memory();
 
     void dump() const;
+
+    // Optional task options
+    void normalize_variable_names();
 };
 }
 

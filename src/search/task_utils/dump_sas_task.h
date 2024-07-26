@@ -1,12 +1,11 @@
-#ifndef TASK_DUMP_SAS_TASK_H
-#define TASK_DUMP_SAS_TASK_H
+#ifndef TASK_UTILS_DUMP_SAS_TASK_H
+#define TASK_UTILS_DUMP_SAS_TASK_H
 
 #include "../abstract_task.h"
 
 #include <ostream>
 
 namespace dump_sas_task {
-
 void extract_all_preconditions(const AbstractTask &task, int op_no, std::vector<FactPair> &all_preconditions);
 
 void extract_all_effects_with_conditions(const AbstractTask &task,

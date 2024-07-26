@@ -25,7 +25,7 @@ static vector<string> read_file_to_string(const string &filename) {
     string line;
 
     if (file.is_open()) {
-        while (std::getline(file, line)) {
+        while (getline(file, line)) {
             lines.push_back(line);
         }
         file.close();
@@ -57,6 +57,7 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
         }
     }
 
+    // TODO: Allow for direct constructor without options
     plugins::Options opts;
     opts.set("verbosity", utils::Verbosity::NORMAL);
     opts.set("min_number_leaves", 1);
@@ -64,33 +65,19 @@ DecoupledPlanReconstructionTask::DecoupledPlanReconstructionTask(const plugins::
     opts.set("factoring_time_limit", numeric_limits<int>::max());
     opts.set("prune_fork_leaf_state_spaces", false);
     opts.set("leaves", leaves);
-
     factoring = make_shared<decoupling::ManualFactoring>(opts);
 
-    plugins::Options dec_opts;
-    dec_opts.set("factoring", factoring);
-    dec_opts.set("conclusive_leaf_encoding", ConclusiveLeafEncoding::MULTIVALUED);
-
-    for (const string &option : vector<string>{"conclusive_operators",
-                                               "same_leaf_preconditons_single_variable",
-                                               "skip_unnecessary_leaf_effects"}) {
-        dec_opts.set(option, true);
-    }
-    for (const string &option : vector<string>{"dump_task", "write_sas", "write_pddl", "write_factoring"}) {
-        dec_opts.set(option, false);
-    }
-
-    DecoupledRootTask dec_task(dec_opts);
+    DecoupledRootTask dec_task(factoring, ConclusiveLeafEncoding::MULTIVALUED, true, true, true, false);
     TaskProxy dec_task_proxy(dec_task);
 
     // Plan file to vector of operator ids
     vector<OperatorID> plan;
     vector<string> plan_steps = read_file_to_string("decoupled_plan");
-    plan_steps.erase(std::remove_if(plan_steps.begin(), plan_steps.end(),
-                                    [](const std::string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
+    plan_steps.erase(remove_if(plan_steps.begin(), plan_steps.end(),
+                               [](const string &s) {return !s.empty() && s[0] == ';';}), plan_steps.end());
     for (string &op_name : plan_steps) {
         op_name = op_name.substr(1, op_name.length() - 2);
-        replace(op_name.begin(), op_name.end(), '+', ' ');
+        op_name = regex_replace(op_name, regex("-----"), " ");
         utils::strip(op_name);
         for (auto const &op : dec_task_proxy.get_operators()) {
             if (op_name == op.get_name()) {

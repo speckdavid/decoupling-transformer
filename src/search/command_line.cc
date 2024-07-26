@@ -181,7 +181,7 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
 static void move_arg(vector<string> &args, const string &arg, size_t position) {
     assert(position < args.size());
 
-    auto it = std::find(args.begin(), args.end(), arg);
+    auto it = find(args.begin(), args.end(), arg);
 
     // Arg not in args
     if (it == args.end())

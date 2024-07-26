@@ -50,6 +50,10 @@ class DecouplingParser(Parser):
         self.add_pattern('number_conclusive_leaves', "Number of conclusive leaves: (.+)", required=False, type=int)
         self.add_pattern('number_normal_leaves', "Number of normal leaves: (.+)", required=False, type=int)
 
+        self.add_pattern('number_pruned_operators', "Number of pruned operators: (.+)", required=False, type=int)
+        
+        self.add_pattern('number_wmis_leaf_candidates', "Number final leaf candidates: (.+)", required=False, type=int)
+
         self.add_function(parse_factoring_not_possible)
         self.add_function(parse_factoring_type)
         self.add_function(parse_exhausted_search_space)

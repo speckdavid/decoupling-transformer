@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_LEAF_STATE_ID
-#define DECOUPLING_LEAF_STATE_ID
+#ifndef DECOUPLING_LEAF_STATE_ID_H
+#define DECOUPLING_LEAF_STATE_ID_H
 
 #include <iostream>
 

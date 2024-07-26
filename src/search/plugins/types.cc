@@ -305,7 +305,7 @@ void TypeRegistry::insert_basic_type() {
 const FeatureType &TypeRegistry::create_feature_type(const CategoryPlugin &plugin) {
     type_index type = plugin.get_pointer_type();
     if (registered_types.count(type)) {
-        const FeatureType &type_ref = *static_cast<const FeatureType*>(registered_types[type].get());
+        const FeatureType &type_ref = *static_cast<const FeatureType *>(registered_types[type].get());
         return type_ref;
         // ABORT("Creating the FeatureType '" + plugin.get_class_name()
         //       + "' but the type '" + registered_types[type]->name()
@@ -323,7 +323,7 @@ const EnumType &TypeRegistry::create_enum_type(const EnumPlugin &plugin) {
     type_index type = plugin.get_type();
     const EnumInfo &values = plugin.get_enum_info();
     if (registered_types.count(type)) {
-        const EnumType &type_ref = *static_cast<const EnumType*>(registered_types[type].get());
+        const EnumType &type_ref = *static_cast<const EnumType *>(registered_types[type].get());
         return type_ref;
         // ABORT("Creating the EnumType '" + plugin.get_class_name()
         //       + "' but the type '" + registered_types[type]->name()

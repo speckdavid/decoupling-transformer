@@ -11,7 +11,6 @@
 using namespace std;
 
 namespace decoupling {
-
 LeafStateSpace::LeafStateSpace(const shared_ptr<Factoring> &factoring,
                                const shared_ptr<AbstractTask> &task,
                                utils::LogProxy &log,
@@ -23,7 +22,6 @@ LeafStateSpace::LeafStateSpace(const shared_ptr<Factoring> &factoring,
     state_registry(make_shared<LeafStateRegistry>(LeafStateRegistry(task, factoring))),
     task_proxy(TaskProxy(*task)),
     num_leaves(factoring->get_leaves().size()) {
-
     leaf_state_successors.resize(num_leaves);
     leaf_state_predecessors.resize(num_leaves);
 
@@ -40,8 +38,8 @@ LeafState LeafStateSpace::get_leaf_state(LeafStateHash id, FactorID leaf) const 
 }
 
 bool LeafStateSpace::has_center_precondition(OperatorProxy op) const {
-    for (FactProxy pre : op.get_preconditions()){
-        if (factoring->get_factor(pre.get_variable().get_id()) == FactorID::CENTER){
+    for (FactProxy pre : op.get_preconditions()) {
+        if (factoring->get_factor(pre.get_variable().get_id()) == FactorID::CENTER) {
             return true;
         }
     }
@@ -50,14 +48,14 @@ bool LeafStateSpace::has_center_precondition(OperatorProxy op) const {
 
 bool LeafStateSpace::is_applicable(LeafStateHash id, FactorID leaf, OperatorProxy op) const {
     assert(leaf != FactorID::CENTER);
-    if (!factoring->has_pre_on_leaf(op.get_id(), leaf)){
+    if (!factoring->has_pre_on_leaf(op.get_id(), leaf)) {
         return true;
     }
     LeafState lstate = state_registry->get_leaf_state(id, leaf);
-    for (FactProxy pre : op.get_preconditions()){
+    for (FactProxy pre : op.get_preconditions()) {
         int var = pre.get_variable().get_id();
         if (factoring->get_factor(var) == leaf &&
-            lstate[var] != pre.get_value()){
+            lstate[var] != pre.get_value()) {
             return false;
         }
     }
@@ -73,31 +71,31 @@ void LeafStateSpace::get_applicable_ops(const LeafState &lstate,
     FactorID leaf = lstate.get_id().get_factor();
     assert(leaf != FactorID::CENTER);
 
-    for (OperatorID op_id : factoring->get_leaf_operators(leaf)){
+    for (OperatorID op_id : factoring->get_leaf_operators(leaf)) {
         OperatorProxy op = task_proxy.get_operators()[op_id];
         bool applicable = true;
-        for (FactProxy pre : op.get_preconditions()){
+        for (FactProxy pre : op.get_preconditions()) {
             if (factoring->get_factor(pre.get_variable().get_id()) == leaf &&
-                lstate[pre.get_variable()] != pre.get_value()){
+                lstate[pre.get_variable()] != pre.get_value()) {
                 applicable = false;
                 break;
             }
         }
-        if (applicable){
+        if (applicable) {
             applicable_ops.emplace_back(op.get_id());
         }
     }
 }
 
 bool LeafStateSpace::check_is_goal_state(const LeafState &lstate) {
-    if (!factoring->has_leaf_goal(lstate.get_id().get_factor())){
+    if (!factoring->has_leaf_goal(lstate.get_id().get_factor())) {
         return false;
     }
     FactorID leaf = lstate.get_id().get_factor();
     assert(leaf != FactorID::CENTER);
-    for (FactPair leaf_goal : factoring->get_leaf_goals(leaf)){
+    for (FactPair leaf_goal : factoring->get_leaf_goals(leaf)) {
         assert(leaf == factoring->get_factor(leaf_goal.var));
-        if (lstate[leaf_goal.var] != leaf_goal.value){
+        if (lstate[leaf_goal.var] != leaf_goal.value) {
             return false;
         }
     }
@@ -107,19 +105,19 @@ bool LeafStateSpace::check_is_goal_state(const LeafState &lstate) {
 void LeafStateSpace::check_leaf_invertibility(FactorID leaf,
                                               const vector<vector<int>> &leaf_only_state_space_graph) {
     size_t num_sccs = sccs::compute_maximal_sccs(leaf_only_state_space_graph).size();
-    if (num_sccs == 1){
+    if (num_sccs == 1) {
         size_t prod_size = 1;
-        for (int var : factoring->get_leaf(leaf)){
+        for (int var : factoring->get_leaf(leaf)) {
             prod_size *= task->get_variable_domain_size(var);
         }
         log << "state space of leaf " << leaf << " is strongly connected via leaf-only actions" << endl;
 
         is_leaf_state_space_scc[leaf] = true;
 
-        if (prod_size != state_registry->size(leaf)){
+        if (prod_size != state_registry->size(leaf)) {
             // TODO could do this for all leaves where leaf state space is constructed
             log << "WARNING: not all leaf states for leaf " << leaf << " are reachable"
-                 << ", removing non-applicable center actions from successor generator" << endl;
+                << ", removing non-applicable center actions from successor generator" << endl;
             factoring->remove_never_applicable_global_ops(leaf);
         }
     }
@@ -127,28 +125,26 @@ void LeafStateSpace::check_leaf_invertibility(FactorID leaf,
 
 void LeafStateSpace::build_leaf_state_space(FactorID leaf,
                                             bool compute_leaf_invertibility) {
-
     vector<bool> closed(1, false); // initial state
     bool change = true;
 
     vector<vector<int>> leaf_only_state_space_graph;
-    if (compute_leaf_invertibility){
+    if (compute_leaf_invertibility) {
         leaf_only_state_space_graph.resize(1);
     }
 
     while (change) {
-
         change = false;
 
-        for (LeafStateHash id(0); id < state_registry->size(leaf); ++id){
-            if (id < closed.size()){
+        for (LeafStateHash id(0); id < state_registry->size(leaf); ++id) {
+            if (id < closed.size()) {
                 if (closed[id]) {
                     // no need to handle a state twice
                     continue;
                 }
             } else {
                 closed.resize(id + 1, false);
-                if (compute_leaf_invertibility){
+                if (compute_leaf_invertibility) {
                     leaf_only_state_space_graph.resize(id + 1);
                 }
             }
@@ -167,7 +163,7 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
             if (id >= leaf_state_successors[leaf].size()) {
                 leaf_state_successors[leaf].resize(id + 1);
             }
-            if (id >= leaf_state_predecessors[leaf].size()){
+            if (id >= leaf_state_predecessors[leaf].size()) {
                 leaf_state_predecessors[leaf].resize(id + 1);
             }
 
@@ -175,17 +171,17 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
             get_applicable_ops(curr_leaf_state, applicable_ops);
 
             // apply all applicable_ops to predecessor and store the outcome
-            for (OperatorID op_id : applicable_ops){
+            for (OperatorID op_id : applicable_ops) {
                 OperatorProxy op = task_proxy.get_operators()[op_id];
                 bool is_global_op = factoring->is_global_operator(op_id.hash());
 
                 LeafStateHash succ_id = state_registry->get_successor_leaf_state_hash(curr_leaf_state, op);
 
-                if (succ_id >= leaf_state_successors[leaf].size()){
+                if (succ_id >= leaf_state_successors[leaf].size()) {
                     change = true;
                 }
 
-                if (!is_global_op && id == succ_id){
+                if (!is_global_op && id == succ_id) {
                     // this would induce a self-loop in the leaf state space
                     // need to keep track of these for global operators
                     continue;
@@ -193,7 +189,7 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
 
                 if (compute_leaf_invertibility &&
                     !is_global_op &&
-                    !has_center_precondition(op)){
+                    !has_center_precondition(op)) {
                     // is leaf action without center precondition
                     leaf_only_state_space_graph[id].push_back(succ_id);
                 }
@@ -210,16 +206,15 @@ void LeafStateSpace::build_leaf_state_space(FactorID leaf,
         }
     }
 
-    if (compute_leaf_invertibility){
+    if (compute_leaf_invertibility) {
         check_leaf_invertibility(leaf, leaf_only_state_space_graph);
     }
 }
 
 void LeafStateSpace::build_leaf_state_spaces(bool compute_leaf_invertibility,
                                              bool prune_fork_leaf_state_spaces) {
-
-    for (FactorID factor(0); factor < num_leaves; ++factor){
-        if (factoring->is_fork_leaf(factor) && !factoring->has_leaf_goal(factor)){
+    for (FactorID factor(0); factor < num_leaves; ++factor) {
+        if (factoring->is_fork_leaf(factor) && !factoring->has_leaf_goal(factor)) {
             // skip fork-leaf factor without a goal
             continue;
         }
@@ -239,21 +234,21 @@ void LeafStateSpace::build_leaf_state_spaces(bool compute_leaf_invertibility,
     size_t max_leaf_factor_size = 0;
     size_t tmp;
 
-    for (FactorID factor(0); factor < num_leaves; ++factor){
+    for (FactorID factor(0); factor < num_leaves; ++factor) {
         tmp = state_registry->size(factor);
         min_leaf_factor_size = min(min_leaf_factor_size, tmp);
         avg_leaf_factor_size += tmp;
         max_leaf_factor_size = max(max_leaf_factor_size, tmp);
     }
 
-    log << "min reachable leaf factor size "  << min_leaf_factor_size << endl;
-    log << "avg reachable leaf factor size "  << (int) (avg_leaf_factor_size/num_leaves) << endl;
-    log << "max reachable leaf factor size "  << max_leaf_factor_size << endl;
+    log << "min reachable leaf factor size " << min_leaf_factor_size << endl;
+    log << "avg reachable leaf factor size " << (int)(avg_leaf_factor_size / num_leaves) << endl;
+    log << "max reachable leaf factor size " << max_leaf_factor_size << endl;
 
-    for (FactorID factor(0); factor < num_leaves; ++factor){
-        if (factoring->has_leaf_goal(factor) && leaf_goal_states[factor].empty()){
+    for (FactorID factor(0); factor < num_leaves; ++factor) {
+        if (factoring->has_leaf_goal(factor) && leaf_goal_states[factor].empty()) {
             log << "There is a goal that cannot be achieved in factor " << factor << endl;
-            for (FactPair goal : factoring->get_leaf_goals(factor)){
+            for (FactPair goal : factoring->get_leaf_goals(factor)) {
                 log << task->get_fact_name(goal) << endl;
             }
             exit_with(utils::ExitCode::SEARCH_UNSOLVABLE);

@@ -5,18 +5,18 @@
 using namespace std;
 
 namespace decoupling {
-LeafStateRegistry::LeafStateRegistry(const std::shared_ptr<AbstractTask> &task,
-                                     const std::shared_ptr<Factoring> &factoring) :
-            task(task),
-            factoring(factoring) {
+LeafStateRegistry::LeafStateRegistry(const shared_ptr<AbstractTask> &task,
+                                     const shared_ptr<Factoring> &factoring) :
+    task(task),
+    factoring(factoring) {
     registered_leaf_states.resize(factoring->get_num_leaves());
     leaf_states.resize(factoring->get_num_leaves());
 
     // add initial leaf states
     vector<int> init_state_data = task->get_initial_state_values();
-    for (FactorID leaf(0); leaf < registered_leaf_states.size(); ++leaf){
+    for (FactorID leaf(0); leaf < registered_leaf_states.size(); ++leaf) {
         vector<int> lstate(factoring->get_leaf(leaf).size(), -1);
-        for (int var : factoring->get_leaf(leaf)){
+        for (int var : factoring->get_leaf(leaf)) {
             lstate[factoring->get_id_in_factor(var)] = init_state_data[var];
         }
         registered_leaf_states[leaf].emplace(lstate, 0);

@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_FACTORING
-#define DECOUPLING_FACTORING
+#ifndef DECOUPLING_FACTORING_H
+#define DECOUPLING_FACTORING_H
 
 #include "leaf_state_id.h"
 #include "leaf_state_space.h"
@@ -76,6 +76,8 @@ protected:
 
         ActionSchema(int num_actions, const std::vector<int> &pre_vars, const std::vector<int> &eff_vars)
             : num_actions(num_actions), pre_vars(pre_vars), eff_vars(eff_vars) {
+            assert(std::is_sorted(pre_vars.begin(), pre_vars.end()));
+            assert(std::is_sorted(eff_vars.begin(), eff_vars.end()));
         }
 
         void inc_num_actions() {
@@ -85,7 +87,7 @@ protected:
 
     std::vector<ActionSchema> action_schemas;
 
-    std::vector<std::set<int>> var_to_affecting_op;
+    std::vector<std::vector<int>> var_to_affecting_op;
 
     int min_number_leaves;
     int max_leaf_size;
@@ -149,7 +151,10 @@ public:
 
     std::vector<FactPair> get_leaf_state_values(int leaf, int leaf_state) const;
 
-    // NOTE: this function is not very efficiently implemented and should be called sparsely
+    // NOTE: both following functions are not very efficiently implemented and should be called sparsely
+    // Checks if this condition can be reached based on the reachable leaf state space
+    bool is_reachable_condition(const std::vector<FactPair> &partial_state);
+    // Returns all leaf states of leaf that are a model for the partial state
     std::vector<int> get_valid_leaf_states(int leaf, const std::vector<FactPair> &partial_state);
 
     std::vector<int> get_predecessors(int leaf, int leaf_state, int operator_id) const;

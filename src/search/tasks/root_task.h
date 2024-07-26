@@ -36,6 +36,9 @@ struct ExplicitEffect {
 
     ExplicitEffect(int var, int value, std::vector<FactPair> &&conditions);
 
+    bool operator==(const ExplicitEffect &other) const;
+    bool operator<(const ExplicitEffect &other) const;
+
     int get_encoding_size() const;
 };
 
@@ -50,6 +53,9 @@ struct ExplicitOperator {
     void read_pre_post(std::istream &in);
     ExplicitOperator(std::istream &in, bool is_an_axiom, bool use_metric);
     ExplicitOperator(int cost, const std::string &name, bool is_an_axiom);
+
+    bool operator==(const ExplicitOperator &other) const;
+    bool operator<(const ExplicitOperator &other) const;
 
     int get_encoding_size() const;
 };
@@ -68,6 +74,8 @@ protected:
     const ExplicitVariable &get_variable(int var) const;
     virtual const ExplicitEffect &get_effect(int op_id, int effect_id, bool is_axiom) const;
     const ExplicitOperator &get_operator_or_axiom(int index, bool is_axiom) const;
+
+    void normalize_task();
 
 public:
     explicit RootTask(std::istream &in);

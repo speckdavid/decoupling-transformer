@@ -135,7 +135,7 @@ ALIASES["lama-first"] = [
 
 ALIASES["decoupled-lama-first"] = [
     "--root-task-transform",
-    "decoupled(factoring=lp(factoring_time_limit=30, strategy=mfa, min_flexibility=0.2, add_cg_sccs=true, max_leaf_size=1000000))",
+    "decoupled()",
     "--search",
     "let(hlm, landmark_sum(lm_factory=lm_reasonable_orders_hps(lm_rhw()),transform=adapt_costs(one),pref=false),"
     "let(hff, ff(transform=adapt_costs(one)),"
