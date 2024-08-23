@@ -19,11 +19,11 @@ using namespace structural_symmetries;
 
 namespace tasks {
 SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
-    : RootTask(),
-      original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
-      group(options.get<shared_ptr<Group>>("symmetries")),
-      empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
-      compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
+        : RootTask(),
+          original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
+          group(options.get<shared_ptr<Group>>("symmetries")),
+          empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
+          compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
@@ -60,11 +60,11 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     goals = original_root_task->goals;
     mutexes = original_root_task->mutexes;
 
-    if (empty_value_strategy == EmptyValueStrategy::NONE) {
+    if (empty_value_strategy == NONE) {
         base_state_for_op_permutation = vector<int>(get_num_variables(), -1);
-    } else if (empty_value_strategy == EmptyValueStrategy::INIT) {
+    } else if (empty_value_strategy == INIT) {
         base_state_for_op_permutation = original_root_task->initial_state_values;
-    } else if (empty_value_strategy == EmptyValueStrategy::RANDOM) {
+    } else if (empty_value_strategy == RANDOM) {
         // TODO add RNG to options
         utils::RandomNumberGenerator rng;
         rng.seed(42);
@@ -72,16 +72,18 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
         for (int var = 0; var < get_num_variables(); ++var) {
             base_state_for_op_permutation[var] = rng.random(variables[var].domain_size);
         }
-    } else if (empty_value_strategy == EmptyValueStrategy::GOAL) {
+    } else if (empty_value_strategy == GOAL) {
         base_state_for_op_permutation = vector<int>(get_num_variables(), -1);
         for (const auto &goal : original_root_task->goals) {
             base_state_for_op_permutation[goal.var] = goal.value;
         }
-    } else if (empty_value_strategy == EmptyValueStrategy::INIT_GOAL) {
+    } else if (empty_value_strategy == INIT_GOAL) {
         base_state_for_op_permutation = original_root_task->initial_state_values;
         for (const auto &goal : original_root_task->goals) {
             base_state_for_op_permutation[goal.var] = goal.value;
         }
+    } else if (empty_value_strategy == SPLIT_CONTEXT) {
+        base_state_for_op_permutation = vector<int>(get_num_variables(), -1);
     } else {
         utils::g_log << "ERROR: unknown empty_value_strategy: " << empty_value_strategy << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -123,20 +125,23 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
     for (int i = 0; i < static_cast<int>(states.size()) - 1; ++i) {
         OperatorID op_id = path[i];
         State parent_state = states[i + 1];
-        State new_state = state_registry.get_successor_state(parent_state, original_task_proxy.get_operators()[op_id]);
+
+        OperatorID original_op_id = op_id;
+        if (empty_value_strategy == SPLIT_CONTEXT) {
+            original_op_id = OperatorID(new_op_id_to_original_op_id[op_id.get_index()]);
+        }
+
+        State new_state = state_registry.get_successor_state(parent_state,
+                                                             original_task_proxy.get_operators()[original_op_id]);
 
         RawPermutation p;
         if (new_state.get_id() != states[i].get_id()) {
-            const ExplicitOperator &original_op = original_root_task->get_operator_or_axiom(op_id.get_index(), false);
-            if (compute_perfect_canonical) {
-                Permutation perm(group->get_perfect_canonical_permutation(get_state_for_operator_permutation(original_op)),
-                                 true);
-                p = perm.value;
-            } else {
-                Permutation perm(group->get_canonical_permutation(get_state_for_operator_permutation(original_op)),
-                                 true);
-                p = perm.value;
+            ExplicitOperator original_op = original_root_task->get_operator_or_axiom(original_op_id.get_index(), false);
+            if (empty_value_strategy == SPLIT_CONTEXT) {
+                original_op.preconditions = operators[op_id.get_index()].preconditions;
             }
+            Permutation inv_perm(*get_permutation_for_operator(original_op), true);
+            p = inv_perm.value;
         } else {
             p = group->new_identity_raw_permutation();
         }
@@ -165,13 +170,18 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
     path.clear();
     for (int i = states.size() - 1; i > 0; i--) {
         vector<OperatorID> applicable_ops;
-        successor_generator::g_successor_generators[TaskProxy(*this)].generate_applicable_ops(states[i], applicable_ops);
+        successor_generator::g_successor_generators[TaskProxy(*this)].generate_applicable_ops(states[i],
+                                                                                              applicable_ops);
         bool found = false;
         int min_cost_op = 0;
         int min_cost = numeric_limits<int>::max();
 
         for (size_t o = 0; o < applicable_ops.size(); o++) {
-            OperatorProxy op = original_task_proxy.get_operators()[applicable_ops[o]];
+            OperatorID appl_op_id = applicable_ops[o];
+            if (empty_value_strategy == SPLIT_CONTEXT) {
+                appl_op_id = OperatorID(new_op_id_to_original_op_id[appl_op_id.get_index()]);
+            }
+            OperatorProxy op = original_task_proxy.get_operators()[appl_op_id];
             State succ_state = state_registry.get_successor_state(states[i], op);
             if (succ_state.get_id() == states[i - 1].get_id()) {
                 found = true;
@@ -189,7 +199,11 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
             task_properties::dump_pddl(states[i]);
             utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
         }
-        path.push_back(applicable_ops[min_cost_op]);
+        if (empty_value_strategy == SPLIT_CONTEXT) {
+            path.push_back(OperatorID(new_op_id_to_original_op_id[applicable_ops[min_cost_op].get_index()]));
+        } else {
+            path.push_back(applicable_ops[min_cost_op]);
+        }
     }
     reverse(path.begin(), path.end());
 }
@@ -245,41 +259,56 @@ inline void set_partial_state_from_action(vector<int> &state, const ExplicitOper
     }
 }
 
-vector<int> SymmetricRootTask::get_state_for_operator_permutation(const ExplicitOperator &op) const {
+vector<int> SymmetricRootTask::get_operator_post_condition(const ExplicitOperator &op) const {
     vector<int> pre_eff_state(base_state_for_op_permutation);
     set_partial_state_from_action(pre_eff_state, op);
     return pre_eff_state;
 }
 
-void SymmetricRootTask::set_symmetry_effects_of_operator(int op_id, tasks::ExplicitOperator &new_op) {
-    // TODO implement this
-    //  try several variants:
-    //  1) get canonical projected onto op's variables => done
-    //  2) fill in remaining variables with initial-state values => done
-    //  3) fill in remaining variables with random values (same for every action?) => done
-    //  4) do a form of context splitting and introduce multiple copies of every action with different symmetries
-
-    const auto &op = original_root_task->operators[op_id];
-
-    vector<int> pre_eff_state(get_state_for_operator_permutation(op));
-
+unique_ptr <Permutation> SymmetricRootTask::get_permutation_for_operator(const ExplicitOperator &op) const {
+    vector<int> pre_eff_state(get_operator_post_condition(op));
     unique_ptr<Permutation> perm;
     if (compute_perfect_canonical) {
         perm = make_unique<Permutation>(group->get_perfect_canonical_permutation(pre_eff_state));
     } else {
         perm = make_unique<Permutation>(group->get_canonical_permutation(pre_eff_state));
     }
+    return perm;
+}
+
+void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator &orig_op,
+                                                         ExplicitOperator &new_op,
+                                                         const unique_ptr<Permutation> &perm) const {
+    // TODO implement this
+    //  try several variants:
+    //  1) get canonical projected onto orig_op's variables => done
+    //  2) fill in remaining variables with initial-state values => done
+    //  3) fill in remaining variables with random values (same for every action?) => done
+    //  4) do a form of context splitting and introduce multiple copies of every action with different symmetries => done
+    //  5) incorporate mutex information in context splitting and prune operators with mutex precondition
+    //  6) do clever context splitting by not doing the full product if variable subsets are not affected by all generators
+
+    assert(new_op.effects.empty());
 
     if (perm->identity()) {
         // no symmetries
-        new_op.effects = op.effects;
+        new_op.effects = orig_op.effects;
         return;
     }
 
     // check for which variables we added effects because of the permutation
     vector<bool> handled_var(original_root_task->get_num_variables(), false);
-    pre_eff_state = vector<int>(variables.size(), -1);
-    set_partial_state_from_action(pre_eff_state, op);
+    vector<int> pre_eff_state(variables.size(), -1);
+
+    if (empty_value_strategy == SPLIT_CONTEXT){
+        // first we write the new preconditions into the state (defined over all vars)
+        // then we write the original effects (effects of new_op are empty at this point)
+        set_partial_state_from_action(pre_eff_state, new_op);
+        set_partial_state_from_action(pre_eff_state, orig_op);
+        assert(std::all_of(pre_eff_state.begin(), pre_eff_state.end(), [](int val){return val != -1;}));
+    } else {
+        set_partial_state_from_action(pre_eff_state, orig_op);
+    }
 
     auto &affected_vars_cycles = perm->affected_vars_cycles;
     for (size_t i = 0; i < affected_vars_cycles.size(); i++) {
@@ -332,7 +361,7 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(int op_id, tasks::Expli
     }
 
     // copy original effects of variables not affected by the permutation
-    for (const auto &eff: op.effects) {
+    for (const auto &eff: orig_op.effects) {
         if (!handled_var[eff.fact.var]) {
             new_op.effects.push_back(eff);
         }
@@ -343,15 +372,72 @@ void SymmetricRootTask::create_operator(int op_id) {
     const auto &op = original_root_task->operators[op_id];
 
     ExplicitOperator new_op(op.cost, op.name, op.preconditions); // TODO avoid copying preconditions
-    set_symmetry_effects_of_operator(op_id, new_op);
+    const auto &perm = get_permutation_for_operator(op);
+    set_symmetry_effects_of_operator(op, new_op, perm);
     assert(!new_op.effects.empty());
 
     operators.push_back(new_op);
 }
 
+void SymmetricRootTask::create_operators_context_split_recursive(size_t var_id,
+                                                                 vector<FactPair> &precondition,
+                                                                 const vector<int> &outside_post_vars,
+                                                                 const int original_op_id) {
+
+    // TODO include mutex info to avoid enumerating states with mutex precondition
+
+    if (var_id == outside_post_vars.size()){
+        const auto &original_op = original_root_task->operators[original_op_id];
+        ExplicitOperator new_op(original_op.cost, original_op.name, precondition);
+
+        new_op.effects = original_op.effects; // need the effects to compute the permutation
+        const auto &perm = get_permutation_for_operator(new_op);
+        new_op.effects.clear(); // set_symmetry_effects_of_operator expects empty effects
+        set_symmetry_effects_of_operator(original_op, new_op, perm);
+        assert(!new_op.effects.empty());
+
+        new_op_id_to_original_op_id.push_back(original_op_id);
+        operators.push_back(new_op);
+        return;
+    }
+
+    int var = outside_post_vars[var_id];
+    precondition.emplace_back(var, 0);
+    for (int val = 0; val < RootTask::get_variable_domain_size(var); ++val){
+        precondition.back().value = val;
+        create_operators_context_split_recursive(var_id + 1,
+                                                 precondition,
+                                                 outside_post_vars,
+                                                 original_op_id);
+    }
+    precondition.pop_back();
+}
+
+void SymmetricRootTask::create_operators_context_split(int op_id) {
+    const auto &original_op = original_root_task->operators[op_id];
+
+    vector<int> post_condition_state(get_operator_post_condition(original_op));
+    vector<FactPair> precondition = original_op.preconditions;
+    vector<int> outside_post_vars;
+    for (int var = 0; var < RootTask::get_num_variables(); ++var){
+        if (post_condition_state[var] == -1){
+            outside_post_vars.push_back(var);
+        }
+    }
+
+    create_operators_context_split_recursive(0,
+                                             precondition,
+                                             outside_post_vars,
+                                             op_id);
+}
+
 void SymmetricRootTask::create_operators() {
     for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
-        create_operator(op_id);
+        if (empty_value_strategy == SPLIT_CONTEXT) {
+            create_operators_context_split(op_id);
+        } else {
+            create_operator(op_id);
+        }
     }
 }
 
@@ -375,7 +461,7 @@ public:
         document_synopsis(
             "A symmetry transformation of the root task.");
 
-        add_option<shared_ptr<Group>>("symmetries", "method that computes symmetries");
+        add_option<shared_ptr<Group>>("symmetries", "method that computes symmetries", "structural_symmetries()");
         add_option<EmptyValueStrategy>("empty_value_strategy", "How to treat variables not mentioned in operator precondition and effect", "none");
         add_option<bool>("compute_perfect_canonical", "Computes the perfect canonical for each orbit.", "false");
         add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
@@ -394,6 +480,7 @@ static plugins::TypedEnumPlugin<EmptyValueStrategy> _enum_plugin({
         {"init", "use initial state values for variables not set in precondition or effect"},
         {"random", "use random values for variables not set in precondition or effect"},
         {"goal", "use goal values for variables not set in precondition or effect"},
-        {"init_goal", "uses goal values where defined otherwise initial state values"}
+        {"init_goal", "uses goal values where defined otherwise initial state values"},
+        {"split_context", "enumerate all partial states to fill up the post condition"}
     });
 }

@@ -19,7 +19,7 @@ class Permutation;
 
 namespace tasks {
 
-enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4};
+enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4, SPLIT_CONTEXT = 5};
 
 /*
   Task transformation that encodes symmetry pruning into condition effects
@@ -32,12 +32,13 @@ class SymmetricRootTask : public RootTask {
 
     std::unique_ptr<structural_symmetries::Permutation> initial_state_permutation;
     std::vector<int> base_state_for_op_permutation;
+    std::vector<int> new_op_id_to_original_op_id; // only used for empty_value_strategy==SPLIT_CONTEXT
 
-    std::vector<int> get_state_for_operator_permutation(const ExplicitOperator &op) const;
+    std::vector<int> get_operator_post_condition(const ExplicitOperator &op) const;
 
 public:
-    SymmetricRootTask(const plugins::Options &options);
-    virtual ~SymmetricRootTask() override = default;
+    explicit SymmetricRootTask(const plugins::Options &options);
+    ~SymmetricRootTask() override = default;
 
     void reconstruct_plan_if_necessary(std::vector<OperatorID> &path,
                                        std::vector<State> &states,
@@ -59,8 +60,18 @@ protected:
     void create_initial_state();
 
     // operators
-    void set_symmetry_effects_of_operator(int op_id, ExplicitOperator &op);
+    std::unique_ptr<structural_symmetries::Permutation> get_permutation_for_operator(const ExplicitOperator &op) const;
+
+    void set_symmetry_effects_of_operator(const ExplicitOperator &orig_op,
+                                          ExplicitOperator &new_op,
+                                          const std::unique_ptr<structural_symmetries::Permutation> &perm) const;
+
+    void create_operators_context_split_recursive(size_t var_id,
+                                                  std::vector<FactPair> &post_c,
+                                                  const std::vector<int> &outside_post_vars,
+                                                  const int original_op_id);
     void create_operator(int op_id);
+    void create_operators_context_split(int op_id);
     void create_operators();
 
     void release_memory();
