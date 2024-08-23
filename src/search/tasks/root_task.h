@@ -3,8 +3,8 @@
 
 #include "../abstract_task.h"
 
-#include <vector>
 #include <set>
+#include <vector>
 
 namespace tasks {
 class DecoupledRootTask;
