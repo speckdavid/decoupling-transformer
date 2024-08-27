@@ -77,6 +77,15 @@ void Group::compute_symmetries(const TaskProxy &task_proxy) {
         write_generators();
         utils::exit_with(utils::ExitCode::SUCCESS);
     }
+
+    is_var_affected.resize(task_proxy.get_variables().size(), false);
+    for (int var = 0; var < static_cast<int>(task_proxy.get_variables().size()); ++var) {
+        for (const auto &perm: generators) {
+            if (perm.affects_variable(var)) {
+                is_var_affected[var] = true;
+            }
+        }
+    }
 }
 
 void Group::write_generators() const {
@@ -233,6 +242,11 @@ void Group::statistics() const {
         dump_generators();
         dump_variables_equivalence_classes();
     }
+}
+
+bool Group::is_var_affected_by_permutation(int var) const {
+    assert(initialized);
+    return is_var_affected[var];
 }
 
 vector<int> Group::get_canonical_representative(const State &state) const {
@@ -438,7 +452,6 @@ public:
         add_option<bool>("dump_symmetry_graph",
                          "Dump symmetry graph in dot format",
                          "false");
-
         add_option<bool>("dump_permutations",
                          "Dump the generators",
                          "false");

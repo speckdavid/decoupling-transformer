@@ -58,6 +58,8 @@ public:
         return vars_affected;
     }
 
+    bool affects_variable(int var) const;
+
 private:
     const Group &group;
     std::vector<int> value;

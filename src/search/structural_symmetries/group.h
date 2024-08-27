@@ -46,6 +46,8 @@ class Group {
     std::vector<int> var_by_val;
     int num_identity_generators;
 
+    std::vector<bool> is_var_affected;
+
     // Group creation
     bool initialized;
     std::vector<Permutation> generators;
@@ -132,6 +134,8 @@ public:
     bool has_symmetries() const {
         return !generators.empty();
     }
+
+    bool is_var_affected_by_permutation(int var) const;
 
     // Used for OSS
     std::vector<int> get_canonical_representative(const State &state) const;

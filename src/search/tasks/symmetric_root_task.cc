@@ -24,6 +24,7 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
           group(options.get<shared_ptr<Group>>("symmetries")),
           empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
           skip_mutex_preconditions(options.get<bool>("skip_mutex_preconditions")),
+          skip_unaffected_variables(options.get<bool>("skip_unaffected_variables")),
           compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
@@ -323,7 +324,7 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator 
         // then we write the original effects (effects of new_op are empty at this point)
         set_partial_state_from_action(pre_eff_state, new_op);
         set_partial_state_from_action(pre_eff_state, orig_op);
-        assert(std::all_of(pre_eff_state.begin(), pre_eff_state.end(), [](int val){return val != -1;}));
+        assert(skip_unaffected_variables || std::all_of(pre_eff_state.begin(), pre_eff_state.end(), [](int val){return val != -1;}));
     } else {
         set_partial_state_from_action(pre_eff_state, orig_op);
     }
@@ -454,7 +455,9 @@ void SymmetricRootTask::create_operators_context_split(int op_id) {
     vector<int> outside_post_vars;
     for (int var = 0; var < RootTask::get_num_variables(); ++var){
         if (post_condition_state[var] == -1){
-            outside_post_vars.push_back(var);
+            if (!skip_unaffected_variables || group->is_var_affected_by_permutation(var)) {
+                outside_post_vars.push_back(var);
+            }
         }
     }
 
@@ -509,6 +512,10 @@ public:
         add_option<bool>(
                 "skip_mutex_preconditions",
                 "For empty_value_strategy=split_context, do not generated operators with mutex precondition.",
+                "true");
+        add_option<bool>(
+                "skip_unaffected_variables",
+                "For empty_value_strategy=split_context, skip variables not affected by any permutation.",
                 "true");
         add_option<bool>(
                 "write_sas_file",

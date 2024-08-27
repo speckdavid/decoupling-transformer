@@ -354,4 +354,8 @@ bool Permutation::replace_if_less_partial_state(vector<int> &state) const {
     }
     return false;
 }
+
+bool Permutation::affects_variable(int var) const {
+    return std::find(vars_affected.begin(), vars_affected.end(), var) != vars_affected.end();
+}
 }
