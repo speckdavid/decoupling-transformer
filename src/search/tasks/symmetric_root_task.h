@@ -28,6 +28,7 @@ class SymmetricRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task; // TODO check if this is needed
     std::shared_ptr<structural_symmetries::Group> group;
     EmptyValueStrategy empty_value_strategy;
+    bool skip_mutex_preconditions;
     bool compute_perfect_canonical;
 
     std::unique_ptr<structural_symmetries::Permutation> initial_state_permutation;

@@ -23,6 +23,7 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
           original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
           group(options.get<shared_ptr<Group>>("symmetries")),
           empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
+          skip_mutex_preconditions(options.get<bool>("skip_mutex_preconditions")),
           compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
@@ -59,6 +60,23 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     variables = original_root_task->variables;
     goals = original_root_task->goals;
     mutexes = original_root_task->mutexes;
+
+    if (skip_mutex_preconditions){
+        // check if there are any mutexes and disable redundant somewhat expensive checking if not
+        skip_mutex_preconditions = false;
+        for (const auto &var_m : mutexes){
+            for (const auto &fact_m : var_m){
+                if (!fact_m.empty()){
+                    skip_mutex_preconditions = true;
+                    break;
+                }
+            }
+            if (skip_mutex_preconditions){
+                break;
+            }
+        }
+    }
+
 
     if (empty_value_strategy == NONE) {
         base_state_for_op_permutation = vector<int>(get_num_variables(), -1);
@@ -404,6 +422,21 @@ void SymmetricRootTask::create_operators_context_split_recursive(size_t var_id,
     int var = outside_post_vars[var_id];
     precondition.emplace_back(var, 0);
     for (int val = 0; val < RootTask::get_variable_domain_size(var); ++val){
+        if (skip_mutex_preconditions) {
+            bool is_mutex_pre = false;
+            FactPair new_pre(var, val);
+            for (size_t i = 0; i < precondition.size() - 1; ++i) {
+                const auto &pre = precondition[i];
+                if (RootTask::are_facts_mutex(pre, new_pre)) {
+                    is_mutex_pre = true;
+                    break;
+                }
+            }
+            if (is_mutex_pre) {
+                continue;
+            }
+        }
+
         precondition.back().value = val;
         create_operators_context_split_recursive(var_id + 1,
                                                  precondition,
@@ -461,10 +494,26 @@ public:
         document_synopsis(
             "A symmetry transformation of the root task.");
 
-        add_option<shared_ptr<Group>>("symmetries", "method that computes symmetries", "structural_symmetries()");
-        add_option<EmptyValueStrategy>("empty_value_strategy", "How to treat variables not mentioned in operator precondition and effect", "none");
-        add_option<bool>("compute_perfect_canonical", "Computes the perfect canonical for each orbit.", "false");
-        add_option<bool>("write_sas_file", "Writes the decoupled task to dec_output.sas and terminates.", "false");
+        add_option<shared_ptr<Group>>(
+                "symmetries",
+                "method that computes symmetries",
+                "structural_symmetries()");
+        add_option<EmptyValueStrategy>(
+                "empty_value_strategy",
+                "How to treat variables not mentioned in operator precondition and effect",
+                "none");
+        add_option<bool>(
+                "compute_perfect_canonical",
+                "Computes the perfect canonical for each orbit.",
+                "false");
+        add_option<bool>(
+                "skip_mutex_preconditions",
+                "For empty_value_strategy=split_context, do not generated operators with mutex precondition.",
+                "true");
+        add_option<bool>(
+                "write_sas_file",
+                "Writes the decoupled task to dec_output.sas and terminates.",
+                "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
 
