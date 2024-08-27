@@ -30,6 +30,12 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
 
+    if (empty_value_strategy != SPLIT_CONTEXT){
+        // TODO: print warning?
+        skip_mutex_preconditions = false;
+        skip_unaffected_variables = false;
+    }
+
     if (!group->is_initialized()) {
         group->compute_symmetries(original_task_proxy);
         if (!group->has_symmetries()) {
@@ -304,8 +310,9 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator 
     //  2) fill in remaining variables with initial-state values => done
     //  3) fill in remaining variables with random values (same for every action?) => done
     //  4) do a form of context splitting and introduce multiple copies of every action with different symmetries => done
-    //  5) incorporate mutex information in context splitting and prune operators with mutex precondition
+    //  5) incorporate mutex information in context splitting and prune operators with mutex precondition => done
     //  6) do clever context splitting by not doing the full product if variable subsets are not affected by all generators
+    //      => partially done, skipping variables not affected by any symmetry
 
     assert(new_op.effects.empty());
 
@@ -341,6 +348,7 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator 
                 handled_var[to_var] = true;
                 continue;
             }
+            assert(skip_unaffected_variables || empty_value_strategy != SPLIT_CONTEXT);
             add_conditional_permuted_effects(new_op, *perm, from_var, variables[from_var].domain_size);
             auto [to_var, _] = perm->get_new_var_val_by_old_var_val(from_var, 0);
             handled_var[to_var] = true;
@@ -362,6 +370,7 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator 
                 handled_var[to_var] = true;
                 continue;
             }
+            assert(skip_unaffected_variables || empty_value_strategy != SPLIT_CONTEXT);
             add_conditional_permuted_effects(new_op, *perm, from_var, variables[from_var].domain_size);
             auto [to_var, _] = perm->get_new_var_val_by_old_var_val(from_var, 0);
             handled_var[to_var] = true;
@@ -374,6 +383,7 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator 
             handled_var[to_var] = true;
             continue;
         }
+        assert(skip_unaffected_variables || empty_value_strategy != SPLIT_CONTEXT);
         add_conditional_permuted_effects(new_op, *perm, last_var, variables[last_var].domain_size);
         auto [to_var, _] = perm->get_new_var_val_by_old_var_val(last_var, 0);
         handled_var[to_var] = true;
@@ -468,7 +478,7 @@ void SymmetricRootTask::create_operators_context_split(int op_id) {
 }
 
 void SymmetricRootTask::create_operators() {
-    for (size_t op_id = 0; op_id < original_root_task->operators.size(); ++op_id) {
+    for (int op_id = 0; op_id < static_cast<int>(original_root_task->operators.size()); ++op_id) {
         if (empty_value_strategy == SPLIT_CONTEXT) {
             create_operators_context_split(op_id);
         } else {
