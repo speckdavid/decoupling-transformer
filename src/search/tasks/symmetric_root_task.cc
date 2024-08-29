@@ -25,6 +25,7 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
           empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
           skip_mutex_preconditions(options.get<bool>("skip_mutex_preconditions")),
           skip_unaffected_variables(options.get<bool>("skip_unaffected_variables")),
+          skip_unaffected_variables_relevant_permutations(options.get<bool>("skip_unaffected_variables_relevant_permutations")),
           compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
@@ -462,10 +463,36 @@ void SymmetricRootTask::create_operators_context_split(int op_id) {
 
     vector<int> post_condition_state(get_operator_post_condition(original_op));
     vector<FactPair> precondition = original_op.preconditions;
+
+    unordered_set<const Permutation*> affecting_permutations;
+    if (skip_unaffected_variables_relevant_permutations){
+        for (const auto &pre : precondition){
+            for (const auto &perm : group->generators){
+                if (perm.affects_variable(pre.var)){
+                    affecting_permutations.insert(&perm);
+                }
+            }
+        }
+    }
+
     vector<int> outside_post_vars;
     for (int var = 0; var < RootTask::get_num_variables(); ++var){
         if (post_condition_state[var] == -1){
-            if (!skip_unaffected_variables || group->is_var_affected_by_permutation(var)) {
+            // NOTE: the order of if cases is important, as skip_unaffected_variables_relevant_permutations is more
+            // fine-grained than skip_unaffected_variables
+            if (skip_unaffected_variables_relevant_permutations) {
+                // TODO this does not yield full pruning power, as we need to recursively collect
+                //  the permutations that affect var and then go over all variables again to check for these new permutations
+                if (std::any_of(affecting_permutations.begin(),
+                            affecting_permutations.end(),
+                            [&var](const auto *perm) { return perm->affects_variable(var);})) {
+                    outside_post_vars.push_back(var);
+                }
+            } else if (skip_unaffected_variables) {
+                if (group->is_var_affected_by_permutation(var)) {
+                    outside_post_vars.push_back(var);
+                }
+            } else {
                 outside_post_vars.push_back(var);
             }
         }
@@ -505,7 +532,7 @@ public:
     SymmetricRootTaskFeature() : TypedFeature("symmetry") {
         document_title("Symmetric task");
         document_synopsis(
-            "A symmetry transformation of the root task.");
+                "A symmetry transformation of the root task.");
 
         add_option<shared_ptr<Group>>(
                 "symmetries",
@@ -526,6 +553,11 @@ public:
         add_option<bool>(
                 "skip_unaffected_variables",
                 "For empty_value_strategy=split_context, skip variables not affected by any permutation.",
+                "true");
+        add_option<bool>(
+                "skip_unaffected_variables_relevant_permutations",
+                "For empty_value_strategy=split_context, skip variables not affected by any permutation that "
+                "touches the postcondition of the respective operator.",
                 "true");
         add_option<bool>(
                 "write_sas_file",
