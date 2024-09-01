@@ -461,46 +461,70 @@ void SymmetricRootTask::create_operators_context_split_recursive(size_t var_id,
 void SymmetricRootTask::create_operators_context_split(int op_id) {
     const auto &original_op = original_root_task->operators[op_id];
 
-    vector<int> post_condition_state(get_operator_post_condition(original_op));
-    vector<FactPair> precondition = original_op.preconditions;
-
-    unordered_set<const Permutation*> affecting_permutations;
+    vector<int> split_vars;
     if (skip_unaffected_variables_relevant_permutations){
-        for (const auto &eff : original_op.effects){
-            for (const auto &perm : group->generators){
-                if (perm.affects_variable(eff.fact.var)){
-                    affecting_permutations.insert(&perm);
+        vector<bool> handled_var(get_num_variables(), false);
+        vector<int> post_condition_state(get_operator_post_condition(original_op));
+
+        unordered_set<const Permutation *> affecting_permutations;
+        for (int var = 0; var < RootTask::get_num_variables(); ++var) {
+            if (post_condition_state[var] != -1) {
+                for (const auto &perm: group->generators) {
+                    if (perm.affects_variable(var)) {
+                        affecting_permutations.insert(&perm);
+                    }
+                }
+            }
+        }
+        // for full pruning power we need to recursively collect the permutations that affect var
+        // and then go over all variables again to check for these new permutations
+        bool change = true;
+        while (change){
+            change = false;
+            vector<int> added_vars;
+            for (const auto *perm : affecting_permutations){
+                for (int var : perm->vars_affected){
+                    if (post_condition_state[var] == -1 && !handled_var[var]){
+                        handled_var[var] = true;
+                        added_vars.push_back(var);
+                        change = true;
+                    }
+                }
+            }
+            affecting_permutations.clear();
+            for (int var : added_vars){
+                for (const auto &perm: group->generators) {
+                    if (perm.affects_variable(var)) {
+                        affecting_permutations.insert(&perm);
+                    }
+                }
+            }
+        }
+
+        for (int var = 0; var < RootTask::get_num_variables(); ++var){
+            if (handled_var[var] && post_condition_state[var] == -1){
+                split_vars.push_back(var);
+            }
+        }
+    } else {
+        vector<int> post_condition_state(get_operator_post_condition(original_op));
+        for (int var = 0; var < RootTask::get_num_variables(); ++var){
+            if (post_condition_state[var] == -1){
+                if (skip_unaffected_variables) {
+                    if (group->is_var_affected_by_permutation(var)) {
+                        split_vars.push_back(var);
+                    }
+                } else {
+                    split_vars.push_back(var);
                 }
             }
         }
     }
 
-    vector<int> outside_post_vars;
-    for (int var = 0; var < RootTask::get_num_variables(); ++var){
-        if (post_condition_state[var] == -1){
-            // NOTE: the order of if cases is important, as skip_unaffected_variables_relevant_permutations is more
-            // fine-grained than skip_unaffected_variables
-            if (skip_unaffected_variables_relevant_permutations) {
-                // TODO this does not yield full pruning power, as we need to recursively collect
-                //  the permutations that affect var and then go over all variables again to check for these new permutations
-                if (std::any_of(affecting_permutations.begin(),
-                            affecting_permutations.end(),
-                            [&var](const auto *perm) { return perm->affects_variable(var);})) {
-                    outside_post_vars.push_back(var);
-                }
-            } else if (skip_unaffected_variables) {
-                if (group->is_var_affected_by_permutation(var)) {
-                    outside_post_vars.push_back(var);
-                }
-            } else {
-                outside_post_vars.push_back(var);
-            }
-        }
-    }
-
+    vector<FactPair> precondition = original_op.preconditions;
     create_operators_context_split_recursive(0,
                                              precondition,
-                                             outside_post_vars,
+                                             split_vars,
                                              op_id);
 }
 
