@@ -466,10 +466,9 @@ void SymmetricRootTask::create_operators_context_split(int op_id) {
 
     unordered_set<const Permutation*> affecting_permutations;
     if (skip_unaffected_variables_relevant_permutations){
-        // TODO it is sufficient to collect permutations only for effect variables
-        for (const auto &pre : precondition){
+        for (const auto &eff : original_op.effects){
             for (const auto &perm : group->generators){
-                if (perm.affects_variable(pre.var)){
+                if (perm.affects_variable(eff.fact.var)){
                     affecting_permutations.insert(&perm);
                 }
             }
