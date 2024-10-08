@@ -123,6 +123,7 @@ ATTRIBUTES = [
 
     Attribute('exhausted_search_space', absolute=True, min_wins=False),
 
+    Attribute("number_decoupled_tasks", min_wins=False),
 ]
    
 

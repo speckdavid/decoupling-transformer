@@ -29,6 +29,12 @@ def parse_exhausted_search_space(content, props):
     if re.search("Completely explored state space", content, re.M):
         props["exhausted_search_space"] = 1
 
+def add_number_decoupled_tasks(content, props):
+    props["number_decoupled_tasks"] = 0
+    if "number_leaf_factors" in props and props["number_leaf_factors"] > 0:
+        props["number_decoupled_tasks"] = 1
+
+
 class DecouplingParser(Parser):
     def __init__(self):
         Parser.__init__(self)
@@ -57,5 +63,6 @@ class DecouplingParser(Parser):
         self.add_function(parse_factoring_not_possible)
         self.add_function(parse_factoring_type)
         self.add_function(parse_exhausted_search_space)
-          
+        self.add_function(add_number_decoupled_tasks)
+         
 

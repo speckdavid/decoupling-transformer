@@ -89,12 +89,12 @@ exp.add_fetcher(name='fetch', filter=[replace_revisions])
 FORMAT = "html"
 
 # REPORT TABLES
-attributes = common_setup.ATTRIBUTES
+attributes = common_setup.ATTRIBUTES + [Attribute("number_decoupled_tasks", min_wins=False)]
 
 exp.add_report(AbsoluteReport(attributes=attributes), outfile=f"{SCRIPT_NAME}-all.html")
 
 algorithm_pairs = [(f"base-ff-{x}", f"new-ff-{x}") for x in factorings.keys()] + [("base-dec-lama", "new-dec-lama")]
-exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=algorithm_pairs), outfile=f"{SCRIPT_NAME}-compare.html")
+exp.add_report(ComparativeReport(attributes=attributes, algorithm_pairs=algorithm_pairs, filter=[filters.add_number_decoupled_tasks]), outfile=f"{SCRIPT_NAME}-compare.html")
 
 
 # SCATTER PLOTS

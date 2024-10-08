@@ -160,7 +160,7 @@ def remove_mf_configs(run):
 
 def add_number_decoupled_tasks(run):
     run["number_decoupled_tasks"] = 0
-    if "number_leaf_factors" in run:
+    if "number_leaf_factors" in run and run["number_leaf_factors"] > 0:
         run["number_decoupled_tasks"] = 1
     return run
 
