@@ -3,6 +3,8 @@
 #include "graph_creator.h"
 #include "permutation.h"
 
+#include "../algorithms/sccs.h"
+
 #include "../per_state_information.h"
 #include "../state_registry.h"
 #include "../task_proxy.h"
@@ -247,6 +249,41 @@ void Group::statistics() const {
 bool Group::is_var_affected_by_permutation(int var) const {
     assert(initialized);
     return is_var_affected[var];
+}
+
+const vector<vector<int>> & Group::get_permutation_components() {
+    if (permutation_components.empty()){
+        // compute permutation interaction graph
+        vector<vector<int>> interactions(num_vars);
+        for (int g = 0; g < get_num_generators(); ++g) {
+            const auto &gen = get_permutation(g);
+            for (int var1 : gen.get_affected_vars()) {
+                for (int var2 : gen.get_affected_vars()) {
+                    interactions[var1].push_back(var2);
+                }
+            }
+        }
+        vector<int> unaffected_vars;
+        for (int var = 0; var < static_cast<int>(interactions.size()); ++var){
+            auto &neighbors = interactions[var];
+            sort_unique(neighbors);
+            if (neighbors.empty()){
+                unaffected_vars.push_back(var);
+            }
+        }
+        permutation_components = sccs::compute_maximal_sccs(interactions);
+        for (auto it = permutation_components.rbegin(); it != permutation_components.rend(); ++it){
+            // remove single-variable components that are not affected by any permutation
+            if (it->size() == 1){
+                int var = it->back();
+                if (find(it->begin(), it->end(), var) != it->end()){
+                    permutation_components.erase(next(it).base());
+                }
+            }
+        }
+        g_log << "Number of permutation interaction components: " << permutation_components.size() << endl;
+    }
+    return permutation_components;
 }
 
 vector<int> Group::get_canonical_representative(const State &state) const {

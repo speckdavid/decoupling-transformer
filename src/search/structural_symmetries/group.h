@@ -48,6 +48,12 @@ class Group {
 
     std::vector<bool> is_var_affected;
 
+    // assuming the interaction between permutations to be represented
+    // as a graph, similar to the causal graph where operators correspond
+    // to permutations, this contains the strongly connected components
+    // of that permutation interaction graph
+    std::vector<std::vector<int>> permutation_components;
+
     // Group creation
     bool initialized;
     std::vector<Permutation> generators;
@@ -136,6 +142,8 @@ public:
     }
 
     bool is_var_affected_by_permutation(int var) const;
+
+    const std::vector<std::vector<int>> & get_permutation_components();
 
     // Used for OSS
     std::vector<int> get_canonical_representative(const State &state) const;

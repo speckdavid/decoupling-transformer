@@ -26,6 +26,8 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
           skip_mutex_preconditions(options.get<bool>("skip_mutex_preconditions")),
           skip_unaffected_variables(options.get<bool>("skip_unaffected_variables")),
           skip_unaffected_variables_relevant_permutations(options.get<bool>("skip_unaffected_variables_relevant_permutations")),
+          decoupled_splitting(options.get<bool>("decoupled_splitting")),
+          max_number_contexts_per_operator(options.get<int>("max_number_contexts_per_operator")),
           compute_perfect_canonical(options.get<bool>("compute_perfect_canonical")) {
     TaskProxy original_task_proxy(*original_root_task);
     task_properties::verify_no_axioms(original_task_proxy);
@@ -35,6 +37,9 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
         // TODO: print warning?
         skip_mutex_preconditions = false;
         skip_unaffected_variables = false;
+        skip_unaffected_variables_relevant_permutations = false;
+        decoupled_splitting = false;
+        max_number_contexts_per_operator = 0;
     }
 
     if (!group->is_initialized()) {
@@ -43,6 +48,12 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
             utils::g_log << "No symmetries found, aborting.." << endl;
             utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
         }
+    }
+
+    if (empty_value_strategy == SPLIT_CONTEXT && decoupled_splitting && group->get_permutation_components().size() == 1){
+        // TODO evaluate which variant is actually better
+        utils::g_log << "WARNING: permutation interaction graph is strongly connected, disabling decoupled_splitting." << endl;
+        decoupled_splitting = false;
     }
 
     /***** Causal graph stuff *****/
@@ -68,6 +79,10 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     variables = original_root_task->variables;
     goals = original_root_task->goals;
     mutexes = original_root_task->mutexes;
+
+    if (empty_value_strategy == SPLIT_CONTEXT && skip_unaffected_variables_relevant_permutations){
+        compute_decoupled_splitting_implied_relevant_vars();
+    }
 
     if (skip_mutex_preconditions){
         // check if there are any mutexes and disable redundant somewhat expensive checking if not
@@ -122,7 +137,7 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     create_operators();
 
     if (options.get<bool>("dump_task")) {
-        dump();
+        task_properties::dump_task(original_task_proxy, true, true);
     }
 
     utils::g_log << "Time for symmetry transformation: " << transformation_timer << endl;
@@ -141,6 +156,112 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     }
 }
 
+void SymmetricRootTask::compute_decoupled_splitting_implied_relevant_vars() {
+    // we store implied variables for one step here, not recursively,
+    // since we don't know the post condition, which breaks the recursion.
+    // that means that we still need to do a fixed-point computation for every operator
+    // in get_split_variables(op)
+    assert(decoupled_splitting_implied_relevant_vars.empty());
+    decoupled_splitting_implied_relevant_vars.resize(RootTask::get_num_variables());
+    for (int var = 0; var < RootTask::get_num_variables(); ++var) {
+        for (const auto &perm: group->generators) {
+            if (perm.affects_variable(var)) {
+                for (int implied_var : perm.vars_affected){
+                    if (var != implied_var) {
+                        decoupled_splitting_implied_relevant_vars[var].push_back(implied_var);
+                    }
+                }
+            }
+        }
+        utils::sort_unique(decoupled_splitting_implied_relevant_vars[var]);
+    }
+}
+
+vector<int> SymmetricRootTask::get_split_variables(const ExplicitOperator &op) const {
+    vector<int> split_vars;
+    if (skip_unaffected_variables_relevant_permutations){
+        // obtain all variables that are (possibly recursively) affected by a permutation
+        // that affects a variable in the operator's post condition
+
+        vector<bool> is_relevant_var(RootTask::get_num_variables(), false);
+        for (const auto &pre : op.preconditions){
+            is_relevant_var[pre.var] = true;
+            for (int var : decoupled_splitting_implied_relevant_vars[pre.var]){
+                is_relevant_var[var] = true;
+            }
+        }
+        for (const auto &eff : op.effects){
+            is_relevant_var[eff.fact.var] = true;
+            for (int var : decoupled_splitting_implied_relevant_vars[eff.fact.var]){
+                is_relevant_var[var] = true;
+            }
+        }
+
+        vector<int> post_condition_state(get_operator_post_condition(op));
+
+        // for full pruning power we need to recursively collect the permutations that affect var
+        // and then go over all variables again to check for these new permutations
+        bool change = true;
+        while (change){
+            change = false;
+            vector<int> added_vars;
+            for (int check_var = 0; check_var < RootTask::get_num_variables(); ++check_var) {
+                if (!is_relevant_var[check_var]){
+                    continue;
+                }
+                for (int var: decoupled_splitting_implied_relevant_vars[check_var]) {
+                    if (post_condition_state[var] == -1 && !is_relevant_var[var]) {
+                        is_relevant_var[var] = true;
+                        added_vars.push_back(var);
+                    }
+                }
+            }
+            for (int added_var : added_vars){
+                for (int var: decoupled_splitting_implied_relevant_vars[added_var]) {
+                    if (post_condition_state[var] == -1 && !is_relevant_var[var]) {
+                        is_relevant_var[var] = true;
+                        change = true;
+                    }
+                }
+            }
+        }
+
+        // split variables are affected by some relevant permutation but are not in post condition
+        for (int var = 0; var < RootTask::get_num_variables(); ++var){
+            if (is_relevant_var[var] && post_condition_state[var] == -1){
+                split_vars.push_back(var);
+            }
+        }
+    } else {
+        // split variables are any variables that are affected by some permutation and are not in post condition
+        vector<int> post_condition_state(get_operator_post_condition(op));
+        for (int var = 0; var < RootTask::get_num_variables(); ++var){
+            if (post_condition_state[var] == -1){
+                if (skip_unaffected_variables) {
+                    if (group->is_var_affected_by_permutation(var)) {
+                        split_vars.push_back(var);
+                    }
+                } else {
+                    split_vars.push_back(var);
+                }
+            }
+        }
+    }
+    if (max_number_contexts_per_operator < numeric_limits<int>::max()){
+        // for partial splitting, sort split_vars here and truncate it accordingly
+        utils::sort_unique(split_vars); // to match FD variable order
+        int size = 1;
+        for (size_t i = 0; i < split_vars.size(); ++i){
+            size *= RootTask::get_variable_domain_size(split_vars[i]);
+            if (size > max_number_contexts_per_operator){
+                split_vars.resize(i);
+                break;
+            }
+        }
+    }
+    return split_vars;
+}
+
 void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
                                                       vector<State> &states,
                                                       StateRegistry &state_registry) const {
@@ -150,10 +271,10 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
 
     for (int i = 0; i < static_cast<int>(states.size()) - 1; ++i) {
         OperatorID op_id = path[i];
-        State parent_state = states[i + 1];
+        State &parent_state = states[i + 1];
 
         OperatorID original_op_id = op_id;
-        if (empty_value_strategy == SPLIT_CONTEXT) {
+        if (!decoupled_splitting && empty_value_strategy == SPLIT_CONTEXT) {
             original_op_id = OperatorID(new_op_id_to_original_op_id[op_id.get_index()]);
         }
 
@@ -164,7 +285,14 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
         if (new_state.get_id() != states[i].get_id()) {
             ExplicitOperator original_op = original_root_task->get_operator_or_axiom(original_op_id.get_index(), false);
             if (empty_value_strategy == SPLIT_CONTEXT) {
-                original_op.preconditions = operators[op_id.get_index()].preconditions;
+                if (decoupled_splitting){
+                    vector<int> split_vars(get_split_variables(original_op));
+                    for (int var : split_vars){
+                        original_op.preconditions.emplace_back(var, parent_state[var].get_value());
+                    }
+                } else {
+                    original_op.preconditions = operators[op_id.get_index()].preconditions;
+                }
             }
             Permutation inv_perm(*get_permutation_for_operator(original_op), true);
             p = inv_perm.value;
@@ -204,7 +332,7 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
 
         for (size_t o = 0; o < applicable_ops.size(); o++) {
             OperatorID appl_op_id = applicable_ops[o];
-            if (empty_value_strategy == SPLIT_CONTEXT) {
+            if (!decoupled_splitting && empty_value_strategy == SPLIT_CONTEXT) {
                 appl_op_id = OperatorID(new_op_id_to_original_op_id[appl_op_id.get_index()]);
             }
             OperatorProxy op = original_task_proxy.get_operators()[appl_op_id];
@@ -225,7 +353,7 @@ void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
             task_properties::dump_pddl(states[i]);
             utils::exit_with(utils::ExitCode::SEARCH_CRITICAL_ERROR);
         }
-        if (empty_value_strategy == SPLIT_CONTEXT) {
+        if (!decoupled_splitting && empty_value_strategy == SPLIT_CONTEXT) {
             path.push_back(OperatorID(new_op_id_to_original_op_id[applicable_ops[min_cost_op].get_index()]));
         } else {
             path.push_back(applicable_ops[min_cost_op]);
@@ -291,7 +419,7 @@ vector<int> SymmetricRootTask::get_operator_post_condition(const ExplicitOperato
     return pre_eff_state;
 }
 
-unique_ptr <Permutation> SymmetricRootTask::get_permutation_for_operator(const ExplicitOperator &op) const {
+unique_ptr<Permutation> SymmetricRootTask::get_permutation_for_operator(const ExplicitOperator &op) const {
     vector<int> pre_eff_state(get_operator_post_condition(op));
     unique_ptr<Permutation> perm;
     if (compute_perfect_canonical) {
@@ -312,8 +440,9 @@ void SymmetricRootTask::set_symmetry_effects_of_operator(const ExplicitOperator 
     //  3) fill in remaining variables with random values (same for every action?) => done
     //  4) do a form of context splitting and introduce multiple copies of every action with different symmetries => done
     //  5) incorporate mutex information in context splitting and prune operators with mutex precondition => done
-    //  6) do clever context splitting by not doing the full product if variable subsets are not affected by all generators
-    //      => partially done, skipping variables not affected by any symmetry
+    //  6) do clever context splitting by not doing the full product if variable subsets are not affected by all generators => done
+    //  7) decouple computation of canonical permutation if permutations affect different components of variables => done
+    //  8) allow for partial splitting to avoid excessive overhead => done
 
     assert(new_op.effects.empty());
 
@@ -409,12 +538,107 @@ void SymmetricRootTask::create_operator(int op_id) {
     operators.push_back(new_op);
 }
 
+void SymmetricRootTask::add_context_split_cond_effs_recursive(
+        size_t var_id,
+        std::vector<FactPair> &cond_eff_preconditions,
+        const std::vector<int> &component_split_vars,
+        const std::vector<ExplicitEffect> &component_effects,
+        const int num_original_pre_of_component,
+        ExplicitOperator &new_op) {
+
+    if (var_id == component_split_vars.size()){
+        ExplicitOperator tmp_op(new_op.cost, new_op.name, cond_eff_preconditions);
+        tmp_op.effects = component_effects; // need the effects to compute the permutation
+        auto perm = get_permutation_for_operator(tmp_op);
+
+        if (perm->identity() && component_split_vars.empty()){
+            std::copy(component_effects.begin(),
+                      component_effects.end(),
+                      back_inserter(new_op.effects));
+            return;
+        }
+
+        vector<bool> is_affected_var(RootTask::get_num_variables(), false);
+
+        vector<bool> is_eff_var(RootTask::get_num_variables(), false);
+        // apply permutation to original effects
+        for (const auto &eff : component_effects) {
+            is_eff_var[eff.fact.var] = true;
+            vector<FactPair> tmp_pre(cond_eff_preconditions.begin() + num_original_pre_of_component,
+                                     cond_eff_preconditions.end());
+            auto [new_var, new_val] = perm->get_new_var_val_by_old_var_val(eff.fact.var, eff.fact.value);
+            assert(!is_affected_var[new_var]);
+            is_affected_var[new_var] = true;
+            new_op.effects.emplace_back(new_var, new_val, std::move(tmp_pre));
+        }
+        // apply permutation to split variables
+        for (size_t i = 0; i < component_split_vars.size(); ++i) {
+            int var = component_split_vars[i];
+            assert(var == cond_eff_preconditions[num_original_pre_of_component + i].var);
+            int val = cond_eff_preconditions[num_original_pre_of_component + i].value;
+            auto [new_var, new_val] = perm->get_new_var_val_by_old_var_val(var, val);
+            assert(!is_affected_var[new_var]);
+            is_affected_var[new_var] = true;
+            if (new_var != var || new_val != val) {
+                vector<FactPair> tmp_pre(cond_eff_preconditions.begin() + num_original_pre_of_component,
+                                         cond_eff_preconditions.end());
+                new_op.effects.emplace_back(new_var, new_val, std::move(tmp_pre));
+            }
+        }
+        // apply permutation to prevail conditions
+        for (int i = 0; i < num_original_pre_of_component; ++i){
+            int var = cond_eff_preconditions[i].var;
+            if (is_eff_var[var]){
+                continue;
+            }
+            if (num_original_pre_of_component < static_cast<int>(cond_eff_preconditions.size())) {
+                int val = cond_eff_preconditions[i].value;
+                auto [new_var, new_val] = perm->get_new_var_val_by_old_var_val(var, val);
+                assert(!is_affected_var[new_var]);
+                is_affected_var[new_var] = true;
+                if (new_var != var || new_val != val) {
+                    vector<FactPair> tmp_pre(cond_eff_preconditions.begin() + num_original_pre_of_component,
+                                             cond_eff_preconditions.end());
+                    new_op.effects.emplace_back(new_var, new_val, std::move(tmp_pre));
+                }
+            }
+        }
+        return;
+    }
+
+    int var = component_split_vars[var_id];
+    cond_eff_preconditions.emplace_back(var, 0);
+    for (int val = 0; val < RootTask::get_variable_domain_size(var); ++val){
+        if (skip_mutex_preconditions) {
+            bool is_mutex_pre = false;
+            FactPair new_pre(var, val);
+            for (size_t i = 0; i < cond_eff_preconditions.size() - 1; ++i) {
+                const auto &pre = cond_eff_preconditions[i];
+                if (RootTask::are_facts_mutex(pre, new_pre)) {
+                    is_mutex_pre = true;
+                    break;
+                }
+            }
+            if (is_mutex_pre) {
+                continue;
+            }
+        }
+
+        cond_eff_preconditions.back().value = val;
+        add_context_split_cond_effs_recursive(var_id + 1,
+                                              cond_eff_preconditions,
+                                              component_split_vars,
+                                              component_effects,
+                                              num_original_pre_of_component,
+                                              new_op);
+    }
+    cond_eff_preconditions.pop_back();
+}
+
 void SymmetricRootTask::create_operators_context_split_recursive(size_t var_id,
                                                                  vector<FactPair> &precondition,
                                                                  const vector<int> &outside_post_vars,
                                                                  const int original_op_id) {
-
-    // TODO include mutex info to avoid enumerating states with mutex precondition
 
     if (var_id == outside_post_vars.size()){
         const auto &original_op = original_root_task->operators[original_op_id];
@@ -461,64 +685,15 @@ void SymmetricRootTask::create_operators_context_split_recursive(size_t var_id,
 void SymmetricRootTask::create_operators_context_split(int op_id) {
     const auto &original_op = original_root_task->operators[op_id];
 
-    vector<int> split_vars;
-    if (skip_unaffected_variables_relevant_permutations){
-        vector<bool> handled_var(get_num_variables(), false);
-        vector<int> post_condition_state(get_operator_post_condition(original_op));
+    vector<int> split_vars(get_split_variables(original_op));
 
-        unordered_set<const Permutation *> affecting_permutations;
-        for (int var = 0; var < RootTask::get_num_variables(); ++var) {
-            if (post_condition_state[var] != -1) {
-                for (const auto &perm: group->generators) {
-                    if (perm.affects_variable(var)) {
-                        affecting_permutations.insert(&perm);
-                    }
-                }
-            }
-        }
-        // for full pruning power we need to recursively collect the permutations that affect var
-        // and then go over all variables again to check for these new permutations
-        bool change = true;
-        while (change){
-            change = false;
-            vector<int> added_vars;
-            for (const auto *perm : affecting_permutations){
-                for (int var : perm->vars_affected){
-                    if (post_condition_state[var] == -1 && !handled_var[var]){
-                        handled_var[var] = true;
-                        added_vars.push_back(var);
-                        change = true;
-                    }
-                }
-            }
-            affecting_permutations.clear();
-            for (int var : added_vars){
-                for (const auto &perm: group->generators) {
-                    if (perm.affects_variable(var)) {
-                        affecting_permutations.insert(&perm);
-                    }
-                }
-            }
-        }
-
-        for (int var = 0; var < RootTask::get_num_variables(); ++var){
-            if (handled_var[var] && post_condition_state[var] == -1){
-                split_vars.push_back(var);
-            }
-        }
-    } else {
-        vector<int> post_condition_state(get_operator_post_condition(original_op));
-        for (int var = 0; var < RootTask::get_num_variables(); ++var){
-            if (post_condition_state[var] == -1){
-                if (skip_unaffected_variables) {
-                    if (group->is_var_affected_by_permutation(var)) {
-                        split_vars.push_back(var);
-                    }
-                } else {
-                    split_vars.push_back(var);
-                }
-            }
-        }
+    if (split_vars.empty()) {
+        // this happens if the post-condition variables fully cover all affected permutation-components,
+        // or if max_number_contexts_per_operator does not allow for any splitting
+        // can also happen if the operator's variables are not affected by any permutation
+        new_op_id_to_original_op_id.push_back(op_id);
+        operators.push_back(original_op);
+        return;
     }
 
     vector<FactPair> precondition = original_op.preconditions;
@@ -528,10 +703,101 @@ void SymmetricRootTask::create_operators_context_split(int op_id) {
                                              op_id);
 }
 
+void SymmetricRootTask::create_operators_context_split_decoupled(int op_id) {
+    const auto &original_op = original_root_task->operators[op_id];
+
+    vector<int> split_vars(get_split_variables(original_op));
+
+    if (split_vars.empty()) {
+        // this happens if the post-condition variables fully cover all affected permutation-components,
+        // or if max_number_contexts_per_operator does not allow for any splitting
+        operators.push_back(original_op);
+        return;
+    }
+
+    vector<bool> is_relevant_var(get_num_variables(), false); // var is either split var or in post condition
+    for (int var : split_vars){
+        is_relevant_var[var] = true;
+    }
+    for (const auto &pre : original_op.preconditions){
+        is_relevant_var[pre.var] = true;
+    }
+    for (const auto &eff : original_op.effects){
+        is_relevant_var[eff.fact.var] = true;
+    }
+
+    const vector<vector<int>> &permutation_components = group->get_permutation_components();
+    // TODO precompute this?
+    vector<vector<int>> affected_components;
+    for (const auto &c : permutation_components){
+        for (int var : c) {
+            if (is_relevant_var[var]){
+                affected_components.push_back(c);
+                break;
+            }
+        }
+    }
+
+    vector<vector<FactPair>> preconditions_by_component(affected_components.size());
+    vector<vector<int>> split_vars_by_component(affected_components.size());
+    vector<vector<ExplicitEffect>> effects_by_component(affected_components.size());
+    vector<int> num_original_pre_by_component(affected_components.size());
+
+    vector<int> var_to_components(get_num_variables(), -1);
+    for (size_t c = 0; c < affected_components.size(); ++c){
+        for (int var : affected_components[c]){
+            var_to_components[var] = static_cast<int>(c);
+        }
+    }
+
+    ExplicitOperator new_op(original_op.cost, original_op.name, original_op.preconditions);
+
+    for (const auto &pre : original_op.preconditions){
+        int c = var_to_components[pre.var];
+        if (c != -1) {
+            // precondition variable is touched by some permutation
+            preconditions_by_component[c].push_back(pre);
+            num_original_pre_by_component[c]++;
+        }
+    }
+    for (const auto &eff : original_op.effects){
+        int c = var_to_components[eff.fact.var];
+        if (c == -1){
+            // effect variable is not touched by any permutation
+            new_op.effects.push_back(eff);
+        } else {
+            effects_by_component[c].push_back(eff);
+        }
+    }
+    for (int var : split_vars){
+        int c = var_to_components[var];
+        assert(c != -1);
+        split_vars_by_component[c].push_back(var);
+    }
+
+    for (size_t comp = 0; comp < affected_components.size(); ++comp){
+        vector<FactPair> effs;
+        for (const auto &eff : effects_by_component[comp]){
+            effs.push_back(eff.fact);
+        }
+        add_context_split_cond_effs_recursive(0,
+                                              preconditions_by_component[comp],
+                                              split_vars_by_component[comp],
+                                              effects_by_component[comp],
+                                              num_original_pre_by_component[comp],
+                                              new_op);
+    }
+    operators.push_back(new_op);
+}
+
 void SymmetricRootTask::create_operators() {
     for (int op_id = 0; op_id < static_cast<int>(original_root_task->operators.size()); ++op_id) {
         if (empty_value_strategy == SPLIT_CONTEXT) {
-            create_operators_context_split(op_id);
+            if (decoupled_splitting){
+                create_operators_context_split_decoupled(op_id);
+            } else {
+                create_operators_context_split(op_id);
+            }
         } else {
             create_operator(op_id);
         }
@@ -546,10 +812,6 @@ void SymmetricRootTask::dump() const {
     task_properties::dump_task(TaskProxy(*this), true, true);
 }
 
-
-shared_ptr<AbstractTask> SymmetricRootTask::get_original_root_task() const {
-    return original_root_task;
-}
 
 class SymmetricRootTaskFeature : public plugins::TypedFeature<AbstractTask, SymmetricRootTask> {
 public:
@@ -583,6 +845,16 @@ public:
                 "For empty_value_strategy=split_context, skip variables not affected by any permutation that "
                 "touches the postcondition of the respective operator.",
                 "true");
+        add_option<bool>(
+                "decoupled_splitting",
+                "For empty_value_strategy=split_context, if split variables are in different permutation components, "
+                "then the enumeration of partial states is done independently for each component.",
+                "true");
+        add_option<int>(
+                "max_number_contexts_per_operator",
+                "For empty_value_strategy=split_context, this limits the number of contexts that are generated"
+                "per operator, i.e., the number of operator copies, respectively conditional effects (for decoupled_splitting=true).",
+                "infinity");
         add_option<bool>(
                 "write_sas_file",
                 "Writes the decoupled task to dec_output.sas and terminates.",
