@@ -81,7 +81,6 @@ protected:
             std::vector<FactPair> &cond_eff_preconditions,
             const std::vector<int> &component_split_vars,
             const std::vector<ExplicitEffect> &component_effects,
-            const int num_original_pre_of_component,
             ExplicitOperator &new_op);
 
     void create_operators_context_split_recursive(
