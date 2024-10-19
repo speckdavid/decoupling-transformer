@@ -19,7 +19,7 @@ class Permutation;
 
 namespace tasks {
 
-enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4, SPLIT_CONTEXT = 5};
+enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4};
 
 /*
   Task transformation that encodes symmetry pruning into condition effects
@@ -31,6 +31,7 @@ class SymmetricRootTask : public RootTask {
     bool skip_mutex_preconditions;
     bool skip_unaffected_variables;
     bool skip_unaffected_variables_relevant_permutations;
+    bool context_splitting;
     bool decoupled_splitting;
     int max_number_contexts_per_operator;
     bool compute_perfect_canonical;
@@ -40,7 +41,7 @@ class SymmetricRootTask : public RootTask {
     std::vector<int> new_op_id_to_original_op_id; // only used for empty_value_strategy==SPLIT_CONTEXT and decoupled_splitting=false
     std::vector<std::vector<int>> decoupled_splitting_implied_relevant_vars;
 
-    std::vector<int> get_operator_post_condition(const ExplicitOperator &op) const;
+    std::vector<int> get_operator_post_condition(const ExplicitOperator &op, bool fill_with_base_state = true) const;
 
     void compute_decoupled_splitting_implied_relevant_vars();
 
