@@ -64,7 +64,8 @@ public:
 
 protected:
     void print_statistics() const;
-    void write_sas_file(const std::string &file_name) const;
+    void write_sas_file(const AbstractTask &task, const std::string &file_name) const;
+    void write_pddl_files(const AbstractTask &task, const std::string &domain_file_name, const std::string &problem_file_name) const;
 
     void create_initial_state();
 

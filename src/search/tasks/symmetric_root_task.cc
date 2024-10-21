@@ -8,6 +8,7 @@
 #include "../structural_symmetries/group.h"
 #include "../structural_symmetries/permutation.h"
 #include "../task_utils/dump_sas_task.h"
+#include "../task_utils/dump_pddl_task.h"
 #include "../task_utils/successor_generator.h"
 #include "../task_utils/task_properties.h"
 #include "../utils/rng.h"
@@ -133,9 +134,17 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
 
     release_memory();
 
-    if (options.get<bool>("write_sas_file")) {
-        write_sas_file("dec_output.sas");
-        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
+    if (options.get<bool>("write_sas")) {
+        write_sas_file(*this, "sym_output.sas");
+    }
+    if (options.get<bool>("write_pddl")) {
+        write_pddl_files(*this, "sym_domain.pddl", "sym_problem.pddl");
+    }
+    if (options.get<bool>("write_original_sas")) {
+        write_sas_file(*original_root_task, "original_output.sas");
+    }
+    if (options.get<bool>("write_original_pddl")) {
+        write_pddl_files(*original_root_task, "original_domain.pddl", "original_problem.pddl");
     }
 }
 
@@ -360,14 +369,36 @@ void SymmetricRootTask::print_statistics() const {
     utils::g_log << "Number of operators: " << get_num_operators() << endl;
 }
 
-void SymmetricRootTask::write_sas_file(const std::string &file_name) const {
+void SymmetricRootTask::write_sas_file(const AbstractTask &task, const std::string &file_name) const {
     utils::Timer write_sas_file_timer;
-    utils::g_log << "Writing to dec_output.sas..." << flush;
+    utils::g_log << "Writing to " << file_name << "..." << flush;
     std::ofstream output_file;
     output_file.open(file_name);
-    dump_sas_task::dump_as_SAS(*this, output_file);
+    dump_sas_task::dump_as_SAS(task, output_file);
     utils::g_log << "done!" << endl;
     utils::g_log << "Time for writing sas file: " << write_sas_file_timer << endl;
+}
+
+void SymmetricRootTask::write_pddl_files(const AbstractTask &task,
+                                         const string &domain_file_name,
+                                         const string &problem_file_name) const {
+    utils::Timer write_pddl_files_timer;
+
+    utils::g_log << "Writing to " << domain_file_name << "..." << flush;
+    ofstream domain_output_file;
+    domain_output_file.open(domain_file_name);
+    dump_pddl_task::dump_domain_as_PDDL(task, domain_output_file);
+    domain_output_file.close();
+    utils::g_log << "done!" << endl;
+
+    utils::g_log << "Writing to " << problem_file_name << "..." << flush;
+    ofstream problem_output_file;
+    problem_output_file.open(problem_file_name);
+    dump_pddl_task::dump_problem_as_PDDL(task, problem_output_file);
+    problem_output_file.close();
+    utils::g_log << "done!" << endl;
+
+    utils::g_log << "Time for writing pddl files: " << write_pddl_files_timer << endl;
 }
 
 void SymmetricRootTask::create_initial_state() {
@@ -856,10 +887,10 @@ public:
                 "For empty_value_strategy=split_context, this limits the number of contexts that are generated"
                 "per operator, i.e., the number of operator copies, respectively conditional effects (for decoupled_splitting=true).",
                 "infinity");
-        add_option<bool>(
-                "write_sas_file",
-                "Writes the decoupled task to dec_output.sas and terminates.",
-                "false");
+        add_option<bool>("write_sas", "Writes the task with symmetry breaking to sym_output.sas.", "false");
+        add_option<bool>("write_pddl", "Writes the task with symmetry breaking to sym_domain.pddl and sym_problem.pddl.", "false");
+        add_option<bool>("write_original_sas", "Writes the original task to original_output.sas.", "false");
+        add_option<bool>("write_original_pddl", "Writes the task with symmetry breaking to original_domain.pddl and original_problem.pddl.", "false");
         add_option<bool>("dump_task", "Dumps the task to the console", "false");
     }
 
