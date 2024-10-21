@@ -716,6 +716,7 @@ create_fast_downward_library(
         decoupling/lp_factoring
         decoupling/manual_factoring
         decoupling/mf_factoring
+        decoupling/mwis_factoring
         decoupling/plan_reconstruction
     DEPENDENCY_ONLY
 )

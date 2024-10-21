@@ -100,7 +100,7 @@ ATTRIBUTES = [
 
     # decoupled attributes
     Attribute('factoring_time', absolute=False, min_wins=True, function=arithmetic_mean),
-    Attribute("number_leaf_factors", absolute=True, min_wins=False),
+    Attribute("number_leaf_factors", absolute=False, min_wins=False),
 
     Attribute('ff_simplify_time', absolute=False, min_wins=True, function=arithmetic_mean),
     Attribute('ff_num_unary_operators', absolute=False, min_wins=True, function=sum),
@@ -116,6 +116,10 @@ ATTRIBUTES = [
 
     Attribute('number_conclusive_leaves', absolute=True, min_wins=False),
     Attribute('number_normal_leaves', absolute=True, min_wins=False),
+
+    "number_pruned_operators",
+
+    Attribute("number_wmis_leaf_candidates", absolute=False, min_wins=False, function=sum),
 
     Attribute('exhausted_search_space', absolute=True, min_wins=False),
 

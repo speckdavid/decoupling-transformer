@@ -9,21 +9,19 @@
 using namespace std;
 
 namespace decoupling {
-
 Factoring::Factoring(const plugins::Options &opts) :
-        prune_fork_leaf_state_spaces(opts.get<bool>("prune_fork_leaf_state_spaces")),
-        num_global_operators(0),
-        log(utils::get_log_from_options(opts)),
-        factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
-        task(tasks::g_root_task),
-        task_proxy(TaskProxy(*task)),
-        min_number_leaves(opts.get<int>("min_number_leaves")),
-        max_leaf_size(opts.get<int>("max_leaf_size")) {
-
+    prune_fork_leaf_state_spaces(opts.get<bool>("prune_fork_leaf_state_spaces")),
+    num_global_operators(0),
+    log(utils::get_log_from_options(opts)),
+    factoring_timer(utils::CountdownTimer(opts.get<int>("factoring_time_limit"))),
+    task(tasks::g_root_task),
+    task_proxy(TaskProxy(*task)),
+    min_number_leaves(opts.get<int>("min_number_leaves")),
+    max_leaf_size(opts.get<int>("max_leaf_size")) {
     task_properties::verify_no_axioms(task_proxy);
     task_properties::verify_no_conditional_effects(task_proxy);
 
-    if (prune_fork_leaf_state_spaces){
+    if (prune_fork_leaf_state_spaces) {
         log << "Setting prune_fork_leaf_state_spaces=true is not (yet) supported." << endl;
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
@@ -33,6 +31,13 @@ void Factoring::apply_factoring() {
     // initialize center/leaves
     var_to_factor.resize(task->get_num_variables(), FactorID::CENTER);
     var_to_id_in_factor.resize(task->get_num_variables(), -1);
+
+    // normalize the factoring, to be able to compare different factoring methods
+    for (auto &leaf : leaves) {
+        sort(leaf.begin(), leaf.end());
+    }
+    sort(leaves.begin(), leaves.end());
+
     FactorID factor(0);
     for (const auto &leaf : leaves) {
         int i = 0;
@@ -161,22 +166,22 @@ void Factoring::remove_never_applicable_global_ops(FactorID /*leaf*/) {
 bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const {
     vector<bool> is_var_covered(leaves[leaf].size(), false);
     size_t num_covered_vars = 0;
-    for (FactProxy pre : op.get_preconditions()){
+    for (FactProxy pre : op.get_preconditions()) {
         int var = pre.get_variable().get_id();
-        if (get_factor(var) == leaf && !is_var_covered[get_id_in_factor(var)]){
+        if (get_factor(var) == leaf && !is_var_covered[get_id_in_factor(var)]) {
             is_var_covered[get_id_in_factor(var)] = true;
             num_covered_vars++;
-            if (num_covered_vars == leaves[leaf].size()){
+            if (num_covered_vars == leaves[leaf].size()) {
                 return true;
             }
         }
     }
-    for (EffectProxy eff : op.get_effects()){
+    for (EffectProxy eff : op.get_effects()) {
         int var = eff.get_fact().get_variable().get_id();
-        if (get_factor(var) == leaf && !is_var_covered[get_id_in_factor(var)]){
+        if (get_factor(var) == leaf && !is_var_covered[get_id_in_factor(var)]) {
             is_var_covered[get_id_in_factor(var)] = true;
             num_covered_vars++;
-            if (num_covered_vars == leaves[leaf].size()){
+            if (num_covered_vars == leaves[leaf].size()) {
                 return true;
             }
         }
@@ -188,13 +193,13 @@ bool Factoring::does_op_restrict_leaf(OperatorProxy op, FactorID leaf) const {
     assert(is_global_operator(op.get_id()));
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
     vector<bool> is_op_eff_var(task->get_num_variables(), false);
-    for (auto eff : op.get_effects()){
+    for (auto eff : op.get_effects()) {
         is_op_eff_var[eff.get_fact().get_variable().get_id()] = true;
     }
-    for (auto op_id : get_leaf_operators(leaf)){
-        if (!is_global_operator(op_id.get_index())){
-            for (auto pre : task_proxy.get_operators()[op_id].get_preconditions()){
-                if (is_op_eff_var[pre.get_variable().get_id()]){
+    for (auto op_id : get_leaf_operators(leaf)) {
+        if (!is_global_operator(op_id.get_index())) {
+            for (auto pre : task_proxy.get_operators()[op_id].get_preconditions()) {
+                if (is_op_eff_var[pre.get_variable().get_id()]) {
                     return true;
                 }
             }
@@ -210,26 +215,26 @@ bool Factoring::does_op_restrict_leaf(int op_id, int leaf) const {
 void Factoring::do_conclusive_leaf_check() {
     is_leaf_conclusive_.resize(leaves.size(), true);
     size_t num_optimizable_leaves = leaves.size();
-    for (auto op : task_proxy.get_operators()){
-        if (is_global_operator(op.get_id())){
+    for (auto op : task_proxy.get_operators()) {
+        if (is_global_operator(op.get_id())) {
             for (FactorID leaf(0); leaf < leaves.size(); ++leaf) {
-                if (!is_leaf_conclusive_[leaf]){
+                if (!is_leaf_conclusive_[leaf]) {
                     continue;
                 }
                 if (has_pre_or_eff_on_leaf(op.get_id(), leaf)) {
                     // if does_op_uniquely_fix_lstate holds, then after applying op,
                     // there is a unique leaf state reached, which is what we need
-                    if (!does_op_uniquely_fix_lstate(op, leaf)){
+                    if (!does_op_uniquely_fix_lstate(op, leaf)) {
                         is_leaf_conclusive_[leaf] = false;
                         num_optimizable_leaves--;
                     }
                 } else {
-                    if (is_fork_leaf(leaf) && !is_ifork_leaf(leaf)){
+                    if (is_fork_leaf(leaf) && !is_ifork_leaf(leaf)) {
                         // proper fork leafs, i.e. fork leaves with connection to the center, cannot be optimized
                         // this is subsumed by the next check, but cheaper to compute
                         is_leaf_conclusive_[leaf] = false;
                         num_optimizable_leaves--;
-                    } else if (does_op_restrict_leaf(op, leaf)){
+                    } else if (does_op_restrict_leaf(op, leaf)) {
                         // the operator restricts the set of reachable leaf states by
                         // en/disabling center preconditions of leaf-only operators
                         is_leaf_conclusive_[leaf] = false;
@@ -237,7 +242,7 @@ void Factoring::do_conclusive_leaf_check() {
                     }
                 }
             }
-            if (num_optimizable_leaves == 0){
+            if (num_optimizable_leaves == 0) {
                 break;
             }
         }
@@ -276,7 +281,7 @@ int Factoring::get_num_effects_on_leaf(OperatorProxy op, FactorID leaf) const {
     return num_effs;
 }
 
-const std::vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
+const vector<FactPair> &Factoring::get_leaf_goals(FactorID leaf) const {
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
     return goals_by_leaf[leaf];
 }
@@ -386,7 +391,7 @@ void Factoring::compute_factoring() {
 void Factoring::save_memory() {
     // TODO save more memory, what about the leaf state space?
     vector<ActionSchema>().swap(action_schemas);
-    vector<set<int>>().swap(var_to_affecting_op);
+    vector<vector<int>>().swap(var_to_affecting_op);
 }
 
 bool Factoring::check_timeout() const {
@@ -398,7 +403,7 @@ bool Factoring::check_timeout() const {
 
 void Factoring::compute_action_schemas() {
     if (action_schemas.empty()) {
-        OperatorsProxy operators = TaskProxy(*task).get_operators();
+        OperatorsProxy operators = task_proxy.get_operators();
         assert(!operators.empty());
         utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t>> scheme_loockup;
         for (OperatorProxy op : operators) {
@@ -414,12 +419,12 @@ void Factoring::compute_action_schemas() {
             }
             sort(eff_vars.begin(), eff_vars.end());
 
-            if (scheme_loockup.find(pre_vars) == scheme_loockup.end() ||
-                scheme_loockup[pre_vars].find(eff_vars) == scheme_loockup[pre_vars].end()) {
+            auto it = scheme_loockup.find(pre_vars);
+            if (it == scheme_loockup.end() || it->second.find(eff_vars) == it->second.end()) {
                 scheme_loockup[pre_vars][eff_vars] = action_schemas.size();
                 action_schemas.emplace_back(1, pre_vars, eff_vars);
             } else {
-                action_schemas[scheme_loockup[pre_vars][eff_vars]].inc_num_actions();
+                action_schemas[it->second[eff_vars]].inc_num_actions();
             }
         }
     }
@@ -427,10 +432,10 @@ void Factoring::compute_action_schemas() {
 
 void Factoring::compute_var_to_ops_map() {
     if (var_to_affecting_op.empty()) {
-        var_to_affecting_op = vector<set<int>>(task_proxy.get_variables().size(), set<int>());
+        var_to_affecting_op.resize(task->get_num_variables());
         for (OperatorProxy op : task_proxy.get_operators()) {
             for (EffectProxy eff : op.get_effects()) {
-                var_to_affecting_op[eff.get_fact().get_variable().get_id()].insert(op.get_id());
+                var_to_affecting_op[eff.get_fact().get_variable().get_id()].push_back(op.get_id());
             }
         }
     }
@@ -586,7 +591,42 @@ vector<FactPair> Factoring::get_leaf_state_values(int leaf_, int leaf_state) con
     return res;
 }
 
-vector<int> Factoring::get_valid_leaf_states(int leaf_, const vector<FactPair>& partial_state) {
+bool Factoring::is_reachable_condition(const vector<FactPair> &partial_state) {
+    unordered_map<int, vector<FactPair>> leaf_to_partial_state;
+    for (const FactPair &fact : partial_state) {
+        if (is_center_variable(fact.var)) {
+            continue;
+        }
+        int leaf = get_factor(fact.var);
+        leaf_to_partial_state[leaf].push_back(fact);
+    }
+
+    for (const auto & [l, facts] : leaf_to_partial_state) {
+        FactorID leaf(l);
+        bool found_state = false;
+        for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
+            LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
+            bool is_model = true;
+            for (const FactPair &fact : facts) {
+                if (lstate[fact.var] != fact.value) {
+                    is_model = false;
+                    break;
+                }
+            }
+            if (is_model) {
+                found_state = true;
+                break;
+            }
+        }
+        if (!found_state) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+vector<int> Factoring::get_valid_leaf_states(int leaf_, const vector<FactPair> &partial_state) {
     assert(leaf_ >= 0 && leaf_ != FactorID::CENTER && leaf_ < static_cast<int>(leaves.size()));
 
     FactorID leaf(leaf_);
@@ -595,7 +635,7 @@ vector<int> Factoring::get_valid_leaf_states(int leaf_, const vector<FactPair>& 
     for (LeafStateHash id(0); id < leaf_state_space->get_num_states(leaf); ++id) {
         LeafState lstate(leaf_state_space->get_leaf_state(id, leaf));
         bool is_model = true;
-        for (const FactPair& fact : partial_state) {
+        for (const FactPair &fact : partial_state) {
             if (leaf_ == get_factor(fact.var) && lstate[fact.var] != fact.value) {
                 is_model = false;
                 break;

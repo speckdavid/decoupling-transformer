@@ -84,8 +84,8 @@ ExplicitVariable::ExplicitVariable(istream &in) {
     check_magic(in, "end_variable");
 }
 
-ExplicitVariable::ExplicitVariable(const std::string &name,
-                                   std::vector<std::string> &&fact_names,
+ExplicitVariable::ExplicitVariable(const string &name,
+                                   vector<string> &&fact_names,
                                    int axiom_layer,
                                    int axiom_default_value) :
     domain_size(fact_names.size()),
@@ -102,6 +102,21 @@ int ExplicitVariable::get_encoding_size() const {
 ExplicitEffect::ExplicitEffect(
     int var, int value, vector<FactPair> &&conditions)
     : fact(var, value), conditions(move(conditions)) {
+}
+
+bool ExplicitEffect::operator==(const ExplicitEffect &other) const {
+    return fact == other.fact
+           && set<FactPair>(conditions.begin(), conditions.end())
+           == set<FactPair>(other.conditions.begin(), other.conditions.end());
+}
+
+bool ExplicitEffect::operator<(const ExplicitEffect &other) const {
+    if (fact < other.fact)
+        return true;
+    if (other.fact < fact)
+        return false;
+    return set<FactPair>(conditions.begin(), conditions.end())
+           < set<FactPair>(other.conditions.begin(), other.conditions.end());
 }
 
 int ExplicitEffect::get_encoding_size() const {
@@ -148,19 +163,57 @@ ExplicitOperator::ExplicitOperator(istream &in, bool is_an_axiom, bool use_metri
 }
 
 ExplicitOperator::ExplicitOperator(int cost,
-                                   const std::string &name,
+                                   const string &name,
                                    bool is_an_axiom) :
     cost(cost),
     name(name),
     is_an_axiom(is_an_axiom) {}
 
 ExplicitOperator::ExplicitOperator(int cost,
-                                   const std::string &name,
-                                   const std::vector<FactPair> &preconditions) :
+                                   const string &name,
+                                   const vector<FactPair> &preconditions) :
         preconditions(preconditions),
         cost(cost),
         name(name),
         is_an_axiom(false) {}
+
+bool ExplicitOperator::operator==(const ExplicitOperator &other) const {
+    return cost == other.cost
+           && is_an_axiom == other.is_an_axiom
+           && set<FactPair>(preconditions.begin(), preconditions.end())
+           == set<FactPair>(other.preconditions.begin(), other.preconditions.end())
+           && set<ExplicitEffect>(effects.begin(), effects.end())
+           == set<ExplicitEffect>(other.effects.begin(), other.effects.end());
+}
+
+bool ExplicitOperator::operator<(const ExplicitOperator &other) const {
+    if (cost < other.cost)
+        return true;
+    if (other.cost < cost)
+        return false;
+    if (is_an_axiom < other.is_an_axiom)
+        return true;
+    if (other.is_an_axiom < is_an_axiom)
+        return false;
+
+    auto preconditions_set = set<FactPair>(preconditions.begin(), preconditions.end());
+    auto other_preconditions_set = set<FactPair>(other.preconditions.begin(), other.preconditions.end());
+    if (preconditions_set < other_preconditions_set)
+        return true;
+    if (other_preconditions_set < preconditions_set)
+        return false;
+
+    auto effects_set = set<ExplicitEffect>(effects.begin(), effects.end());
+    auto other_effects_set = set<ExplicitEffect>(other.effects.begin(), other.effects.end());
+    return effects_set < other_effects_set;
+}
+
+int ExplicitOperator::get_encoding_size() const {
+    int size = 1 + preconditions.size();
+    for (const auto &eff : effects)
+        size += eff.get_encoding_size();
+    return size;
+}
 
 static void read_and_verify_version(istream &in) {
     int version;
@@ -175,12 +228,6 @@ static void read_and_verify_version(istream &in) {
     }
 }
 
-int ExplicitOperator::get_encoding_size() const {
-    int size = 1 + preconditions.size();
-    for (const auto& eff : effects)
-        size += eff.get_encoding_size();
-    return size;
-}
 
 static bool read_metric(istream &in) {
     bool use_metric;
@@ -445,7 +492,7 @@ void RootTask::convert_ancestor_state_values(
 
 int RootTask::get_encoding_size(bool with_mutexes) const {
     int task_size = 0;
-    for (const auto& var : variables)
+    for (const auto &var : variables)
         task_size += var.get_encoding_size();
     task_size += initial_state_values.size();
     task_size += goals.size();
@@ -460,6 +507,27 @@ int RootTask::get_encoding_size(bool with_mutexes) const {
         }
     }
     return task_size;
+}
+
+void RootTask::normalize_task() {
+    sort(goals.begin(), goals.end());
+    for (auto &op : operators) {
+        sort(op.preconditions.begin(), op.preconditions.end());
+        for (auto &eff : op.effects) {
+            sort(eff.conditions.begin(), eff.conditions.end());
+        }
+        sort(op.effects.begin(), op.effects.end());
+    }
+    for (auto &ax : axioms) {
+        sort(ax.preconditions.begin(), ax.preconditions.end());
+        for (auto &eff : ax.effects) {
+            sort(eff.conditions.begin(), eff.conditions.end());
+        }
+        sort(ax.effects.begin(), ax.effects.end());
+    }
+    for (auto &mutex_group : mutexes) {
+        sort(mutex_group.begin(), mutex_group.end());
+    }
 }
 
 void read_root_task(istream &in) {

@@ -1,5 +1,5 @@
-#ifndef DECOUPLING_LEAF_STATE
-#define DECOUPLING_LEAF_STATE
+#ifndef DECOUPLING_LEAF_STATE_H
+#define DECOUPLING_LEAF_STATE_H
 
 #include "leaf_state_id.h"
 
@@ -12,7 +12,6 @@ class AbstractTask;
 class VariableProxy;
 
 namespace decoupling {
-
 class Factoring;
 class LeafStateRegistry;
 
@@ -25,7 +24,7 @@ class LeafState {
 
     const LeafStateID id;
 
-        // Only used by the leaf state registry.
+    // Only used by the leaf state registry.
     LeafState(const AbstractTask &task,
               const Factoring &factoring,
               const LeafStateRegistry *registry,
