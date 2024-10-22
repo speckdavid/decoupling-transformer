@@ -17,13 +17,16 @@ static int get_size_of_binary_encoding(int value) {
     return int(ceil(log2(value)));
 }
 
-vector<string> get_binary_encoding(const AbstractTask &task, const FactPair &fact) {
+vector<string> get_binary_encoding(const AbstractTask &task, const FactPair &fact, bool skip_negated_facts) {
     vector<string> encoding;
     bitset<64> bits(fact.value);
     int domain_size = task.get_variable_domain_size(fact.var);
     for (int i = 0; i < get_size_of_binary_encoding(domain_size); ++i) {
         string cur = "(var" + to_string(fact.var) + "_exp" + to_string(i) + ")";
         if (!bits.test(i)) {
+            if (skip_negated_facts) {
+                continue;
+            }
             cur = "(not " + cur + ")";
         }
         encoding.push_back(cur);
@@ -196,7 +199,7 @@ void dump_problem_initial_state(const AbstractTask &task, ostream &os) {
     for (int var = 0; var < task.get_num_variables(); ++var) {
         if (task.get_variable_axiom_layer(var) == -1) {
             int val = task.get_initial_state_values().at(var);
-            for (const string &binary_var : get_binary_encoding(task, FactPair(var, val))) {
+            for (const string &binary_var : get_binary_encoding(task, FactPair(var, val), true)) {
                 os << IND << IND << binary_var << endl;
             }
         }

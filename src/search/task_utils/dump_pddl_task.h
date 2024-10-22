@@ -12,7 +12,7 @@
 */
 
 namespace dump_pddl_task {
-std::vector<std::string> get_binary_encoding(const AbstractTask &task, const FactPair &fact);
+std::vector<std::string> get_binary_encoding(const AbstractTask &task, const FactPair &fact, bool skip_negated_facts = false);
 
 void extract_all_preconditions(const AbstractTask &task, int op_no, std::vector<FactPair> &all_preconditions);
 
