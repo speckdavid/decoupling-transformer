@@ -261,7 +261,10 @@ vector<int> SymmetricRootTask::get_split_variables(const ExplicitOperator &op) c
         //  3) try to maximize the number of completely covered symmetry components => done greedily
         //  4) take some variables from all components
 
-        if (split_variable_order == FILL_COMPONENTS){
+        if (split_variable_order == FILL_SMALL_COMPONENTS ||
+            split_variable_order == FILL_LARGE_COMPONENTS ||
+            split_variable_order == DISTRIBUTE_OVER_COMPONENTS){
+
             const auto &components = group->get_permutation_components();
 
             vector<bool> is_relevant_var(get_num_variables(), false);
@@ -294,6 +297,9 @@ vector<int> SymmetricRootTask::get_split_variables(const ExplicitOperator &op) c
                       [&size_by_component](int lhs, int rhs) {
                           return size_by_component[lhs] < size_by_component[rhs];
                       });
+            if (split_variable_order == FILL_LARGE_COMPONENTS) {
+                std::reverse(affected_components.begin(), affected_components.end());
+            }
 
             for (auto &c: split_vars_by_component) {
                 std::sort(c.begin(), c.end(), [this](int lhs, int rhs) {
@@ -302,13 +308,45 @@ vector<int> SymmetricRootTask::get_split_variables(const ExplicitOperator &op) c
             }
 
             split_vars.clear();
-            for (int c : affected_components) {
-                for (int var: split_vars_by_component[c]) {
-                    split_vars.push_back(var);
+            if (split_variable_order == FILL_SMALL_COMPONENTS ||
+                    split_variable_order == FILL_LARGE_COMPONENTS) {
+                for (int c: affected_components) {
+                    for (int var: split_vars_by_component[c]) {
+                        split_vars.push_back(var);
+                    }
                 }
+            } else if (split_variable_order == DISTRIBUTE_OVER_COMPONENTS){
+                size_t var_id = 0;
+                bool change = true;
+                while (change) {
+                    change = false;
+                    for (int c: affected_components) {
+                        if (var_id < components[c].size()) {
+                            split_vars.push_back(split_vars_by_component[c][var_id]);
+                            change = true;
+                        }
+                    }
+                    var_id++;
+                }
+            } else {
+                cerr << "ERROR: unknown split_variable_order: " << split_variable_order << endl;
+                utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
             }
         } else if (split_variable_order == FD){
-            utils::sort_unique(split_vars); // match FD variable order
+            // match FD variable order
+            std::sort(split_vars.begin(), split_vars.end());
+        } else if (split_variable_order == FD_REVERSE){
+            // match reverse FD variable order
+            std::sort(split_vars.begin(), split_vars.end());
+            std::reverse(split_vars.begin(), split_vars.end());
+        } else if (split_variable_order == INCREASING_DOMAIN_SIZE){
+            std::sort(split_vars.begin(), split_vars.end(), [this](int lhs, int rhs) {
+                return get_variable_domain_size(lhs) < get_variable_domain_size(rhs);
+            });
+        } else if (split_variable_order == DECREASING_DOMAIN_SIZE){
+            std::sort(split_vars.begin(), split_vars.end(), [this](int lhs, int rhs) {
+                return get_variable_domain_size(lhs) > get_variable_domain_size(rhs);
+            });
         } else {
             cerr << "ERROR: unknown split_variable_order: " << split_variable_order << endl;
             utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -1047,6 +1085,11 @@ static plugins::TypedEnumPlugin<EmptyValueStrategy> _enum_plugin_empty_val({
 
 static plugins::TypedEnumPlugin<SplitVariableOrder> _enum_plugin_split_order({
 {"fd", "Use Fast Downward variable order."},
-{"fill_components", "Sort variables so that components are filled greedily."},
+{"fd_reverse", "Use reverse Fast Downward variable order."},
+{"fill_small_components", "Sort variables so that small components are filled first."},
+{"fill_large_components", "Sort variables so that large components are filled first."},
+{"distribute_over_components", "Sort variables so that components are filled with equally many variables."},
+{"increasing_domain_size", "Sort variables by increasing domain size."},
+{"decreasing_domain_size", "Sort variables by decreasing domain size."},
 });
 }

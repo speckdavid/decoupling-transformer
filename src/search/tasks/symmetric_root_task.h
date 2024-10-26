@@ -20,7 +20,9 @@ class Permutation;
 namespace tasks {
 
 enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4};
-enum SplitVariableOrder {FD = 0, FILL_COMPONENTS = 1};
+enum SplitVariableOrder {FD = 0, FD_REVERSE = 1,
+    FILL_SMALL_COMPONENTS = 2, FILL_LARGE_COMPONENTS = 3, DISTRIBUTE_OVER_COMPONENTS = 4,
+    INCREASING_DOMAIN_SIZE = 5, DECREASING_DOMAIN_SIZE = 6};
 
 /*
   Task transformation that encodes symmetry pruning into condition effects
