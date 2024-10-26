@@ -52,11 +52,11 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
         }
     }
 
-    if (context_splitting && decoupled_splitting && group->get_permutation_components().size() == 1){
-        // TODO evaluate which variant is actually better
-        utils::g_log << "WARNING: permutation interaction graph is strongly connected, disabling decoupled_splitting." << endl;
-        decoupled_splitting = false;
-    }
+//    if (context_splitting && decoupled_splitting && group->get_permutation_components().size() == 1){
+//        // TODO evaluate which variant is actually better
+//        utils::g_log << "WARNING: permutation interaction graph is strongly connected, disabling decoupled_splitting." << endl;
+//        decoupled_splitting = false;
+//    }
 
     utils::Timer transformation_timer;
 
