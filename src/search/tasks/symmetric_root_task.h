@@ -41,11 +41,18 @@ class SymmetricRootTask : public RootTask {
     std::vector<int> new_op_id_to_original_op_id; // only used for empty_value_strategy==SPLIT_CONTEXT and decoupled_splitting=false
     std::vector<std::vector<int>> decoupled_splitting_implied_relevant_vars;
 
-    std::vector<int> get_operator_post_condition(const ExplicitOperator &op, bool fill_with_base_state = true) const;
+    std::vector<int> get_operator_post_condition(const ExplicitOperator &op) const;
+
+    std::vector<int> get_operator_post_condition(const ExplicitOperator &op,
+                                                 const std::vector<int> &permutation_component) const;
 
     void compute_decoupled_splitting_implied_relevant_vars();
 
     std::vector<int> get_split_variables(const ExplicitOperator &op) const;
+
+    std::vector<std::vector<int>> get_affected_permutation_components(
+            const ExplicitOperator &op,
+            const std::vector<int> &split_vars) const;
 
 public:
     explicit SymmetricRootTask(const plugins::Options &options);
@@ -73,6 +80,14 @@ protected:
     std::unique_ptr<structural_symmetries::Permutation> get_permutation_for_operator(
             const ExplicitOperator &op) const;
 
+    std::unique_ptr<structural_symmetries::Permutation> get_permutation_for_operator(
+            const ExplicitOperator &op,
+            const std::vector<int> &permutation_component) const;
+
+    std::unique_ptr<structural_symmetries::Permutation> get_permutation_for_operator(
+            const ExplicitOperator &op,
+            const std::vector<std::vector<int>> &permutation_components) const;
+
     void set_symmetry_effects_of_operator(
             const ExplicitOperator &orig_op,
             ExplicitOperator &new_op,
@@ -83,6 +98,7 @@ protected:
             std::vector<FactPair> &cond_eff_preconditions,
             const std::vector<int> &component_split_vars,
             const std::vector<ExplicitEffect> &component_effects,
+            const std::vector<int> &component,
             ExplicitOperator &new_op);
 
     void create_operators_context_split_recursive(
