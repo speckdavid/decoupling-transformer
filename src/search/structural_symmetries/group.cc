@@ -276,7 +276,7 @@ const vector<vector<int>> & Group::get_permutation_components() {
             // remove single-variable components that are not affected by any permutation
             if (it->size() == 1){
                 int var = it->back();
-                if (find(it->begin(), it->end(), var) != it->end()){
+                if (find(unaffected_vars.begin(), unaffected_vars.end(), var) != unaffected_vars.end()){
                     permutation_components.erase(next(it).base());
                 }
             }
