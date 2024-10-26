@@ -24,6 +24,7 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
           original_root_task(dynamic_pointer_cast<RootTask>(tasks::g_root_task)),
           group(options.get<shared_ptr<Group>>("symmetries")),
           empty_value_strategy(options.get<EmptyValueStrategy>("empty_value_strategy")),
+          split_variable_order(options.get<SplitVariableOrder>("split_variable_order")),
           skip_mutex_preconditions(options.get<bool>("skip_mutex_preconditions")),
           skip_unaffected_variables(options.get<bool>("skip_unaffected_variables")),
           skip_unaffected_variables_relevant_permutations(options.get<bool>("skip_unaffected_variables_relevant_permutations")),
@@ -250,14 +251,74 @@ vector<int> SymmetricRootTask::get_split_variables(const ExplicitOperator &op) c
             }
         }
     }
-    if (max_number_contexts_per_operator < numeric_limits<int>::max()){
+    int size = 1;
+    for (int var : split_vars){
+        size *= get_variable_domain_size(var);
+        if (size > max_number_contexts_per_operator){
+            break;
+        }
+    }
+    if (size > max_number_contexts_per_operator) {
+        // for partial splitting, sort split_vars here and truncate it accordingly
+        
         // TODO: try different variants:
         //  1) simply take first k variables according to FD variable order => done
         //  2) like 1) but inverse variable order
-        //  3) try to maximize the number of completely covered symmetry components
+        //  3) try to maximize the number of completely covered symmetry components => done greedily
         //  4) take some variables from all components
-        // for partial splitting, sort split_vars here and truncate it accordingly
-        utils::sort_unique(split_vars); // to match FD variable order
+
+        if (split_variable_order == FILL_COMPONENTS){
+            const auto &components = group->get_permutation_components();
+
+            vector<bool> is_relevant_var(get_num_variables(), false);
+            for (int var : split_vars) {
+                is_relevant_var[var] = true;
+            }
+
+            vector<int> affected_components;
+            for (int c = 0; c < static_cast<int>(components.size()); ++c) {
+                for (int var : components[c]) {
+                    if (is_relevant_var[var]) {
+                        affected_components.push_back(c);
+                        break;
+                    }
+                }
+            }
+
+            vector<int> size_by_component(components.size(), 1);
+            vector<vector<int>> split_vars_by_component(components.size());
+            for (int c : affected_components) {
+                for (int var : components[c]) {
+                    if (is_relevant_var[var]) {
+                        size_by_component[c] *= get_variable_domain_size(var);
+                        split_vars_by_component[c].push_back(var);
+                    }
+                }
+            }
+
+            std::sort(affected_components.begin(), affected_components.end(),
+                      [&size_by_component](int lhs, int rhs) {
+                          return size_by_component[lhs] < size_by_component[rhs];
+                      });
+
+            for (auto &c: split_vars_by_component) {
+                std::sort(c.begin(), c.end(), [this](int lhs, int rhs) {
+                    return get_variable_domain_size(lhs) < get_variable_domain_size(rhs);
+                });
+            }
+
+            split_vars.clear();
+            for (int c : affected_components) {
+                for (int var: split_vars_by_component[c]) {
+                    split_vars.push_back(var);
+                }
+            }
+        } else if (split_variable_order == FD){
+            utils::sort_unique(split_vars); // match FD variable order
+        } else {
+            cerr << "ERROR: unknown split_variable_order: " << split_variable_order << endl;
+            utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+        }
         int size = 1;
         for (size_t i = 0; i < split_vars.size(); ++i){
             size *= RootTask::get_variable_domain_size(split_vars[i]);
@@ -931,6 +992,10 @@ public:
                 "empty_value_strategy",
                 "How to treat variables not mentioned in operator precondition and effect",
                 "none");
+        add_option<SplitVariableOrder>(
+                "split_variable_order",
+                "How to order splitting variables.",
+                "FILL_COMPONENTS");
         add_option<bool>(
                 "compute_perfect_canonical",
                 "Computes the perfect canonical for each orbit.",
@@ -977,7 +1042,7 @@ public:
 
 static plugins::FeaturePlugin<SymmetricRootTaskFeature> _plugin;
 
-static plugins::TypedEnumPlugin<EmptyValueStrategy> _enum_plugin({
+static plugins::TypedEnumPlugin<EmptyValueStrategy> _enum_plugin_empty_val({
         {"none", "skip variables not set in precondition or effect"},
         {"init", "use initial state values for variables not set in precondition or effect"},
         {"random", "use random values for variables not set in precondition or effect"},
@@ -985,4 +1050,9 @@ static plugins::TypedEnumPlugin<EmptyValueStrategy> _enum_plugin({
         {"init_goal", "uses goal values where defined otherwise initial state values"},
         {"split_context", "enumerate all partial states to fill up the post condition"}
     });
+
+static plugins::TypedEnumPlugin<SplitVariableOrder> _enum_plugin_split_order({
+{"fd", "Use Fast Downward variable order."},
+{"fill_components", "Sort variables so that components are filled greedily."},
+});
 }

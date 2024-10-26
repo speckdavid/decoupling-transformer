@@ -20,6 +20,7 @@ class Permutation;
 namespace tasks {
 
 enum EmptyValueStrategy {NONE = 0, INIT = 1, RANDOM = 2, GOAL = 3, INIT_GOAL = 4};
+enum SplitVariableOrder {FD = 0, FILL_COMPONENTS = 1};
 
 /*
   Task transformation that encodes symmetry pruning into condition effects
@@ -28,6 +29,7 @@ class SymmetricRootTask : public RootTask {
     std::shared_ptr<RootTask> original_root_task;
     std::shared_ptr<structural_symmetries::Group> group;
     EmptyValueStrategy empty_value_strategy;
+    SplitVariableOrder split_variable_order;
     bool skip_mutex_preconditions;
     bool skip_unaffected_variables;
     bool skip_unaffected_variables_relevant_permutations;
