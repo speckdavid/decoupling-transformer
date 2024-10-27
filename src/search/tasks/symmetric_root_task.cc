@@ -36,6 +36,15 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
     task_properties::verify_no_axioms(original_task_proxy);
     task_properties::verify_no_conditional_effects(original_task_proxy);
 
+    if (options.get<bool>("write_original_sas")) {
+        write_sas_file(*original_root_task, "original_output.sas");
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
+    }
+    if (options.get<bool>("write_original_pddl")) {
+        write_pddl_files(*original_root_task, "original_domain.pddl", "original_problem.pddl");
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
+    }
+
     if (!context_splitting){
         // TODO: print warning?
         skip_mutex_preconditions = false;
@@ -131,15 +140,11 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
 
     if (options.get<bool>("write_sas")) {
         write_sas_file(*this, "sym_output.sas");
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     }
     if (options.get<bool>("write_pddl")) {
         write_pddl_files(*this, "sym_domain.pddl", "sym_problem.pddl");
-    }
-    if (options.get<bool>("write_original_sas")) {
-        write_sas_file(*original_root_task, "original_output.sas");
-    }
-    if (options.get<bool>("write_original_pddl")) {
-        write_pddl_files(*original_root_task, "original_domain.pddl", "original_problem.pddl");
+        utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     }
 }
 

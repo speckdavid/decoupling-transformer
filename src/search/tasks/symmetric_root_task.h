@@ -42,7 +42,7 @@ class SymmetricRootTask : public RootTask {
 
     std::unique_ptr<structural_symmetries::Permutation> initial_state_permutation;
     std::vector<int> base_state_for_op_permutation;
-    std::vector<int> new_op_id_to_original_op_id; // only used for empty_value_strategy==SPLIT_CONTEXT and decoupled_splitting=false
+    std::vector<int> new_op_id_to_original_op_id; // only used for non-decoupled context splitting
     std::vector<std::vector<int>> decoupled_splitting_implied_relevant_vars;
 
     std::vector<int> get_operator_post_condition(const ExplicitOperator &op) const;
