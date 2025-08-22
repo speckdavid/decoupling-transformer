@@ -82,12 +82,6 @@ MWISFactoring::MWISFactoring(const plugins::Options &opts) : Factoring(opts),
             << string(80, '*') << endl << endl;
     }
 
-    if (min_number_leaves > 1 && strategy != WMIS_STRATEGY::MML) {
-        log << "WARNING: WMIS factoring does not support setting a minimal number of leaf factors." << endl
-            << "Thus, there is no guarantee that a factoring with more than " << min_number_leaves << " is computed, "
-            << "even if such a factoring exists." << endl;
-    }
-
     if (strategy != WMIS_STRATEGY::MFA && min_fact_flexibility > 0.0) {
         log << "Option min_fact_flexibility is only possible in combination with strategy MFA." << endl;
         exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -429,12 +423,10 @@ vector<int> MWISFactoring::solve_wmis(const Graph &graph,
     vector<int> independent_set;
 
     utils::g_log << "Computing max weighted independent set..." << flush;
-    double weight = max_cliques::compute_max_weighted_independent_set(graph, weights, independent_set, timer.get_remaining_time());
+    double weight = max_cliques::compute_max_weighted_independent_set(graph, weights, independent_set, min_number_leaves, timer.get_remaining_time());
     utils::g_log << "done!" << endl;
 
-    if (log.is_at_least_verbose()) {
-        log << "Weight of computed independent set: " << weight << endl;
-    }
+    log << "Weight of computed independent set: " << weight << endl;
 
     return independent_set;
 }
