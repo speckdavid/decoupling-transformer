@@ -582,6 +582,10 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
                                                    sum_fact_mobility);
             break;
         case WMIS_STRATEGY::MML:
+            // TODO in this case we don't actuatlly need to multiply out the leaf, we just need to make sure
+            // that at least one self-mobile AS is included, or at least one AS is included if there are no self-mobile AS. 
+            // This can be checked without multiplying out the leaf. This will heavily reduce the number of leaf candidates for this strategy 
+            // and thus speed up the factoring significantly.
             weight = 1;
             break;
         case WMIS_STRATEGY::MM_OPT:
