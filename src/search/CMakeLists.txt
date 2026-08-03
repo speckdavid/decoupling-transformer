@@ -716,6 +716,7 @@ create_fast_downward_library(
         decoupling/mf_factoring
         decoupling/mwis_factoring
         decoupling/plan_reconstruction
+        decoupling/simulation_relation
     DEPENDENCY_ONLY
 )
 

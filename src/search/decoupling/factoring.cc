@@ -20,11 +20,6 @@ Factoring::Factoring(const plugins::Options &opts) :
     max_leaf_size(opts.get<int>("max_leaf_size")) {
     task_properties::verify_no_axioms(task_proxy);
     task_properties::verify_no_conditional_effects(task_proxy);
-
-    if (prune_fork_leaf_state_spaces) {
-        log << "Setting prune_fork_leaf_state_spaces=true is not (yet) supported." << endl;
-        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
-    }
 }
 
 void Factoring::apply_factoring() {

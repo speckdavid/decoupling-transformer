@@ -3,6 +3,7 @@
 #include "factoring.h"
 #include "leaf_state.h"
 #include "leaf_state_registry.h"
+#include "simulation_relation.h"
 
 #include "../algorithms/sccs.h"
 
@@ -222,11 +223,9 @@ void LeafStateSpace::build_leaf_state_spaces(bool compute_leaf_invertibility,
     }
 
     if (prune_fork_leaf_state_spaces) {
-        // TODO integrate this
-        log << "ERROR: pruning leaf states spaces is not yet implemented" << endl;
-//        SimulationRelation sim_rel(task, factoring, log, *this, 10);
-//        sim_rel.perform_leaf_irrelevance_pruning(true, false);
-        utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
+        log << "Pruning leaf states spaces.. " << endl;
+        SimulationRelation sim_rel(task, factoring, log, *this, 60);
+        sim_rel.perform_leaf_irrelevance_pruning(true, false);
     }
 
     size_t min_leaf_factor_size = numeric_limits<size_t>::max();
