@@ -5,7 +5,7 @@ It extends [Fast Downward 23.06](https://github.com/aibasel/downward/) by the po
 
 ## Build instructions
 
-See [BUILD.md](BUILD.md). To use the decoupled representation, it is necessary to install CPLEX as described in the file.
+See [BUILD.md](BUILD.md). For best performance of decoupled search, it is highly recommended to install CPLEX as described in the file. Although a preliminary version without CPLEX is available, CPLEX significantly improves results, so its installation is strongly advised.
 
 ## Recommended Search Configurations
 
@@ -30,17 +30,19 @@ Here, the search "XXX" can be selected as in normal Fast Downward, e.g., `"lazy_
 ### Parameters
 
 ```
---root-task-transform decoupled(factoring, same_leaf_preconditons_single_variable=true, conclusive_leaf_encoding=multivalued, skip_unnecessary_leaf_effects=true, conclusive_operators=true, dump_task=false, write_sas=false, write_pddl=false, write_factoring=false)
+--root-task-transform decoupled(factoring=lp(), same_leaf_preconditons_single_variable=true, conclusive_leaf_encoding=multivalued, skip_unnecessary_leaf_effects=true, conclusive_operators=true, normalize_task=false, normalize_variable_names=false, dump_task=false, write_sas=false, write_pddl=false, write_factoring=false)
 ```
 
-- `factoring` (Factoring): method that computes the factoring (see below)
+- `factoring` (Factoring): method that computes the factoring. (see below)
 - `same_leaf_preconditons_single_variable` (bool): The same preconditions of leaves have a single secondary variable.
 - `conclusive_leaf_encoding` ({basic, binary, multivalued}): Conclusive leaf encoding.
-  - basic`: no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves.
-  - binary`: primary conclusive leaf variables are represented by binary variables. Operators do not have conditional effects regarding a conclusive leaf; instead, they set the primary variable corresponding to the unique reached leaf state to true and all others to false.
-  - multivalued`: primary conclusive leaf variables are represented using the original variables in a factored manner. Operators do not have conditional effects regarding a conclusive leaf; they simply set the primary leaf variables to the corresponding values of the reached leaf state.
+  - `basic`: no special treatment for conclusive leaves. Operators have conditional effects regarding conclusive leaves.
+  - `binary`: primary conclusive leaf variables are represented by binary variables. Operators do not have conditional effects regarding a conclusive leaf; instead, they set the primary variable corresponding to the unique reached leaf state to true and all others to false.
+  - `multivalued`: primary conclusive leaf variables are represented using the original variables in a factored manner. Operators do not have conditional effects regarding a conclusive leaf; they simply set the primary leaf variables to the corresponding values of the reached leaf state.
 - `skip_unnecessary_leaf_effects` (bool): Skip unnecessary leaf effects for operators that have no influence on the leaf.
 - `conclusive_operators` (bool): Avoid conditional effects for the effects of conclusive operators on a non-conclusive leaf.
+- `normalize_task` (bool): Sort conditions and effects according to variable ids.
+- `normalize_variable_names` (bool): Normalizes the variable names by numbering in the format var[x]
 - `dump_task` (bool): Dumps the task to the console.
 - `write_sas` (bool): Writes the decoupled task to dec_output.sas.
 - `write_pddl` (bool): Writes the decoupled task to dec_domain.pddl and dec_problem.pddl.
@@ -51,6 +53,7 @@ Here, the search "XXX" can be selected as in normal Fast Downward, e.g., `"lazy_
 ```
 lp(verbosity=normal, min_number_leaves=2, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_leaf_state_spaces=false, strategy=MFA, min_mobility=1, min_flexibility=0.2, min_fact_flexibility=0, add_cg_sccs=true)
 ```
+
 - `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
   - `silent`: only the most basic output
   - `normal`: relevant information to monitor progress
@@ -74,10 +77,12 @@ lp(verbosity=normal, min_number_leaves=2, max_leaf_size=1000000, factoring_time_
 - `min_fact_flexibility` (double): Fact flexibility is measured as the mean ratio across all facts in a leaf of the number ofleaf-only vs. all actions affecting that leaf. This option imposes a minimum on that metric.
 - `add_cg_sccs` (bool): If true, every SCC of the causal graph is considered a leaf candidate.
 
-#### Miura & Fukunaga factoring
+#### Maximum-weight independent set factoring
+
+MWIS factoring is an alternative with a preliminary implementation that does not rely on CPLEX, but it often yields inferior performance. Thus, we recommend to use the LP factoring method. 
 
 ```
-mf(verbosity=normal, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_leaf_state_spaces=false)
+wmis(verbosity=normal, min_number_leaves=2, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_leaf_state_spaces=false, strategy=MML, min_mobility=1, min_flexibility=0.2, min_fact_flexibility=0, add_cg_sccs=true)
 ```
 
 - `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
@@ -85,10 +90,40 @@ mf(verbosity=normal, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_
   - `normal`: relevant information to monitor progress
   - `verbose`: full output
   - `debug`: like verbose with additional debug output
-- `min_number_leaves` (int): maximum number of leaves
+- `min_number_leaves` (int): The minimum number of leaf factors.
 - `max_leaf_size` (int): Maximum domain-size product of variables in a leaf.
 - `factoring_time_limit` (int): Time limit for computing the factoring.
 - `prune_fork_leaf_state_spaces` (bool): Run simulation-based pruning in fork leaves to reduce their state space, not supported, yet.
+- `strategy` ({mml, mmas, mm_opt, mfa, mm, mcl, mcm}): This option determines the property of the factoring that is being optimized by the LP, e.g. the number of mobile leaves, or the sumof leaf mobility.
+  - `MML`: maximize mobile leaves
+  - `MMAS`: maximize mobile action schemas
+  - `MM_OPT`: maximize mobility
+  - `MFA`: maximize mobile facts
+  - `MM`: maximize mobility (sum)
+  - `MCL`: maximize number of mobile conclusive leaves
+  - `MCM`: maximize conclusive mobility, i.e. number of conclusive actions (sum)
+- `min_mobility` (int): Minimum number of leaf-only actions per leaf factor.
+- `min_flexibility` (double): Minimum flexibility (ratio between the number of leaf-only vs. all actions affecting a leaf.
+- `min_fact_flexibility` (double): Fact flexibility is measured as the mean ratio across all facts in a leaf of the number ofleaf-only vs. all actions affecting that leaf. This option imposes a minimum on that metric.
+- `add_cg_sccs` (bool): If true, every SCC of the causal graph is considered a leaf candidate.
+
+#### Miura & Fukunaga factoring
+
+Implementation of Miura and Fukunaga's factoring. It finds a single leaf and is mainly used for comparison. Generally, the LP factoring method supersedes this variant.
+
+```
+mf(verbosity=normal, min_number_leaves=2, max_leaf_size=1000000, factoring_time_limit=30, prune_fork_leaf_state_spaces=false)
+```
+
+- `verbosity` ({silent, normal, verbose, debug}): Option to specify the verbosity level.
+  - `silent`: only the most basic output
+  - `normal`: relevant information to monitor progress
+  - `verbose`: full output
+  - `debug`: like verbose with additional debug output
+- `min_number_leaves` (int): The minimum number of leaf factors.
+- `max_leaf_size` (int): Maximum domain-size product of variables in a leaf.
+- `factoring_time_limit` (int): Time limit for computing the factoring.
+- `prune_fork_leaf_state_spaces` (bool): Run simulation-based pruning in fork leaves to reduce their state space, not supported, yet
 
 ## Decoupled task to SAS or PDDL
 

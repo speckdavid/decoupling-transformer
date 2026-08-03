@@ -24,7 +24,7 @@ static vector<vector<int>> create_complement(const vector<vector<int>> &graph) {
     // Create the complement graph
     for (int i = 0; i < n; ++i) {
         is_neighbour.reset();
-        for (int neighb : graph[i]){
+        for (int neighb : graph[i]) {
             is_neighbour.set(neighb);
         }
         for (int j = i + 1; j < n; ++j) {
@@ -154,6 +154,7 @@ class MaxWeightCliqueComputer {
 private:
     const vector<vector<int>> &graph;
     const vector<double> &node_weights;
+    const size_t min_solution_size;
     utils::CountdownTimer timer;
 
     // Result
@@ -162,7 +163,7 @@ private:
 
     void update_incumbent_if_improved(const vector<int> &C, double C_weight) {
         assert(utils::all_values_unique(C));
-        if (C_weight > incumbent_weight) {
+        if (C_weight > incumbent_weight && C.size() >= min_solution_size) {
             incumbent_nodes = C;
             incumbent_weight = C_weight;
 
@@ -246,8 +247,8 @@ private:
     }
 
 public:
-    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights, const utils::CountdownTimer &max_time)
-        : graph(graph), node_weights(weights), timer(max_time), incumbent_weight(0) {
+    MaxWeightCliqueComputer(const vector<vector<int>> &graph, const vector<double> &weights, size_t min_solution_size, const utils::CountdownTimer &max_time)
+        : graph(graph), node_weights(weights), min_solution_size(min_solution_size), timer(max_time), incumbent_weight(0) {
         if (graph.size() != weights.size()) {
             cerr << "Number of nodes does not match number of weights!" << endl;
             utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -284,8 +285,9 @@ double compute_max_weighted_clique(
     const vector<vector<int>> &graph,
     const vector<double> &weights,
     vector<int> &max_clique,
+    size_t min_solution_size,
     double max_time) {
-    MaxWeightCliqueComputer computer(graph, weights, utils::CountdownTimer(max_time));
+    MaxWeightCliqueComputer computer(graph, weights, min_solution_size, utils::CountdownTimer(max_time));
     return computer.find_max_weight_clique(max_clique);
 }
 
@@ -293,10 +295,11 @@ double compute_max_weighted_independent_set(
     const vector<vector<int>> &graph,
     const vector<double> &weights,
     vector<int> &independent_set,
+    size_t min_solution_size,
     double max_time) {
     utils::CountdownTimer max_timer(max_time);
     auto complement_graph = create_complement(graph);
-    MaxWeightCliqueComputer computer(complement_graph, weights, max_timer);
+    MaxWeightCliqueComputer computer(complement_graph, weights, min_solution_size, max_timer);
     return computer.find_max_weight_clique(independent_set);
 }
 }

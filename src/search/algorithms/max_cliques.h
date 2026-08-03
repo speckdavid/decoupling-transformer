@@ -53,12 +53,14 @@ extern double compute_max_weighted_clique(
     const std::vector<std::vector<int>> &graph,
     const std::vector<double> &weights,
     std::vector<int> &max_clique,
+    size_t min_solution_size,
     double max_time = std::numeric_limits<double>::infinity());
 
 extern double compute_max_weighted_independent_set(
     const std::vector<std::vector<int>> &graph,
     const std::vector<double> &weights,
     std::vector<int> &independent_set,
+    size_t min_solution_size,
     double max_time = std::numeric_limits<double>::infinity());
 }
 #endif

@@ -82,12 +82,6 @@ MWISFactoring::MWISFactoring(const plugins::Options &opts) : Factoring(opts),
             << string(80, '*') << endl << endl;
     }
 
-    if (min_number_leaves > 1 && strategy != WMIS_STRATEGY::MML) {
-        log << "WARNING: WMIS factoring does not support setting a minimal number of leaf factors." << endl
-            << "Thus, there is no guarantee that a factoring with more than " << min_number_leaves << " is computed, "
-            << "even if such a factoring exists." << endl;
-    }
-
     if (strategy != WMIS_STRATEGY::MFA && min_fact_flexibility > 0.0) {
         log << "Option min_fact_flexibility is only possible in combination with strategy MFA." << endl;
         exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
@@ -429,12 +423,10 @@ vector<int> MWISFactoring::solve_wmis(const Graph &graph,
     vector<int> independent_set;
 
     utils::g_log << "Computing max weighted independent set..." << flush;
-    double weight = max_cliques::compute_max_weighted_independent_set(graph, weights, independent_set, timer.get_remaining_time());
+    double weight = max_cliques::compute_max_weighted_independent_set(graph, weights, independent_set, min_number_leaves, timer.get_remaining_time());
     utils::g_log << "done!" << endl;
 
-    if (log.is_at_least_verbose()) {
-        log << "Weight of computed independent set: " << weight << endl;
-    }
+    log << "Weight of computed independent set: " << weight << endl;
 
     return independent_set;
 }
@@ -590,6 +582,10 @@ void MWISFactoring::multiply_out_potential_leaf(const vector<pair<vector<int>, v
                                                    sum_fact_mobility);
             break;
         case WMIS_STRATEGY::MML:
+            // TODO in this case we don't actuatlly need to multiply out the leaf, we just need to make sure
+            // that at least one self-mobile AS is included, or at least one AS is included if there are no self-mobile AS. 
+            // This can be checked without multiplying out the leaf. This will heavily reduce the number of leaf candidates for this strategy 
+            // and thus speed up the factoring significantly.
             weight = 1;
             break;
         case WMIS_STRATEGY::MM_OPT:
@@ -799,8 +795,8 @@ void MWISFactoring::compute_fact_flexibility(
         facts_to_mobility[var].resize(variables[var].get_domain_size());
     }
 
-    utils::HashMap<std::vector<int>, utils::HashMap<std::vector<int>, size_t> > scheme_lookup;
-    for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id){
+    utils::HashMap<vector<int>, utils::HashMap<vector<int>, size_t>> scheme_lookup;
+    for (size_t as_id = 0; as_id < action_schemas.size(); ++as_id) {
         const ActionSchema &as = action_schemas[as_id];
         scheme_lookup[as.pre_vars][as.eff_vars] = as_id;
     }
@@ -820,7 +816,7 @@ void MWISFactoring::compute_fact_flexibility(
 
         assert(scheme_lookup.count(pre_vars) > 0 && scheme_lookup[pre_vars].count(eff_vars) > 0);
         size_t as = scheme_lookup[pre_vars][eff_vars];
-        for (EffectProxy eff : op.get_effects()){
+        for (EffectProxy eff : op.get_effects()) {
             facts_to_mobility[eff.get_fact().get_variable().get_id()][eff.get_fact().get_value()][as]++;
         }
     }
