@@ -168,6 +168,10 @@ public:
 
     RawPermutation create_permutation_from_state_to_state(
         const State &from_state, const State &to_state) const;
+
+    bool are_symmetric_partial_states(const std::vector<int> &pre_state,
+                                      const std::vector<int> &post_state) const;
+
 };
 }
 #endif

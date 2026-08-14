@@ -58,6 +58,8 @@ class SymmetricRootTask : public RootTask {
             const ExplicitOperator &op,
             const std::vector<int> &split_vars) const;
 
+    void prune_symmetric_operators();
+
 public:
     explicit SymmetricRootTask(const plugins::Options &options);
     

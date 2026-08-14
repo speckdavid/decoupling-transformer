@@ -281,6 +281,7 @@ const vector<vector<int>> & Group::get_permutation_components() {
                 }
             }
         }
+        cout << "PERMUTATION COMPONENTS: " << permutation_components << endl;
         g_log << "Number of permutation interaction components: " << permutation_components.size() << endl;
     }
     return permutation_components;
@@ -360,6 +361,32 @@ Permutation Group::do_perfect_canonical_inplace_and_get_permutation(vector<int> 
     }
 
     return {*this, compute_permutation_from_trace(trace)};
+}
+
+bool Group::are_symmetric_partial_states(const vector<int> &pre_state,
+                                         const vector<int> &post_state) const {
+    utils::HashSet<vector<int>> closed;
+    queue<vector<int>> open;
+
+    open.push(pre_state);
+
+    while (!open.empty()) {
+        vector<int> cur = open.front();
+        open.pop();
+        closed.insert(cur);
+        for (int i = 0; i < get_num_generators(); ++i) {
+            vector<int> succ(cur);
+            generators[i].replace_partial_state(succ);
+            if (closed.count(succ) == 0) {
+                if (succ == post_state){
+                    return true;
+                }
+                open.push(succ);
+            }
+        }
+    }
+
+    return false;
 }
 
 Permutation Group::get_perfect_canonical_permutation(const vector<int> &partial_state) const {

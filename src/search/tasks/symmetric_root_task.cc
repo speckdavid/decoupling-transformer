@@ -118,6 +118,8 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
         utils::exit_with(utils::ExitCode::SEARCH_INPUT_ERROR);
     }
 
+//    prune_symmetric_operators();
+
     utils::g_log << "Starting symmetry transformation!" << endl;
     utils::g_log << "Creating new initial state..." << endl;
     create_initial_state();
@@ -146,6 +148,25 @@ SymmetricRootTask::SymmetricRootTask(const plugins::Options &options)
         write_pddl_files(*this, "sym_domain.pddl", "sym_problem.pddl");
         utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     }
+}
+
+void SymmetricRootTask::prune_symmetric_operators() {
+    int id = 0;
+    new_op_id_to_original_op_id.resize(original_root_task->get_num_operators(), -1);
+    for (const auto &op : original_root_task->operators){
+        vector<int> pre_state(get_num_variables(), -1);
+        for (const auto &pre : op.preconditions){
+            pre_state[pre.var] = pre.value;
+        }
+        vector<int> post_state(get_operator_post_condition(op));
+        if (!group->are_symmetric_partial_states(pre_state, post_state)){
+            new_op_id_to_original_op_id[operators.size()] = id;
+            operators.push_back(op);
+        }
+        id++;
+    }
+    cout << "Pruned " << (original_root_task->get_num_operators() - get_num_operators()) << " symmetric operators." << endl;
+    utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
 }
 
 void SymmetricRootTask::compute_decoupled_splitting_implied_relevant_vars() {
@@ -396,6 +417,10 @@ vector<vector<int>> SymmetricRootTask::get_affected_permutation_components(const
 void SymmetricRootTask::reconstruct_plan_if_necessary(vector<OperatorID> &path,
                                                       vector<State> &states,
                                                       StateRegistry &state_registry) const {
+/*    for (size_t i = 0; i < path.size(); ++i){
+        path[i] = OperatorID(new_op_id_to_original_op_id[path[i].get_index()]);
+    }
+    return;*/
     TaskProxy original_task_proxy(*original_root_task);
 
     vector<RawPermutation> permutations;
