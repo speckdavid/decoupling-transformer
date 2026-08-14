@@ -154,10 +154,6 @@ void Factoring::print_factoring() const {
     }
 }
 
-void Factoring::remove_never_applicable_global_ops(FactorID /*leaf*/) {
-    // TODO implement this
-}
-
 bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const {
     vector<bool> is_var_covered(leaves[leaf].size(), false);
     size_t num_covered_vars = 0;
@@ -360,6 +356,7 @@ void Factoring::check_factoring() const {
 }
 
 void Factoring::compute_factoring() {
+    // TODO for invertible inverted-fork leaves, we can drop the leaf altogether
     if (!is_factoring_possible()) {
         utils::exit_with(utils::ExitCode::SEARCH_UNSOLVED_INCOMPLETE);
     } else if (min_number_leaves > 1) {

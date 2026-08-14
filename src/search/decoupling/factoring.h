@@ -44,8 +44,6 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
 
     std::vector<bool> is_leaf_conclusive_;
 
-    void remove_never_applicable_global_ops(FactorID leaf);
-
     bool does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) const;
 
     void do_conclusive_leaf_check();

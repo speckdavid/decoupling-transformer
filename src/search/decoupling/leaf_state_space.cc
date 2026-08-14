@@ -107,20 +107,8 @@ void LeafStateSpace::check_leaf_invertibility(FactorID leaf,
                                               const vector<vector<int>> &leaf_only_state_space_graph) {
     size_t num_sccs = sccs::compute_maximal_sccs(leaf_only_state_space_graph).size();
     if (num_sccs == 1) {
-        size_t prod_size = 1;
-        for (int var : factoring->get_leaf(leaf)) {
-            prod_size *= task->get_variable_domain_size(var);
-        }
         log << "state space of leaf " << leaf << " is strongly connected via leaf-only actions" << endl;
-
         is_leaf_state_space_scc[leaf] = true;
-
-        if (prod_size != state_registry->size(leaf)) {
-            // TODO could do this for all leaves where leaf state space is constructed
-            log << "WARNING: not all leaf states for leaf " << leaf << " are reachable"
-                << ", removing non-applicable center actions from successor generator" << endl;
-            factoring->remove_never_applicable_global_ops(leaf);
-        }
     }
 }
 
