@@ -7,9 +7,6 @@
 #include "../utils/countdown_timer.h"
 #include "../utils/timer.h"
 
-#include <algorithm>
-#include <map>
-
 using namespace std;
 
 namespace decoupling {
@@ -25,7 +22,7 @@ SimulationRelation::SimulationRelation(const std::shared_ptr<AbstractTask> &task
         leaf_state_space(leaf_state_space) {
 
     utils::CountdownTimer timer(time_limit > 0 ? time_limit : numeric_limits<double>::infinity());
-    log << "Initializing simulation relation." << endl;
+    log  << "Initializing simulation relation." << endl;
 
     bool has_fork_leaf = factoring->is_fork_factoring();
     if (!has_fork_leaf){
@@ -37,7 +34,6 @@ SimulationRelation::SimulationRelation(const std::shared_ptr<AbstractTask> &task
         }
     }
     if (!has_fork_leaf){
-        log << "No fork leaf found, skipping irrelevance pruning." << endl;
         return;
     }
 
@@ -58,6 +54,9 @@ SimulationRelation::SimulationRelation(const std::shared_ptr<AbstractTask> &task
 }
 
 void SimulationRelation::perform_leaf_irrelevance_pruning(bool prune_bwd_graph, bool only_remove_states) {
+    int num_leaves = factoring->get_num_leaves();
+    reachable.resize(num_leaves);
+
     vector<vector<vector<pair<OperatorID, LeafStateHash> > > > &transition_system_fwd = leaf_state_space.leaf_state_successors;
     vector<vector<vector<pair<OperatorID, LeafStateHash> > > > &transition_system_bwd = leaf_state_space.leaf_state_predecessors;
 
@@ -83,9 +82,9 @@ void SimulationRelation::perform_leaf_irrelevance_pruning(bool prune_bwd_graph, 
                                                                     std::end(trs_s),
                                                                     [&](pair<OperatorID, LeafStateHash> & tr2){
                                                                         return simulates(factor, tr2.second, tr.second) &&
-                                                                            op_dominated_by(factor, tr.first, tr2.first)
+                                                                            op_dominated_by[tr.first.hash()][tr2.first.hash()]
                                                                             && (!(simulates(factor, tr.second, tr2.second) &&
-                                                                                  op_dominated_by(factor, tr2.first, tr.first))
+                                                                                  op_dominated_by[tr2.first.hash()] [tr.first.hash()])
                                                                                 || tr.second < tr2.second ||
                                                                                 (tr.second == tr2.second &&
                                                                                  tr.first.hash() < tr2.first.hash()));
@@ -94,21 +93,22 @@ void SimulationRelation::perform_leaf_irrelevance_pruning(bool prune_bwd_graph, 
                         std::end(trs_s));
         }
 
-        // forward reachability analysis; are states reachable after irrelevance pruning
-        vector<bool> reachable(transition_system_fwd[factor].size(), false);
+        // reachability analysis
+        // forward analysis
+        reachable[factor].resize(transition_system_fwd[factor].size(), false);
 
         vector<size_t> current(1, 0);
 
         while (!current.empty()){
             vector<size_t> next;
             for (auto id : current){
-                if (reachable[id]){
+                if (reachable[factor][id]){
                     continue;
                 }
-                reachable[id] = true;
+                reachable[factor][id] = true;
                 for (const auto &transition : transition_system_fwd[factor][id]){
                     int t = transition.second;
-                    if (!reachable[t]) {
+                    if (!reachable[factor][t]) {
                         next.push_back(t);
                     }
                 }
@@ -121,8 +121,8 @@ void SimulationRelation::perform_leaf_irrelevance_pruning(bool prune_bwd_graph, 
         }
 
         // remove irrelevant states
-        for (LeafStateHash id(0); id < reachable.size(); ++id){
-            if (!reachable[id]){
+        for (LeafStateHash id(0); id < reachable[factor].size(); ++id){
+            if (!reachable[factor][id]){
                 vector<pair<OperatorID, LeafStateHash> >().swap(transition_system_fwd[factor][id]);
             }
         }
@@ -133,7 +133,7 @@ void SimulationRelation::perform_leaf_irrelevance_pruning(bool prune_bwd_graph, 
 
             trs_s.erase(remove_if(std::begin(trs_s), std::end(trs_s),
                     [&](pair<OperatorID, LeafStateHash> & tr){
-                return !reachable[tr.second];
+                return !reachable[factor][tr.second];
             }), std::end(trs_s));
 
             num_transitions_after += trs_s.size();
@@ -158,88 +158,76 @@ void SimulationRelation::perform_leaf_irrelevance_pruning(bool prune_bwd_graph, 
         }
     }
 
-    log << "Irrelevance pruning: " << num_transitions_before << " => " << num_transitions_after << " transitions remaining" << endl;
+    log << "Irrelevance pruning: " << num_transitions_before << " => " << num_transitions_after  << endl;
 }
 
 bool SimulationRelation::center_precondition_dominance(
-        const vector<FactPair> &pre,
-        const std::vector<FactPair> &pre2) const {
-    return includes(pre2.begin(), pre2.end(), pre.begin(), pre.end());
+        const vector<FactProxy> &pre,
+        const std::vector<FactProxy> &pre2) const {
+    for (const auto &p : pre){
+        if (find_if(begin(pre2), end(pre2),
+                    [p] (const FactProxy &p2){
+                        return p2 == p;
+                    }) == end(pre2)){
+            return false;
+        }
+    }
+    return true;
 }
 
 void SimulationRelation::compute_label_dominance() {
-    op_to_label.resize(task->get_num_operators(), NO_LABEL);
-    num_labels.resize(factoring->get_num_leaves(), 0);
-    label_dominated_by.resize(factoring->get_num_leaves());
+    op_dominated_by.resize(task->get_num_operators());
+    for (auto & elem : op_dominated_by){
+        elem.resize(task->get_num_operators(), false);
+    }
 
-    // for each leaf, the cost and the sorted center preconditions of its labels
-    using Label = pair<int, vector<FactPair>>;
-    vector<vector<Label>> labels(factoring->get_num_leaves());
-    vector<map<Label, int>> label_ids(factoring->get_num_leaves());
-
-    int num_leaf_ops = 0;
+    vector<FactorID> op_to_leaf(task->get_num_operators(), FactorID::CENTER);
+    vector<vector<FactProxy>> op_to_center_pre(task->get_num_operators());
 
     for (auto op : task_proxy.get_operators()) {
-        if (factoring->is_global_operator(op.get_id())) {
-            continue;
-        }
-
-        FactorID factor = FactorID::CENTER;
-        for (FactorID leaf(0); leaf < factoring->get_num_leaves(); ++leaf) {
-            if (factoring->has_eff_on_leaf(op.get_id(), leaf)){
-                factor = leaf;
+        if (!factoring->is_global_operator(op.get_id())) {
+            for (FactorID leaf(0); leaf < factoring->get_num_leaves(); ++leaf) {
+                if (factoring->has_eff_on_leaf(op.get_id(), leaf)){
+                    op_to_leaf[op.get_id()] = leaf;
+                }
+            }
+            for (auto pre : op.get_preconditions()){
+                if (factoring->get_factor(pre.get_variable().get_id()) == FactorID::CENTER){
+                    op_to_center_pre[op.get_id()].push_back(pre);
+                }
             }
         }
+    }
+
+    for (auto op : task_proxy.get_operators()) {
+        FactorID factor = op_to_leaf[op.get_id()];
         if (factor == FactorID::CENTER || !factoring->is_fork_leaf(factor)) {
-            // skip actions without leaf effect and actions of non-fork leaves
+            // skip global and non-fork leaf actions
             continue;
         }
 
-        Label label(op.get_cost(), vector<FactPair>());
-        for (auto pre : op.get_preconditions()){
-            if (factoring->get_factor(pre.get_variable().get_id()) == FactorID::CENTER){
-                label.second.push_back(pre.get_pair());
+        int cost = op.get_cost();
+        const auto &pre = op_to_center_pre[op.get_id()];
+
+        for (int op2_id = op.get_id(); op2_id < task->get_num_operators(); ++op2_id) {
+            OperatorProxy op2 = task_proxy.get_operators()[op2_id];
+            if(factor != op_to_leaf[op2.get_id()]) {
+                // Skip actions of other factors
+                continue;
             }
-        }
-        sort(label.second.begin(), label.second.end());
 
-        auto inserted = label_ids[factor].insert(make_pair(label, labels[factor].size()));
-        if (inserted.second){
-            labels[factor].push_back(label);
-        }
-        op_to_label[op.get_id()] = inserted.first->second;
-        ++num_leaf_ops;
-    }
+            int cost2 = op2.get_cost();
+            const auto &pre2 = op_to_center_pre[op2.get_id()];
 
-    int total_num_labels = 0;
+            if(cost <= cost2 && center_precondition_dominance(pre, pre2)) {
+                op_dominated_by[op2.get_id()][op.get_id()] = true;
+            }
 
-    for (FactorID factor(0); factor < factoring->get_num_leaves(); ++factor) {
-        int num = labels[factor].size();
-        num_labels[factor] = num;
-        total_num_labels += num;
-        label_dominated_by[factor].resize(num * num, false);
-
-        for (int l = 0; l < num; ++l) {
-            int cost = labels[factor][l].first;
-            const auto &pre = labels[factor][l].second;
-
-            for (int l2 = l; l2 < num; ++l2) {
-                int cost2 = labels[factor][l2].first;
-                const auto &pre2 = labels[factor][l2].second;
-
-                if (cost <= cost2 && center_precondition_dominance(pre, pre2)) {
-                    label_dominated_by[factor][l2 * num + l] = true;
-                }
-
-                if (cost2 <= cost && center_precondition_dominance(pre2, pre)) {
-                    label_dominated_by[factor][l * num + l2] = true;
-                }
+            if (cost2 <= cost && center_precondition_dominance(pre2, pre)) {
+                op_dominated_by[op.get_id()][op2.get_id()] = true;
             }
         }
     }
-
-    log << "Label dominance: " << num_leaf_ops << " fork-leaf operators grouped into "
-            << total_num_labels << " labels" << endl;
 }
 
 void SimulationRelation::compute_simulation(FactorID factor, const utils::CountdownTimer &timer) {
@@ -316,7 +304,7 @@ void SimulationRelation::compute_simulation(FactorID factor, const utils::Countd
                             LeafStateHash trt_target = trt.second;
                             OperatorID trt_label = trt.first;
 
-                            if(op_dominated_by(factor, trs_label, trt_label) &&
+                            if(op_dominated_by[trs_label.hash()][trt_label.hash()] &&
                                     simulates(factor, trt_target, trs_target)) {
                                 found = true;
                                 break;
@@ -437,7 +425,7 @@ void SimulationRelation::dump(FactorID factor) const {
                         LeafStateHash trt_target = trt.second;
                         OperatorID trt_label = trt.first;
 
-                        if(op_dominated_by(factor, trs_label, trt_label) &&
+                        if(op_dominated_by[trs_label.hash()][trt_label.hash()] &&
                                 simulates(factor, trt_target, trs_target)) {
                             log << get_name(s, factor) << " -> " << get_name(trs_target, factor) << " is simulated by " <<
                                     get_name(t, factor) << " -> " << get_name(trt_target, factor) << endl;
