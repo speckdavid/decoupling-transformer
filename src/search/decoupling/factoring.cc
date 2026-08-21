@@ -55,6 +55,7 @@ void Factoring::apply_factoring() {
     leaf_operators.resize(get_num_leaves());
     has_op_leaf_pre.resize(get_num_leaves(), vector<bool>(task->get_num_operators(), false));
     has_op_leaf_eff.resize(get_num_leaves(), vector<bool>(task->get_num_operators(), false));
+    leaf_only_op_pre_vars.resize(get_num_leaves(), vector<bool>(task->get_num_variables(), false));
     for (OperatorProxy op : task_proxy.get_operators()) {
         set<FactorID> pre_factors;
         set<FactorID> eff_factors;
@@ -112,6 +113,13 @@ void Factoring::apply_factoring() {
             if (leaf != FactorID::CENTER) {
                 leaf_operators[leaf].emplace_back(op.get_id());
                 has_op_leaf_eff[leaf][op.get_id()] = true;
+            }
+        }
+        if (!is_global_operator_[op.get_id()]) {
+            // op is a leaf-only operator of the single leaf it affects
+            assert(eff_factors.size() == 1 && *eff_factors.begin() != FactorID::CENTER);
+            for (FactProxy pre : op.get_preconditions()) {
+                leaf_only_op_pre_vars[*eff_factors.begin()][pre.get_variable().get_id()] = true;
             }
         }
     }
@@ -183,17 +191,10 @@ bool Factoring::does_op_uniquely_fix_lstate(OperatorProxy op, FactorID leaf) con
 bool Factoring::does_op_restrict_leaf(OperatorProxy op, FactorID leaf) const {
     assert(is_global_operator(op.get_id()));
     assert(leaf != FactorID::CENTER && leaf < leaves.size());
-    vector<bool> is_op_eff_var(task->get_num_variables(), false);
+    // does op affect a variable that a leaf-only operator of leaf depends on?
     for (auto eff : op.get_effects()) {
-        is_op_eff_var[eff.get_fact().get_variable().get_id()] = true;
-    }
-    for (auto op_id : get_leaf_operators(leaf)) {
-        if (!is_global_operator(op_id.get_index())) {
-            for (auto pre : task_proxy.get_operators()[op_id].get_preconditions()) {
-                if (is_op_eff_var[pre.get_variable().get_id()]) {
-                    return true;
-                }
-            }
+        if (leaf_only_op_pre_vars[leaf][eff.get_fact().get_variable().get_id()]) {
+            return true;
         }
     }
     return false;
@@ -205,36 +206,31 @@ bool Factoring::does_op_restrict_leaf(int op_id, int leaf) const {
 
 void Factoring::do_conclusive_leaf_check() {
     is_leaf_conclusive_.resize(leaves.size(), true);
-    size_t num_optimizable_leaves = leaves.size();
-    for (auto op : task_proxy.get_operators()) {
-        if (is_global_operator(op.get_id())) {
-            for (FactorID leaf(0); leaf < leaves.size(); ++leaf) {
-                if (!is_leaf_conclusive_[leaf]) {
-                    continue;
-                }
+    for (FactorID leaf(0); leaf < leaves.size(); ++leaf) {
+        if (is_fork_leaf(leaf) && !is_ifork_leaf(leaf)) {
+            // proper fork leaves, i.e. fork leaves with connection to the center,
+            // cannot be optimized: no global operator has a precondition or
+            // effect on a fork leaf, so every global operator can restrict its
+            // set of reachable leaf states
+            is_leaf_conclusive_[leaf] = false;
+            continue;
+        }
+        for (auto op : task_proxy.get_operators()) {
+            if (is_global_operator(op.get_id())) {
+                assert(!is_fork_leaf(leaf) || !has_pre_or_eff_on_leaf(op.get_id(), leaf));
                 if (has_pre_or_eff_on_leaf(op.get_id(), leaf)) {
                     // if does_op_uniquely_fix_lstate holds, then after applying op,
                     // there is a unique leaf state reached, which is what we need
                     if (!does_op_uniquely_fix_lstate(op, leaf)) {
                         is_leaf_conclusive_[leaf] = false;
-                        num_optimizable_leaves--;
+                        break;
                     }
-                } else {
-                    if (is_fork_leaf(leaf) && !is_ifork_leaf(leaf)) {
-                        // proper fork leafs, i.e. fork leaves with connection to the center, cannot be optimized
-                        // this is subsumed by the next check, but cheaper to compute
-                        is_leaf_conclusive_[leaf] = false;
-                        num_optimizable_leaves--;
-                    } else if (does_op_restrict_leaf(op, leaf)) {
-                        // the operator restricts the set of reachable leaf states by
-                        // en/disabling center preconditions of leaf-only operators
-                        is_leaf_conclusive_[leaf] = false;
-                        num_optimizable_leaves--;
-                    }
+                } else if (does_op_restrict_leaf(op, leaf)) {
+                    // the operator restricts the set of reachable leaf states by
+                    // en/disabling center preconditions of leaf-only operators
+                    is_leaf_conclusive_[leaf] = false;
+                    break;
                 }
-            }
-            if (num_optimizable_leaves == 0) {
-                break;
             }
         }
     }

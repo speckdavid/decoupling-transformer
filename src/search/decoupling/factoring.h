@@ -41,6 +41,9 @@ class Factoring : public std::enable_shared_from_this<Factoring> {
     std::vector<std::vector<bool>> has_op_leaf_pre;
     std::vector<std::vector<bool>> has_op_leaf_eff;
     std::vector<std::vector<OperatorID>> leaf_operators;
+    // for every leaf, the variables that occur in a precondition of one of its
+    // leaf-only operators
+    std::vector<std::vector<bool>> leaf_only_op_pre_vars;
 
     std::vector<bool> is_leaf_conclusive_;
 
