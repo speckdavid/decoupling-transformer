@@ -40,9 +40,12 @@ private:
 
     /*
       For each operator, its label within the leaf it affects. NO_LABEL for
-      global operators and operators of non-fork leaves. Global operators do
-      occur as labels of fork-leaf transitions, but they never dominate and are
-      never dominated, as they can have center effects.
+      global operators and for operators of non-fork leaves.
+
+      No operator that affects a fork leaf is global: it can neither have an
+      effect on the center or on another leaf, nor a precondition on another
+      leaf, as either would make the leaf a non-fork leaf. The NO_LABEL check
+      in op_dominated_by is thus only a safeguard.
     */
     std::vector<int> op_to_label;
 
